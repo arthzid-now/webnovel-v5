@@ -1,0 +1,751 @@
+import { GoogleGenAI, Chat, Type } from "@google/genai";
+import { ModelType, StoryEncyclopedia, StoryArcAct, Character, Relationship, CustomField, LoreEntry, Universe, AnalysisResult } from '../types';
+import { SYSTEM_INSTRUCTION_EN, SYSTEM_INSTRUCTION_ID, MAX_THINKING_BUDGET, PROSE_STYLES_EN, PROSE_STYLES_ID, STRUCTURE_TEMPLATES } from '../constants';
+
+const initializeGenAI = (apiKey: string) => {
+    return new GoogleGenAI({ apiKey });
+}
+
+const formatCharacterForPrompt = (character: Character): string => {
+    if (!character || !character.name) return '';
+    const rolesString = character.roles.length > 0 ? ` [${character.roles.join(', ')}]` : '';
+    const customFieldsString = character.customFields?.map(cf => `- ${cf.label}: ${cf.value || 'N/A'}`).join('\n') || '';
+
+    return `
+**Character: ${character.name}${rolesString}**
+- Age: ${character.age || 'N/A'}
+- Gender: ${character.gender || 'N/A'}
+- Physical Description: ${character.physicalDescription || 'N/A'}
+- Voice & Speech Style: ${character.voiceAndSpeechStyle || 'N/A'}
+- Personality Traits: ${character.personalityTraits || 'N/A'}
+- Habits: ${character.habits || 'N/A'}
+- Goal: ${character.goal || 'N/A'}
+- Principles: ${character.principles || 'N/A'}
+- Core Conflict: ${character.conflict || 'N/A'}` +
+(customFieldsString ? `\n- Custom Details:\n${customFieldsString}` : '');
+};
+
+
+const formatRelationshipsForPrompt = (relationships: Relationship[], characters: Character[]): string => {
+    if (!relationships || relationships.length === 0) return 'N/A';
+    const characterMap = new Map(characters.map(c => [c.id, c.name]));
+    return relationships.map(rel => {
+        const name1 = characterMap.get(rel.character1Id) || 'Unknown';
+        const name2 = characterMap.get(rel.character2Id) || 'Unknown';
+        return `- ${name1} & ${name2}: [${rel.type}] ${rel.description}`;
+    }).join('\n');
+};
+
+const formatLoreForPrompt = (lore: LoreEntry[], title: string): string => {
+    if (!lore || lore.length === 0) return '';
+    const entries = lore.map(item => `- ${item.name}: ${item.description}`).join('\n');
+    return `\n**${title.toUpperCase()}:**\n${entries}`;
+}
+
+const formatStoryEncyclopediaForPrompt = (storyEncyclopedia: StoryEncyclopedia): string => {
+    const allGenres = [...storyEncyclopedia.genres, storyEncyclopedia.otherGenre].filter(Boolean).join(', ');
+    const storyArcString = storyEncyclopedia.storyArc.map((act, index) => {
+        const plotPoints = (act.plotPoints || []).map(pp => `  - ${pp.summary}`).join('\n');
+        const range = act.startChapter && act.endChapter ? ` (Ch.${act.startChapter}-${act.endChapter})` : '';
+        const template = act.structureTemplate && act.structureTemplate !== 'freestyle' ? ` [Structure: ${act.structureTemplate}]` : '';
+        return `- Act ${index + 1}: ${act.title}${range}${template}: ${act.description}` + (plotPoints ? `\n${plotPoints}` : '');
+    }).join('\n');
+    
+    const charactersString = storyEncyclopedia.characters?.map(formatCharacterForPrompt).join('') || 'N/A';
+    const relationshipsString = formatRelationshipsForPrompt(storyEncyclopedia.relationships, storyEncyclopedia.characters);
+    
+    const locationsString = formatLoreForPrompt(storyEncyclopedia.locations, 'Locations');
+    const factionsString = formatLoreForPrompt(storyEncyclopedia.factions, 'Factions');
+    const loreString = formatLoreForPrompt(storyEncyclopedia.lore, 'General Lore');
+    
+    const universeNameString = `${storyEncyclopedia.universeName}${storyEncyclopedia.disguiseRealWorldNames ? (storyEncyclopedia.language === 'id' ? ' (nama disamarkan)' : ' (names disguised)') : ''}`;
+
+    // Full list of chapter titles for overview.
+    const chapterTitlesString = storyEncyclopedia.chapters?.map(chap => `- ${chap.title}`).join('\n') || '(No chapters written yet)';
+
+    // Full content of the last 2 chapters for immediate context and style mimicry.
+    const recentChapters = storyEncyclopedia.chapters?.slice(-2) || [];
+    const recentChaptersContentString = recentChapters.length > 0
+        ? recentChapters.map(chap => 
+            `**${chap.title}**\n${chap.content || '(No content written for this chapter yet.)'}`
+          ).join('\n\n---\n\n')
+        : '(No recent chapters to display.)';
+        
+    const customStyle = storyEncyclopedia.customProseStyleByExample;
+    const customStyleString = customStyle && customStyle.trim() !== ''
+        ? `\n\n**CRITICAL: CUSTOM PROSE STYLE BY EXAMPLE**
+The user has provided a specific writing style to mimic. Your top priority for prose generation is to analyze and replicate this style in terms of sentence structure, vocabulary, pacing, and tone. This overrides the standard 'Prose' selection. Here is the sample:
+---
+${customStyle.trim()}
+---`
+        : '';
+        
+    const formatInstruction = storyEncyclopedia.format === 'webnovel'
+        ? "STORY FORMAT: Webnovel (Fast-paced, episodic, cliffhangers at chapter ends, lighter descriptions, high dialogue)."
+        : "STORY FORMAT: Traditional Novel (Slower burn, immersive descriptions, structured pacing, longer chapters).";
+
+    return `
+--- STORY ENCYCLOPEDIA CONTEXT ---
+
+**TITLE:** ${storyEncyclopedia.title}
+**FORMAT:** ${storyEncyclopedia.format || 'webnovel'}
+**UNIVERSE:** ${universeNameString}
+**GENRE:** ${allGenres}
+**SETTING:** ${storyEncyclopedia.setting}
+
+**TARGET STRUCTURE:**
+- Total Chapters: ${storyEncyclopedia.totalChapters || 'Not Specified'}
+- Words Per Chapter: ${storyEncyclopedia.wordsPerChapter || 'Not specified'}
+
+**CORE PLOT:** ${storyEncyclopedia.mainPlot}
+
+**CHARACTERS:**
+${charactersString}
+
+**RELATIONSHIPS:**
+${relationshipsString}
+
+${storyEncyclopedia.worldBuilding ? `\n**WORLD BUILDING (SUMMARY):** ${storyEncyclopedia.worldBuilding}` : ''}
+${locationsString}
+${factionsString}
+${loreString}
+${storyEncyclopedia.magicSystem ? `\n**MAGIC/SYSTEM RULES (SUMMARY):** ${storyEncyclopedia.magicSystem}` : ''}
+
+**PREVIOUS STORY EVENTS (CHRONOLOGICAL MEMORY):**
+The following is the established chronology of events. You must adhere to this timeline.
+${storyArcString}
+
+**CHAPTERS (TITLES ONLY - FULL OVERVIEW):**
+${chapterTitlesString}
+
+**RECENT CHAPTERS (FULL TEXT FOR IMMEDIATE CONTEXT & STYLE MIMICRY):**
+${recentChaptersContentString}
+
+**TONE & STYLE:**
+- Comedy: ${storyEncyclopedia.comedyLevel}/10
+- Romance: ${storyEncyclopedia.romanceLevel}/10
+- Action: ${storyEncyclopedia.actionLevel}/10
+${storyEncyclopedia.maturityLevel && parseInt(storyEncyclopedia.maturityLevel, 10) > 1 ? `- Maturity: ${storyEncyclopedia.maturityLevel}/10` : ''}
+- Narrative Perspective (POV): ${storyEncyclopedia.narrativePerspective}
+- Prose: ${storyEncyclopedia.proseStyle}${customStyleString}
+
+${formatInstruction}
+
+--- END OF CONTEXT ---
+
+Based on this context, assist the user in developing their story.
+- When asked to draft a chapter, you MUST adhere to the **Narrative Perspective (POV)**: "${storyEncyclopedia.narrativePerspective}". Do not switch POVs unless explicitly instructed.
+- Try to adhere to the target words per chapter and **mimic the style and continue the events from the most recent chapters provided. If a custom style sample is provided, prioritize mimicking that style above all else.**
+- When asked about plot progression, consider the total number of chapters planned.
+`;
+}
+
+export const createChatSession = (apiKey: string, isThinkingMode: boolean, storyEncyclopedia: StoryEncyclopedia): Chat => {
+    const ai = initializeGenAI(apiKey);
+    
+    const systemInstruction = storyEncyclopedia.language === 'id' ? SYSTEM_INSTRUCTION_ID : SYSTEM_INSTRUCTION_EN;
+    const dynamicSystemInstruction = systemInstruction + formatStoryEncyclopediaForPrompt(storyEncyclopedia);
+    const model = isThinkingMode ? ModelType.PRO : ModelType.FLASH;
+
+    const config: any = {
+        systemInstruction: dynamicSystemInstruction,
+    };
+
+    if (model === ModelType.PRO && isThinkingMode) {
+        // Optimization: Don't max out budget for chat sessions to keep response times reasonable.
+        // 4096 is plenty for most chat interactions. 32k is overkill for "Hi" or "Draft a paragraph".
+        config.thinkingConfig = { thinkingBudget: 4096 }; 
+    }
+
+    const chat = ai.chats.create({
+        model: model,
+        config: config,
+    });
+
+    return chat;
+};
+
+// --- Story Encyclopedia Generation Service ---
+
+const customFieldSchema = {
+    type: Type.OBJECT,
+    properties: {
+        label: { type: Type.STRING, description: "The name of the custom detail, e.g., 'Magical Ability'." },
+        value: { type: Type.STRING, description: "The description of the custom detail." },
+    },
+    required: ["label", "value"],
+};
+
+const characterSchema = {
+    type: Type.OBJECT,
+    properties: {
+        name: { type: Type.STRING },
+        roles: { type: Type.ARRAY, items: { type: Type.STRING }, description: "An array of roles for this character, e.g., ['Protagonist', 'Mentor']." },
+        age: { type: Type.STRING },
+        gender: { type: Type.STRING },
+        physicalDescription: { type: Type.STRING, description: "A 1-2 sentence description of their physical appearance." },
+        voiceAndSpeechStyle: { type: Type.STRING, description: "A short description of their physical voice AND their typical speech patterns (e.g., speaks quickly, uses sarcasm, has a catchphrase)." },
+        personalityTraits: { type: Type.STRING, description: "A 1-2 sentence summary of their key personality traits." },
+        habits: { type: Type.STRING, description: "A short description of a notable habit or quirk." },
+        goal: { type: Type.STRING, description: "Their primary motivation or goal in the story." },
+        principles: { type: Type.STRING, description: "A core principle or value they live by." },
+        conflict: { type: Type.STRING, description: "The central internal or external conflict they face." },
+        customFields: {
+            type: Type.ARRAY,
+            description: "Optional: An array of custom key-value details about the character.",
+            items: customFieldSchema,
+        },
+    },
+    required: ["name", "roles", "age", "gender", "physicalDescription", "voiceAndSpeechStyle", "personalityTraits", "habits", "goal", "principles", "conflict"]
+};
+
+const relationshipSchema = {
+    type: Type.OBJECT,
+    properties: {
+        character1Id: { type: Type.STRING, description: "The ID of the first character in the relationship." },
+        character2Id: { type: Type.STRING, description: "The ID of the second character in the relationship." },
+        type: { type: Type.STRING, description: "The type of relationship (e.g., 'Rivals', 'Childhood Friends', 'Mentor-Mentee')." },
+        description: { type: Type.STRING, description: "A 1-sentence description of their dynamic." },
+    },
+    required: ["character1Id", "character2Id", "type", "description"]
+};
+
+const plotPointSchema = {
+    type: Type.OBJECT,
+    properties: {
+        summary: { type: Type.STRING, description: "A brief summary of the plot point or scene." },
+    },
+    required: ["summary"],
+};
+
+const loreEntrySchema = {
+    type: Type.OBJECT,
+    properties: {
+        name: { type: Type.STRING },
+        description: { type: Type.STRING, description: "A 1-2 sentence description." },
+    },
+    required: ["name", "description"]
+};
+
+
+const generationConfig: any = {
+    basic: {
+        prompt: (context: string, options: { idea: string }) => {
+            const storyData = JSON.parse(context) as Partial<StoryEncyclopedia>;
+            const allGenres = [...(storyData.genres || []), storyData.otherGenre].filter(Boolean).join(', ');
+            
+            let instruction = `Based on the user's core idea: "${options.idea}" and their chosen genres: "${allGenres}", generate the basic info for a webnovel.\n`;
+            const existingInfo = [
+                storyData.title && `Title: "${storyData.title}"`,
+                storyData.setting && `Setting: "${storyData.setting}"`,
+            ].filter(Boolean).join(', ');
+
+            if (existingInfo) {
+                instruction += `The user has already started writing some details: ${existingInfo}. Your task is to COMPLETE the remaining fields (title, setting, totalChapters, wordsPerChapter). Enhance the existing details if you can, but prioritize filling in the blanks. Ensure the number of chapters is between 100-300 and words per chapter is between 1500-3000.`;
+            } else {
+                instruction += `Come up with a fitting title, a setting, a planned number of chapters (between 100-300), and words per chapter (between 1500-3000).`;
+            }
+            return instruction;
+        },
+        schema: {
+            type: Type.OBJECT,
+            properties: {
+                title: { type: Type.STRING, description: "The title of the webnovel." },
+                setting: { type: Type.STRING, description: "A one or two sentence description of the story's setting." },
+                totalChapters: { type: Type.STRING, description: "A number between 100 and 300." },
+                wordsPerChapter: { type: Type.STRING, description: "A number between 1500 and 3000." },
+            },
+            required: ["title", "setting", "totalChapters", "wordsPerChapter"]
+        }
+    },
+    core: {
+        prompt: (context: string) => {
+            const storyData = JSON.parse(context) as Partial<StoryEncyclopedia>;
+            const existingPlot = storyData.mainPlot?.trim();
+            const existingChars = storyData.characters?.filter(c => c.name.trim()).length || 0;
+            let instruction = `Based on the story context: \n\n${context}\n\n`;
+
+            if (existingPlot || existingChars > 0) {
+                 instruction += `The user has already provided some core elements. Your task is to COMPLETE and EXPAND upon them. \n- If 'mainPlot' is present, refine it. \n- If characters exist, either complete their profiles or add new ones to reach a total of 3-4 diverse characters. \n- Generate 1-2 important locations and factions. \n- If relevant to the genre, also generate brief 'worldBuilding' and 'magicSystem' descriptions. Do not replace existing valid information, build upon it.`;
+            } else {
+                instruction += `Generate all core story elements. This includes:\n1. A compelling main plot summary (3-5 sentences).\n2. A list of 3-4 diverse and detailed main characters. For each character, assign logical roles and provide a full profile.\n3. A list of 1-2 important locations and factions.\n4. If relevant to the genre, generate brief 'worldBuilding' and 'magicSystem' descriptions.`;
+            }
+            return instruction;
+        },
+        schema: {
+            type: Type.OBJECT,
+            properties: {
+                mainPlot: { type: Type.STRING },
+                characters: {
+                    type: Type.ARRAY,
+                    description: "An array of 3-4 detailed character profiles.",
+                    items: characterSchema
+                },
+                locations: { type: Type.ARRAY, description: "Optional: A list of 1-2 key locations.", items: loreEntrySchema },
+                factions: { type: Type.ARRAY, description: "Optional: A list of 1-2 key factions or groups.", items: loreEntrySchema },
+                lore: { type: Type.ARRAY, description: "Optional: A list of 1-2 key lore items or concepts.", items: loreEntrySchema },
+                worldBuilding: { type: Type.STRING, description: "Optional: World-building details. Can be an empty string if not relevant to the genre." },
+                magicSystem: { type: Type.STRING, description: "Optional: Magic/System rules. Can be an empty string if not relevant to the genre." },
+            },
+            required: ["mainPlot", "characters"]
+        }
+    },
+    worldLore: {
+        prompt: (context: string) => {
+            const storyData = JSON.parse(context) as StoryEncyclopedia;
+            const setting = storyData.setting;
+            const disguise = storyData.disguiseRealWorldNames;
+            const existingLocations = storyData.locations?.length > 0;
+            const existingFactions = storyData.factions?.length > 0;
+            const existingLore = storyData.lore?.length > 0;
+
+            let basePrompt = '';
+
+            if (storyData.universeName.toLowerCase().includes('real world') && setting) {
+                 const disguiseInstruction = disguise 
+                    ? `You MUST create fictional but recognizable names for all generated locations and factions (e.g., 'New York' becomes 'Liberty City', 'NYPD' becomes 'LCPD').`
+                    : `Use the real, official names for all locations and factions.`;
+                basePrompt = `The story is set in the real world, specifically in/around "${setting}". Based on this setting, generate a list of 3-5 key locations and 2-3 key factions that define the area. ${disguiseInstruction}`;
+            } else {
+                basePrompt = `Based on the story context: \n\n${context}\n\nGenerate a list of 2-3 important locations, 2-3 important factions/groups, and 2-3 key lore items/concepts with brief descriptions that fit the story's genre and plot.`;
+            }
+            
+            if (existingLocations || existingFactions || existingLore) {
+                basePrompt += `\n\nThe user has already created some entries. Do not replace them. Your task is to ADD NEW, distinct entries to supplement the existing ones.`;
+            }
+            
+            return basePrompt;
+        },
+        schema: {
+            type: Type.OBJECT,
+            properties: {
+                locations: { type: Type.ARRAY, description: "A list of key locations.", items: loreEntrySchema },
+                factions: { type: Type.ARRAY, description: "A list of key factions or groups.", items: loreEntrySchema },
+                lore: { type: Type.ARRAY, description: "A list of key lore items or concepts.", items: loreEntrySchema },
+            },
+            required: ["locations", "factions", "lore"]
+        }
+    },
+    mainPlot: {
+        prompt: (context: string) => {
+            const storyData = JSON.parse(context) as Partial<StoryEncyclopedia>;
+            const existingPlot = storyData.mainPlot?.trim();
+            if (existingPlot) {
+                return `Based on the story context provided below, enhance and expand the user's existing plot summary into a more compelling version (3-5 sentences), keeping the core ideas intact.\n\nExisting Plot: "${existingPlot}"\n\nFull Context:\n${context}`;
+            }
+            return `Based on the story context provided below, generate a compelling main plot summary in 3-5 sentences.\n\n${context}`;
+        },
+        schema: { type: Type.OBJECT, properties: { mainPlot: { type: Type.STRING, description: "A 3-5 sentence summary of the main plot." } }, required: ["mainPlot"] }
+    },
+    character: {
+        prompt: (context: string, options: { index: number }) => {
+            const storyData = JSON.parse(context) as StoryEncyclopedia;
+            const characterData = storyData.characters[options.index];
+            
+            const formatPartialCharacter = (char: Character) => {
+                if (!char) return "The user has not provided any details for this character.";
+                const details = Object.entries(char)
+                    .filter(([key, value]) => key !== 'id' && key !== 'customFields' && value && (!Array.isArray(value) || value.length > 0))
+                    .map(([key, value]) => `- ${key}: ${JSON.stringify(value)}`)
+                    .join('\n');
+
+                return details ? `The user has provided these starting details for the character:\n${details}\n\nYour task is to COMPLETE the rest of the profile, elaborating on the provided details and filling in any missing fields to create a cohesive and compelling character.` : `The user has not provided any specific details for this new character. Generate a full profile from scratch that fits the story.`;
+            };
+            
+            const partialDataString = formatPartialCharacter(characterData);
+
+            return `Based on the full story context provided below, generate a compelling and unique character profile.\n\n${partialDataString}\n\nEnsure ALL fields are filled out in your response: name, roles, age, gender, physicalDescription, voiceAndSpeechStyle, personalityTraits, habits, goal, principles, and conflict.\n\nFull Story Context:\n${context}`;
+        },
+        schema: characterSchema
+    },
+    relationships: {
+        prompt: (context: string, characterJSON: string) => `Based on the character profiles in the context below, generate a list of 3-5 interesting and potentially conflict-driving relationships between them. For each relationship, you MUST use the character IDs provided in the JSON blob of characters. DO NOT use their names. \n\nStory Context:\n${context}\n\nCharacter Data (use these IDs):\n${characterJSON}`,
+        schema: {
+            type: Type.OBJECT,
+            properties: {
+                relationships: {
+                    type: Type.ARRAY,
+                    items: relationshipSchema
+                }
+            },
+            required: ["relationships"]
+        }
+    },
+    worldBuilding: {
+        prompt: (context: string) => {
+            const storyData = JSON.parse(context) as Partial<StoryEncyclopedia>;
+            const existingData = storyData.worldBuilding?.trim();
+            if (existingData) {
+                return `Based on the story context provided below, enhance and expand the user's existing world-building details into 2-3 rich sentences.\n\nExisting Details: "${existingData}"\n\nFull Context:\n${context}`;
+            }
+            return `Based on the story context provided below, describe the key world-building details in 2-3 sentences. This is for genres like Fantasy, Sci-Fi, etc.\n\n${context}`;
+        },
+        schema: { type: Type.OBJECT, properties: { worldBuilding: { type: Type.STRING, description: "Key aspects of the world building."} }, required: ["worldBuilding"] }
+    },
+    magicSystem: {
+        prompt: (context: string) => {
+            const storyData = JSON.parse(context) as Partial<StoryEncyclopedia>;
+            const existingData = storyData.magicSystem?.trim();
+            if (existingData) {
+                return `Based on the story context provided below, enhance and expand the user's existing magic/power system details into 2-3 rich sentences.\n\nExisting System: "${existingData}"\n\nFull Context:\n${context}`;
+            }
+            return `Based on the story context provided below, describe the magic or power system in 2-3 sentences. This is for genres like System, Fantasy, Wuxia, etc.\n\n${context}`;
+        },
+        schema: { type: Type.OBJECT, properties: { magicSystem: { type: Type.STRING, description: "Description of the rules of magic or the 'System'." } }, required: ["magicSystem"] }
+    },
+    singleArcAct: {
+        prompt: (context: string, index: number, total: number) => {
+             const storyData = JSON.parse(context) as StoryEncyclopedia;
+             const actData = storyData.storyArc[index];
+             const existingTitle = actData.title.trim();
+             const existingDesc = actData.description.trim();
+             const existingPoints = actData.plotPoints?.length > 0;
+             const range = actData.startChapter && actData.endChapter ? `covering chapters ${actData.startChapter} to ${actData.endChapter}` : '';
+             
+             // Template Logic
+             const templateId = actData.structureTemplate;
+             const templateConfig = STRUCTURE_TEMPLATES.find(t => t.value === templateId);
+             const templateInstruction = templateConfig && templateId !== 'freestyle' 
+                ? `\n**CRITICAL STRUCTURE INSTRUCTION:** You MUST structure this act according to the "${templateConfig.label}" template. ${templateConfig.promptInstruction}`
+                : '';
+
+             let instruction = `Based on the story context provided below, generate details for Act ${index + 1} of a ${total}-act story structure${range ? `, ${range}` : ''}.${templateInstruction}\n`;
+             
+             if (existingTitle || existingDesc || existingPoints) {
+                 instruction += `The user has provided the following: \n`;
+                 if(existingTitle) instruction += `- Title: ${existingTitle}\n`;
+                 if(existingDesc) instruction += `- Description: ${existingDesc}\n`;
+                 if(existingPoints) instruction += `- Plot Points: ${actData.plotPoints.map(p => p.summary).join(', ')}\n`;
+                 instruction += `Your task is to COMPLETE this act. Fill in any missing fields (title, description, 2-3 plot points) and enhance the existing details to be more compelling.`;
+             } else {
+                 instruction += `Generate a title, a 1-2 sentence description, and 2-3 key plot points for this act.`;
+             }
+             instruction += `\n\nFull Context:\n${context}`;
+             return instruction;
+        },
+        schema: {
+            type: Type.OBJECT,
+            properties: {
+                title: { type: Type.STRING },
+                description: { type: Type.STRING },
+                plotPoints: { type: Type.ARRAY, items: plotPointSchema }
+            },
+            required: ["title", "description", "plotPoints"]
+        }
+    },
+    arc: {
+        prompt: (context: string) => {
+            const storyData = JSON.parse(context) as StoryEncyclopedia;
+            const existingActs = storyData.storyArc?.filter(a => a.title || a.description).length > 0;
+            if (existingActs) {
+                return `Based on the following story context: \n\n${context}\n\nThe user has already started outlining the story arc. Your task is to COMPLETE the 4-act structure. For each act, if it's already started, enhance it. If it's empty, generate a title, a 1-2 sentence description, and 2-4 key plot points that logically follow the previous act and build towards the main plot's conclusion.`;
+            }
+            return `Based on the following story context: \n\n${context}\n\nGenerate a 4-act story arc. For each act, provide a title, a 1-2 sentence description, and 2-4 key plot points that outline what happens in that act.`;
+        },
+        schema: {
+            type: Type.OBJECT,
+            properties: {
+                storyArc: {
+                    type: Type.ARRAY,
+                    items: {
+                        type: Type.OBJECT,
+                        properties: {
+                            title: { type: Type.STRING },
+                            description: { type: Type.STRING },
+                            plotPoints: { type: Type.ARRAY, items: plotPointSchema }
+                        },
+                        required: ["title", "description", "plotPoints"]
+                    }
+                }
+            },
+            required: ["storyArc"]
+        }
+    },
+    tone: {
+        prompt: (context: string, language: 'en' | 'id') => {
+            const styles = language === 'id' ? PROSE_STYLES_ID : PROSE_STYLES_EN;
+            const styleOptions = styles.map(s => `- "${s.value}"`).join('\n');
+            return `Based on the following story context: \n\n${context}\n\nSuggest the tone and style. Provide a comedy, romance, and action level from 1-10. If the context contains mature genres, also suggest a maturity level from 1-10, otherwise default maturity to "1". For the 'proseStyle' field, you MUST select ONE of the following options. Return the value exactly as it appears in the list.\n\nValid Prose Styles:\n${styleOptions}`;
+        },
+        schema: {
+            type: Type.OBJECT,
+            properties: {
+                comedyLevel: { type: Type.STRING, description: "A number from 1 to 10." },
+                romanceLevel: { type: Type.STRING, description: "A number from 1 to 10." },
+                actionLevel: { type: Type.STRING, description: "A number from 1 to 10." },
+                maturityLevel: { type: Type.STRING, description: "A number from 1 to 10." },
+                proseStyle: { type: Type.STRING, description: "The most fitting prose style." },
+            },
+            required: ["comedyLevel", "romanceLevel", "actionLevel", "maturityLevel", "proseStyle"]
+        }
+    },
+    styleExample: {
+        prompt: (style: string, language: 'en' | 'id') => {
+            const langInstruction = language === 'id' ? 'Tulis paragraf dalam Bahasa Indonesia.' : 'Write the paragraph in English.';
+            return `Generate a short, illustrative paragraph (about 3-4 sentences) that perfectly demonstrates the following prose style for a webnovel: "${style}". The paragraph should be about a generic fantasy or urban fantasy scene. ${langInstruction}`;
+        },
+        schema: {
+            type: Type.OBJECT,
+            properties: {
+                example: { type: Type.STRING, description: "The generated example paragraph." },
+            },
+            required: ["example"]
+        }
+    }
+};
+
+const handleJsonResponse = async (responsePromise: Promise<any>, section: string) => {
+    try {
+        const response = await responsePromise;
+        let jsonString = response.text ? response.text.trim() : '';
+        
+        // Basic cleanup for Markdown JSON code blocks if present
+        if (jsonString.startsWith('```json')) {
+            jsonString = jsonString.replace(/^```json\s*/, '').replace(/\s*```$/, '');
+        } else if (jsonString.startsWith('```')) {
+             jsonString = jsonString.replace(/^```\s*/, '').replace(/\s*```$/, '');
+        }
+
+        const generatedData = JSON.parse(jsonString);
+
+        // --- Post-processing and data sanitization ---
+        if (section.startsWith('character')) {
+            if (!generatedData.customFields) generatedData.customFields = [];
+            return generatedData as Character;
+        }
+
+        if (section.startsWith('relationships') && generatedData.relationships) {
+            generatedData.relationships = generatedData.relationships.map((r: any) => ({ ...r, id: crypto.randomUUID() }));
+        }
+
+        if (section.startsWith('singleArcAct')) {
+            generatedData.plotPoints = (generatedData.plotPoints || []).map((p: any) => ({ ...p, id: crypto.randomUUID() }));
+        }
+
+        if (section.startsWith('arc') && generatedData.storyArc) {
+            generatedData.storyArc = generatedData.storyArc.map((act: any) => ({
+                ...act,
+                plotPoints: (act.plotPoints || []).map((p: any) => ({ ...p, id: crypto.randomUUID() }))
+            }));
+        }
+
+        const addIdsToLore = (loreArray?: any[]) => {
+            if (!loreArray) return [];
+            return loreArray.map((item: any) => ({ ...item, id: crypto.randomUUID() }));
+        };
+
+        if (section === 'core' && generatedData) {
+            if (generatedData.characters && Array.isArray(generatedData.characters)) {
+                generatedData.characters.forEach((char: Partial<Character>) => {
+                    if (!char.customFields) char.customFields = [];
+                    // Ensure ID is present on new characters
+                    if (!char.id) char.id = crypto.randomUUID();
+                });
+            }
+            generatedData.locations = addIdsToLore(generatedData.locations);
+            generatedData.factions = addIdsToLore(generatedData.factions);
+            generatedData.lore = addIdsToLore(generatedData.lore);
+        }
+        
+        if (section === 'worldLore' && generatedData) {
+             generatedData.locations = addIdsToLore(generatedData.locations);
+             generatedData.factions = addIdsToLore(generatedData.factions);
+             generatedData.lore = addIdsToLore(generatedData.lore || []);
+        }
+        
+        if (section === 'analyzeChapter') {
+             if (generatedData.newCharacters) {
+                generatedData.newCharacters.forEach((char: Partial<Character>) => {
+                    if (!char.customFields) char.customFields = [];
+                    if (!char.id) char.id = crypto.randomUUID();
+                });
+             }
+             if (generatedData.newLocations) generatedData.newLocations = addIdsToLore(generatedData.newLocations);
+             // Ensure empty arrays if missing
+             if (!generatedData.newPlotPoints) generatedData.newPlotPoints = [];
+        }
+
+        return generatedData;
+    } catch (error) {
+        console.error(`Error processing AI response for section ${section}:`, error);
+        // Improved error message for user context
+        const errorMessage = error instanceof Error 
+            ? `The AI returned an invalid response. ${error.message}` 
+            : "The AI returned a response that was not valid JSON. Please try again.";
+        throw new Error(errorMessage);
+    }
+};
+
+
+export const generateStoryEncyclopediaSection = async (
+    apiKey: string,
+    section: string,
+    storyEncyclopedia: Partial<StoryEncyclopedia | Universe>,
+    language: 'en' | 'id',
+    options?: { idea?: string; index?: number; style?: string },
+): Promise<any> => {
+    const ai = initializeGenAI(apiKey);
+    const configKey = Object.keys(generationConfig).find(key => section.startsWith(key)) || '';
+    const config = generationConfig[configKey];
+    if (!config) throw new Error(`Invalid section for generation: ${section}`);
+
+    const langInstruction = language === 'id' 
+        ? 'Generate the entire JSON response strictly in Bahasa Indonesia.' 
+        : 'Generate the entire JSON response strictly in English.';
+    
+    const context = JSON.stringify(storyEncyclopedia, null, 2);
+    let prompt = '';
+
+    if (section === 'basic') {
+        if (!options?.idea) throw new Error("An initial idea is required to generate basic info.");
+        prompt = config.prompt(context, { idea: options.idea });
+    } else if (section.startsWith('singleArcAct')) {
+        const actIndex = options?.index ?? 0;
+        const totalActs = (storyEncyclopedia as StoryEncyclopedia).storyArc?.length || 4;
+        prompt = config.prompt(context, actIndex, totalActs);
+    } else if (section === 'tone') {
+        prompt = config.prompt(context, language);
+    } else if (section === 'relationships') {
+        const characterJSON = JSON.stringify((storyEncyclopedia as StoryEncyclopedia).characters?.map(c => ({id: c.id, name: c.name})), null, 2);
+        prompt = config.prompt(context, characterJSON);
+    } else if (section === 'styleExample') {
+        if (!options?.style) throw new Error("A style is required to generate an example.");
+        prompt = config.prompt(options.style, language);
+    } else if (section.startsWith('character')) {
+        prompt = config.prompt(context, { index: options?.index ?? 0 });
+    }
+    else {
+        prompt = config.prompt(context);
+    }
+
+    const finalPrompt = `${langInstruction}\n\n${prompt}`;
+
+    const responsePromise = ai.models.generateContent({
+        model: 'gemini-2.5-flash',
+        contents: finalPrompt,
+        config: {
+            responseMimeType: 'application/json',
+            responseSchema: config.schema,
+        }
+    });
+
+    return handleJsonResponse(responsePromise, section);
+};
+
+
+// --- NEW: AI Tools for Editor & Analysis ---
+
+export const generateEditorAction = async (
+    apiKey: string,
+    action: 'rewrite' | 'expand' | 'fixGrammar' | 'beatToProse' | 'continue',
+    text: string,
+    context: { precedingText: string; followingText: string; storyContext: StoryEncyclopedia }
+): Promise<string> => {
+    const ai = initializeGenAI(apiKey);
+    const language = context.storyContext.language;
+    const langInstruction = language === 'id' ? 'Response must be in Bahasa Indonesia.' : 'Response must be in English.';
+    
+    const contextString = formatStoryEncyclopediaForPrompt(context.storyContext);
+    
+    let prompt = '';
+    
+    if (action === 'continue') {
+        prompt = `
+        ${contextString}
+        
+        --- CURRENT WRITING CONTEXT ---
+        The user is currently writing a chapter. 
+        Preceding Text (What comes before):
+        "${context.precedingText.slice(-2000)}"
+
+        TASK: Continue writing the story from the exact point where the text ends. 
+        - Mimic the existing style, tone, and narrative perspective (POV).
+        - Do not repeat the last sentence.
+        - Write about 200-400 words.
+        ${langInstruction}
+        `;
+    } else {
+        let instruction = '';
+        switch(action) {
+            case 'rewrite': instruction = 'Rewrite the selected text to improve flow, vocabulary, and impact while keeping the original meaning.'; break;
+            case 'fixGrammar': instruction = 'Fix all grammar, spelling, and punctuation errors in the selected text. Do not change the style.'; break;
+            case 'expand': instruction = 'Expand the selected text with more sensory details, internal monologue, and descriptive language. Make it more immersive.'; break;
+            case 'beatToProse': instruction = 'Convert the selected bullet points or rough outline into full, high-quality novel prose. Add dialogue and action.'; break;
+        }
+
+        prompt = `
+        ${contextString}
+        
+        --- EDITING TASK ---
+        Selected Text:
+        "${text}"
+        
+        Context (Preceding): "...${context.precedingText.slice(-500)}"
+        Context (Following): "${context.followingText.slice(0, 500)}..."
+        
+        INSTRUCTION: ${instruction}
+        ${langInstruction}
+        Return ONLY the result text.
+        `;
+    }
+
+    const response = await ai.models.generateContent({
+        model: 'gemini-2.5-flash',
+        contents: prompt,
+    });
+
+    return response.text?.trim() || '';
+};
+
+export const analyzeChapterContent = async (
+    apiKey: string,
+    chapterText: string,
+    storyEncyclopedia: StoryEncyclopedia
+): Promise<AnalysisResult> => {
+    const ai = initializeGenAI(apiKey);
+    const language = storyEncyclopedia.language;
+    const langInstruction = language === 'id' ? 'Response must be in Bahasa Indonesia.' : 'Response must be in English.';
+
+    const existingCharacters = storyEncyclopedia.characters.map(c => c.name).join(', ');
+    const existingLocations = storyEncyclopedia.locations.map(l => l.name).join(', ');
+    
+    const prompt = `
+    Analyze the following chapter text for a webnovel and extract NEW elements that should be added to the Story Encyclopedia.
+    
+    EXISTING CHARACTERS: ${existingCharacters}
+    EXISTING LOCATIONS: ${existingLocations}
+    
+    CHAPTER TEXT:
+    "${chapterText}"
+    
+    TASK:
+    1. Identify NEW important characters introduced in this chapter (ignore minor unnamed ones).
+    2. Identify NEW important locations visited.
+    3. Summarize 3-5 key plot points that happened in this chapter.
+    4. Provide a brief 1-sentence summary of the whole chapter.
+    
+    IMPORTANT: Do not include characters or locations that are already listed in the "EXISTING" lists above.
+    
+    ${langInstruction}
+    `;
+
+    const responsePromise = ai.models.generateContent({
+        model: 'gemini-2.5-flash',
+        contents: prompt,
+        config: {
+            responseMimeType: 'application/json',
+            responseSchema: {
+                type: Type.OBJECT,
+                properties: {
+                    newCharacters: { type: Type.ARRAY, items: characterSchema },
+                    newLocations: { type: Type.ARRAY, items: loreEntrySchema },
+                    newPlotPoints: { type: Type.ARRAY, items: { type: Type.STRING } },
+                    summary: { type: Type.STRING }
+                },
+                required: ['newCharacters', 'newLocations', 'newPlotPoints', 'summary']
+            }
+        }
+    });
+
+    return handleJsonResponse(responsePromise, 'analyzeChapter');
+};

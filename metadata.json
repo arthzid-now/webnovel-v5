@@ -1,0 +1,5 @@
+{
+  "name": "Webnovel AI Studio 5.0",
+  "description": "An AI-powered chatbot to help you brainstorm, outline, and write your webnovel. Choose from different Gemini models for speed or complexity, including a high-power 'Thinking Mode' for deep creative tasks.",
+  "requestFramePermissions": []
+}
