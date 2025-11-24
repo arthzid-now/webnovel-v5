@@ -33,11 +33,33 @@ const enTranslations: Translations = {
     },
     "spark": { "title": "The Spark of Creation", "ideaLabel": "Write your core idea here (1-3 sentences)", "genreLabel": "Choose your genres", "otherGenrePlaceholder": "Other" }, 
     "tabs": { "basic": "Basic Info", "world": "World & Lore", "characters": "Characters & Relationships", "arc": "Story Arc", "tone": "Tone & Style" }, 
-    "basic": { "title": "Title", "setting": "Setting", "settingPlaceholder": "e.g., Jakarta, 2045 or The Kingdom of Aethelgard", "totalChapters": "Total Chapters", "wordsPerChapter": "Words Per Chapter" }, 
-    "world": { "worldBuilding": "World Building", "magicSystem": "System/Magic" }, 
-    "lore": { "locations": "Locations", "factions": "Factions", "general": "General Lore", "addEntry": "Add {{title}} Entry", "removeEntry": "Remove {{title}} Entry" }, 
+    "basic": { "title": "Title", "format": "Story Format", "formatDesc": "Determines AI pacing and structure.", "setting": "Setting", "settingPlaceholder": "e.g., Jakarta, 2045 or The Kingdom of Aethelgard", "totalChapters": "Total Chapters", "wordsPerChapter": "Words Per Chapter" }, 
+    "world": { 
+      "subTabs": {
+        "geo": "Geography & Politics",
+        "nature": "Nature & Biology",
+        "power": "Power & Assets",
+        "history": "History & Culture"
+      },
+      "worldBuilding": "World Building (Summary)", 
+      "magicSystem": "System/Magic (Summary)" 
+    }, 
+    "lore": { 
+      "locations": "Locations", 
+      "factions": "Factions", 
+      "races": "Races / Species",
+      "creatures": "Bestiary / Creatures",
+      "powers": "Spells / Skills / Abilities",
+      "items": "Items / Artifacts",
+      "technology": "Technology",
+      "history": "History & Timeline",
+      "cultures": "Culture & Traditions",
+      "general": "General Lore", 
+      "addEntry": "Add {{title}} Entry", 
+      "removeEntry": "Remove {{title}} Entry" 
+    }, 
     "characters": { "mainPlot": "Main Plot", "characters": "Characters", "relationships": "Relationships", "add": "Add Character", "addRelationship": "Add Relationship", "generateRelationships": "Generate Relationships", "relationshipsNeed2": "Need min. 2 characters", "character1": "Character 1", "character2": "Character 2", "relationshipType": "Relationship Type", "newCharacter": "New Character", "generateThis": "Generate This Character", "delete": "Delete Character", "name": "Name", "roles": "Roles", "rolesPlaceholder": "Add a role (e.g., Rival) and press Enter", "age": "Age", "gender": "Gender", "physical": "Physical Description", "voice": "Voice & Speech Style", "voicePlaceholder": "e.g., A calm baritone voice; speaks slowly.", "personality": "Personality Traits", "habits": "Habits/Quirks", "goal": "Goal/Motivation", "principles": "Principles/Values", "conflict": "Core Conflict", "customDetails": "Custom Details", "customLabelPlaceholder": "Label (e.g., Magic Power)", "removeDetail": "Remove Detail", "addCustomDetail": "Add Custom Detail" }, 
-    "arc": { "act": "Act", "actTitlePlaceholder": "Act Title", "actDescPlaceholder": "Act description...", "generateAct": "Generate Act {{index}}", "plotPoints": "Plot Points", "addPoint": "Add Point", "addAct": "Add Act" }, 
+    "arc": { "act": "Act", "actTitlePlaceholder": "Act Title", "actDescPlaceholder": "Act description...", "generateAct": "Generate Act {{index}}", "plotPoints": "Plot Points", "addPoint": "Add Point", "addAct": "Add Act", "chapters": "Chapters", "start": "Start", "end": "End", "template": "Structure Template", "templateDesc": "Defines the narrative beats for this act." }, 
     "tone": { 
       "comedy": "Comedy (1-10)", "comedyDesc": "Controls frequency of jokes.", 
       "romance": "Romance (1-10)", "romanceDesc": "Determines focus on relationships.", 
@@ -101,11 +123,33 @@ const idTranslations: Translations = {
     },
     "spark": { "title": "Percikan Kreasi", "ideaLabel": "Tuliskan ide dasarmu di sini (1-3 kalimat)", "genreLabel": "Pilih genre-mu", "otherGenrePlaceholder": "Lainnya" }, 
     "tabs": { "basic": "Info Dasar", "world": "Dunia & Lore", "characters": "Karakter & Hubungan", "arc": "Alur Cerita", "tone": "Nada & Gaya" }, 
-    "basic": { "title": "Judul", "setting": "Latar", "settingPlaceholder": "e.g., Jakarta, 2045 atau Kerajaan Aethelgard", "totalChapters": "Total Bab", "wordsPerChapter": "Kata per Bab" }, 
-    "world": { "worldBuilding": "Pembangunan Dunia", "magicSystem": "Sistem/Sihir" }, 
-    "lore": { "locations": "Lokasi", "factions": "Faksi", "general": "Lore Umum", "addEntry": "Tambah Entri {{title}}", "removeEntry": "Hapus Entri {{title}}" }, 
+    "basic": { "title": "Judul", "format": "Format Cerita", "formatDesc": "Menentukan struktur dan kecepatan AI.", "setting": "Latar", "settingPlaceholder": "e.g., Jakarta, 2045 atau Kerajaan Aethelgard", "totalChapters": "Total Bab", "wordsPerChapter": "Kata per Bab" }, 
+    "world": { 
+      "subTabs": {
+        "geo": "Geografi & Politik",
+        "nature": "Alam & Biologi",
+        "power": "Kekuatan & Aset",
+        "history": "Sejarah & Budaya"
+      },
+      "worldBuilding": "Pembangunan Dunia (Ringkasan)", 
+      "magicSystem": "Sistem/Sihir (Ringkasan)" 
+    }, 
+    "lore": { 
+      "locations": "Lokasi", 
+      "factions": "Faksi", 
+      "races": "Ras / Spesies",
+      "creatures": "Bestiary / Makhluk",
+      "powers": "Mantra / Skill / Kemampuan",
+      "items": "Item / Artefak",
+      "technology": "Teknologi",
+      "history": "Sejarah & Garis Waktu",
+      "cultures": "Budaya & Tradisi",
+      "general": "Lore Umum", 
+      "addEntry": "Tambah Entri {{title}}", 
+      "removeEntry": "Hapus Entri {{title}}" 
+    }, 
     "characters": { "mainPlot": "Plot Utama", "characters": "Karakter", "relationships": "Hubungan", "add": "Tambah Karakter", "addRelationship": "Tambah Hubungan", "generateRelationships": "Buat Hubungan", "relationshipsNeed2": "Perlu min. 2 karakter", "character1": "Karakter 1", "character2": "Karakter 2", "relationshipType": "Jenis Hubungan", "newCharacter": "Karakter Baru", "generateThis": "Buat Karakter Ini", "delete": "Hapus Karakter", "name": "Nama", "roles": "Peran", "rolesPlaceholder": "Tambah peran (e.g., Rival) lalu tekan Enter", "age": "Usia", "gender": "Gender", "physical": "Deskripsi Fisik", "voice": "Suara & Gaya Bicara", "voicePlaceholder": "contoh: Suara bariton yang tenang; bicara perlahan.", "personality": "Sifat Kepribadian", "habits": "Kebiasaan/Kekhasan", "goal": "Tujuan/Motivasi", "principles": "Prinsip/Nilai", "conflict": "Konflik Inti", "customDetails": "Detail Tambahan", "customLabelPlaceholder": "Label (e.g., Kekuatan Sihir)", "removeDetail": "Hapus Detail", "addCustomDetail": "Tambah Detail Tambahan" }, 
-    "arc": { "act": "Babak", "actTitlePlaceholder": "Judul Babak", "actDescPlaceholder": "Deskripsi babak...", "generateAct": "Buat Babak {{index}}", "plotPoints": "Poin Plot", "addPoint": "Tambah Poin", "addAct": "Tambah Babak" }, 
+    "arc": { "act": "Babak", "actTitlePlaceholder": "Judul Babak", "actDescPlaceholder": "Deskripsi babak...", "generateAct": "Buat Babak {{index}}", "plotPoints": "Poin Plot", "addPoint": "Tambah Poin", "addAct": "Tambah Babak", "chapters": "Bab", "start": "Awal", "end": "Akhir", "template": "Templat Struktur", "templateDesc": "Mendefinisikan irama naratif untuk babak ini." }, 
     "tone": { 
       "comedy": "Komedi (1-10)", "comedyDesc": "Mengontrol frekuensi lelucon.", 
       "romance": "Romansa (1-10)", "romanceDesc": "Menentukan fokus pada hubungan.", 

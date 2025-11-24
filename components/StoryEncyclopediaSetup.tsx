@@ -660,7 +660,7 @@ const StoryEncyclopediaSetup: React.FC<StoryEncyclopediaSetupProps> = ({ apiKey,
                 </div>
             )}
             
-            <div className="border-b border-slate-700 flex space-x-1 sticky top-[72px] bg-slate-900 z-10 py-1 -mx-2 px-2">
+            <div className="border-b border-slate-700 flex space-x-1 sticky top-[72px] bg-slate-900 z-10 py-1 -mx-2 px-2 overflow-x-auto whitespace-nowrap scrollbar-hide">
               {TABS.map(tab => ( <button key={tab.id} type="button" onClick={() => setActiveTab(tab.id)} className={`px-4 py-2 text-sm font-medium rounded-t-md transition-colors ${ activeTab === tab.id ? 'bg-slate-800 border-slate-700 border-b-0 border-l border-r border-t text-indigo-400' : 'bg-transparent text-slate-400 hover:bg-slate-800/60' }`}> {t(tab.label)} </button>))}
             </div>
             
@@ -718,11 +718,11 @@ const StoryEncyclopediaSetup: React.FC<StoryEncyclopediaSetupProps> = ({ apiKey,
                     </div>
 
                     {/* Sub-Tabs */}
-                    <div className="flex space-x-1 bg-slate-900/50 p-1 rounded-md mb-4">
-                        <button type="button" onClick={() => setActiveWorldTab('geo')} className={`flex-1 py-1.5 text-sm font-medium rounded-md transition-colors ${activeWorldTab === 'geo' ? 'bg-slate-700 text-white shadow' : 'text-slate-400 hover:text-slate-200'}`}>{t('world.subTabs.geo')}</button>
-                        <button type="button" onClick={() => setActiveWorldTab('nature')} className={`flex-1 py-1.5 text-sm font-medium rounded-md transition-colors ${activeWorldTab === 'nature' ? 'bg-slate-700 text-white shadow' : 'text-slate-400 hover:text-slate-200'}`}>{t('world.subTabs.nature')}</button>
-                        <button type="button" onClick={() => setActiveWorldTab('power')} className={`flex-1 py-1.5 text-sm font-medium rounded-md transition-colors ${activeWorldTab === 'power' ? 'bg-slate-700 text-white shadow' : 'text-slate-400 hover:text-slate-200'}`}>{t('world.subTabs.power')}</button>
-                        <button type="button" onClick={() => setActiveWorldTab('history')} className={`flex-1 py-1.5 text-sm font-medium rounded-md transition-colors ${activeWorldTab === 'history' ? 'bg-slate-700 text-white shadow' : 'text-slate-400 hover:text-slate-200'}`}>{t('world.subTabs.history')}</button>
+                    <div className="flex space-x-1 bg-slate-900/50 p-1 rounded-md mb-4 overflow-x-auto whitespace-nowrap">
+                        <button type="button" onClick={() => setActiveWorldTab('geo')} className={`flex-1 py-1.5 text-sm font-medium rounded-md transition-colors min-w-[100px] ${activeWorldTab === 'geo' ? 'bg-slate-700 text-white shadow' : 'text-slate-400 hover:text-slate-200'}`}>{t('world.subTabs.geo')}</button>
+                        <button type="button" onClick={() => setActiveWorldTab('nature')} className={`flex-1 py-1.5 text-sm font-medium rounded-md transition-colors min-w-[100px] ${activeWorldTab === 'nature' ? 'bg-slate-700 text-white shadow' : 'text-slate-400 hover:text-slate-200'}`}>{t('world.subTabs.nature')}</button>
+                        <button type="button" onClick={() => setActiveWorldTab('power')} className={`flex-1 py-1.5 text-sm font-medium rounded-md transition-colors min-w-[100px] ${activeWorldTab === 'power' ? 'bg-slate-700 text-white shadow' : 'text-slate-400 hover:text-slate-200'}`}>{t('world.subTabs.power')}</button>
+                        <button type="button" onClick={() => setActiveWorldTab('history')} className={`flex-1 py-1.5 text-sm font-medium rounded-md transition-colors min-w-[100px] ${activeWorldTab === 'history' ? 'bg-slate-700 text-white shadow' : 'text-slate-400 hover:text-slate-200'}`}>{t('world.subTabs.history')}</button>
                     </div>
 
                     <div className="space-y-4">
