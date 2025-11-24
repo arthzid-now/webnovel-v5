@@ -1,4 +1,3 @@
-
 {
   "app": {
     "title": "Webnovel AI Studio"
@@ -13,7 +12,14 @@
     "cancel": "Cancel",
     "failed": "Failed",
     "language": "Language",
-    "save": "Save"
+    "save": "Save",
+    "close": "Close",
+    "download": "Download"
+  },
+  "errors": {
+    "quotaExceeded": "API Quota Exceeded. The AI is overloaded or your key hit its limit. Retrying might help, or try again in a minute.",
+    "serverBusy": "AI Server is busy. Please try again in a moment.",
+    "generic": "AI Error: {{message}}"
   },
   "dashboard": {
     "title": "Your Dashboard",
@@ -30,7 +36,7 @@
     "noPlot": "No main plot defined.",
     "openStudio": "Open Studio",
     "editStory": "Edit Encyclopedia",
-    "exportStory": "Export Story",
+    "exportStory": "Export Manager",
     "deleteStory": "Delete Story",
     "deleteStoryConfirm": "Are you sure you want to permanently delete \"{{title}}\"?",
     "exportNotFound": "Story not found for export.",
@@ -199,7 +205,7 @@
       "action": "Action (1-10)",
       "actionDesc": "Dictates amount of combat.",
       "maturity": "Maturity (1-10)",
-      "maturityDesc": "Controls sexual adult themes.",
+      "maturityDesc": "Controls adult themes.",
       "pov": "Narrative Perspective (POV)",
       "povDesc": "Controls whose eyes the story is told through.",
       "prose": "Prose Style",
@@ -240,9 +246,10 @@
     }
   },
   "sidebar": {
+    "searchPlaceholder": "Search chapters, lore...",
     "backToDashboard": "Back to Dashboard",
     "dashboard": "Dashboard",
-    "exportStory": "Export Story (.md)",
+    "exportStory": "Export Manager",
     "editEncyclopedia": "Edit Encyclopedia",
     "universe": "Universe",
     "chapters": {
@@ -273,7 +280,9 @@
     },
     "proseStyle": {
       "title": "Prose Style",
-      "style": "Style"
+      "style": "Style",
+      "custom": "Custom Style",
+      "customActive": "Active (Sample Provided)"
     },
     "character": {
       "roles": "Roles",
@@ -321,5 +330,46 @@
     "thinkingMode": "Thinking Mode",
     "thinkingModeTooltip": "Enable for more complex and creative tasks using the Pro model.",
     "placeholder": "Let's build your story..."
+  },
+  "apiKeyModal": {
+    "title": "Enter Your Google AI API Key",
+    "instruction": "To use this application, you need to provide your own Google AI API key. Your key is stored securely in your browser and is never sent to our servers.",
+    "getApiKey": "Get your API key from Google AI Studio",
+    "placeholder": "Enter your API key here",
+    "saveButton": "Save and Start Writing"
+  },
+  "export": {
+    "title": "Export Story",
+    "subtitle": "Choose a format to download your story.",
+    "epub": {
+      "title": "EPUB (E-Book)",
+      "desc": "Standard ebook format. Best for reading on Kindle, Apple Books, or tablets.",
+      "button": "Download EPUB"
+    },
+    "html": {
+      "title": "HTML (Web)",
+      "desc": "A single HTML file with styled text. Good for sharing online or printing.",
+      "button": "Download HTML"
+    },
+    "txt": {
+      "title": "Plain Text (Wattpad)",
+      "desc": "Clean text format with no markdown. Optimized for pasting into Wattpad or web editors.",
+      "button": "Copy to Clipboard"
+    },
+    "json": {
+      "title": "Full Backup (JSON)",
+      "desc": "Complete raw data of your story, including settings and lore. Use this for backups.",
+      "button": "Download JSON"
+    },
+    "markdown": {
+      "title": "Markdown (.md)",
+      "desc": "The raw format used by this editor. Good for other writing apps.",
+      "button": "Download Markdown"
+    },
+    "copySuccess": "Story copied to clipboard!"
+  },
+  "toast": {
+    "backupReminder": "Don't forget to back up your work!",
+    "backupAction": "Back Up Now"
   }
 }

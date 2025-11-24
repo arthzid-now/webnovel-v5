@@ -1,3 +1,4 @@
+
 import React, { useState, useEffect } from 'react';
 import { StoryEncyclopedia, Chapter } from '../types';
 import StoryEncyclopediaSidebar from './StoryEncyclopediaSidebar';
@@ -7,6 +8,7 @@ import { useLanguage } from '../contexts/LanguageContext';
 import { BookOpenIcon } from './icons/BookOpenIcon';
 import { SparklesIcon } from './icons/SparklesIcon';
 import { XIcon } from './icons/XIcon';
+import ExportModal from './ExportModal';
 
 interface WritingStudioProps {
   apiKey: string | null;
@@ -14,7 +16,7 @@ interface WritingStudioProps {
   onUpdateStory: (updatedStory: StoryEncyclopedia) => void;
   onGoToDashboard: () => void;
   onEditRequest: () => void;
-  onExportStory: (storyId: string) => void;
+  onExportStory: (storyId: string, format?: 'epub' | 'html' | 'txt' | 'json' | 'md') => void; // Updated signature
   onRequestApiKey: () => void;
 }
 
@@ -29,6 +31,9 @@ const WritingStudio: React.FC<WritingStudioProps> = ({ apiKey, story, onUpdateSt
   // Desktop Zen Mode States
   const [isLeftSidebarOpen, setIsLeftSidebarOpen] = useState(true);
   const [isRightSidebarOpen, setIsRightSidebarOpen] = useState(true);
+  
+  // Export Modal State
+  const [isExportModalOpen, setIsExportModalOpen] = useState(false);
 
 
   // Ensure activeChapterId is always valid
@@ -75,10 +80,21 @@ const WritingStudio: React.FC<WritingStudioProps> = ({ apiKey, story, onUpdateSt
     }
   };
   
+  const handleOpenExport = () => {
+      setIsExportModalOpen(true);
+  };
+  
+  const handleExport = (format: 'epub' | 'html' | 'txt' | 'json' | 'md') => {
+      onExportStory(story.id, format);
+      setIsExportModalOpen(false);
+  };
+  
   const activeChapter = story.chapters.find(c => c.id === activeChapterId);
 
   return (
     <div className="relative flex flex-grow w-full h-[calc(100vh-73px)] overflow-hidden">
+      {isExportModalOpen && <ExportModal onClose={() => setIsExportModalOpen(false)} onExport={handleExport} />}
+      
       {/* --- DESKTOP LEFT SIDEBAR --- */}
       <div className={`hidden md:block flex-shrink-0 transition-all duration-300 ease-in-out border-r border-slate-700 bg-slate-800 ${isLeftSidebarOpen ? 'w-80 lg:w-96' : 'w-0 overflow-hidden'}`}>
         <StoryEncyclopediaSidebar
@@ -89,7 +105,7 @@ const WritingStudio: React.FC<WritingStudioProps> = ({ apiKey, story, onUpdateSt
           onSelectChapter={setActiveChapterId}
           onAddChapter={handleAddChapter}
           onDeleteChapter={handleDeleteChapter}
-          onExportStory={onExportStory}
+          onExportStory={handleOpenExport}
         />
       </div>
 
@@ -98,24 +114,30 @@ const WritingStudio: React.FC<WritingStudioProps> = ({ apiKey, story, onUpdateSt
         className={`fixed inset-0 z-40 transform transition-transform duration-300 ease-in-out md:hidden ${isMobileSidebarOpen ? 'translate-x-0' : '-translate-x-full'}`}
       >
         <div className="absolute inset-0 bg-slate-900/60" onClick={() => setIsMobileSidebarOpen(false)}></div>
-        <div className="relative w-full max-w-sm h-full bg-slate-800 shadow-xl">
-          <StoryEncyclopediaSidebar
-            storyEncyclopedia={story}
-            onEdit={onEditRequest}
-            onGoToDashboard={onGoToDashboard}
-            activeChapterId={activeChapterId}
-            onSelectChapter={(id) => { setActiveChapterId(id); setIsMobileSidebarOpen(false); }}
-            onAddChapter={handleAddChapter}
-            onDeleteChapter={handleDeleteChapter}
-            onExportStory={onExportStory}
-          />
-          <button 
-            onClick={() => setIsMobileSidebarOpen(false)}
-            className="absolute top-3 right-3 p-2 bg-slate-700/50 rounded-full text-slate-200"
-            aria-label={t('studio.mobile.closeEncyclopedia')}
-          >
-            <XIcon className="w-5 h-5" />
-          </button>
+        <div className="relative w-full max-w-sm h-full bg-slate-800 shadow-xl flex flex-col">
+           {/* Header for Mobile Sidebar */}
+           <div className="flex items-center justify-between p-3 border-b border-slate-700 bg-slate-900/50">
+              <h3 className="text-slate-200 font-bold px-2">{t('sidebar.dashboard')}</h3>
+              <button 
+                onClick={() => setIsMobileSidebarOpen(false)}
+                className="p-2 bg-slate-700/50 rounded-full text-slate-200 hover:bg-slate-600"
+                aria-label={t('studio.mobile.closeEncyclopedia')}
+              >
+                <XIcon className="w-5 h-5" />
+              </button>
+           </div>
+           <div className="flex-grow overflow-hidden">
+              <StoryEncyclopediaSidebar
+                storyEncyclopedia={story}
+                onEdit={onEditRequest}
+                onGoToDashboard={onGoToDashboard}
+                activeChapterId={activeChapterId}
+                onSelectChapter={(id) => { setActiveChapterId(id); setIsMobileSidebarOpen(false); }}
+                onAddChapter={handleAddChapter}
+                onDeleteChapter={handleDeleteChapter}
+                onExportStory={handleOpenExport}
+              />
+           </div>
         </div>
       </div>
       
@@ -153,15 +175,24 @@ const WritingStudio: React.FC<WritingStudioProps> = ({ apiKey, story, onUpdateSt
        <div 
         className={`fixed inset-0 z-40 transform transition-transform duration-300 ease-in-out md:hidden ${isMobileChatOpen ? 'translate-x-0' : 'translate-x-full'}`}
       >
-        <div className="w-full h-full bg-slate-800">
-          <ChatWindow apiKey={apiKey} storyEncyclopedia={story} key={`${story.id}-mobile`} onRequestApiKey={onRequestApiKey} />
-          <button 
-            onClick={() => setIsMobileChatOpen(false)}
-            className="absolute top-4 left-4 p-2 bg-slate-700/50 rounded-full text-slate-200"
-            aria-label={t('studio.mobile.closeChat')}
-          >
-            <XIcon className="w-5 h-5" />
-          </button>
+        <div className="w-full h-full bg-slate-800 flex flex-col">
+          {/* Header for Mobile Chat to prevent overlap */}
+          <div className="flex items-center justify-between p-3 border-b border-slate-700 bg-slate-900">
+              <div className="flex items-center gap-2 text-indigo-400 font-bold px-2">
+                  <SparklesIcon className="w-5 h-5" />
+                  <span>AI Assistant</span>
+              </div>
+              <button 
+                onClick={() => setIsMobileChatOpen(false)}
+                className="p-2 bg-slate-700/50 rounded-full text-slate-200 hover:bg-slate-600"
+                aria-label={t('studio.mobile.closeChat')}
+              >
+                <XIcon className="w-5 h-5" />
+              </button>
+          </div>
+          <div className="flex-grow overflow-hidden p-2">
+             <ChatWindow apiKey={apiKey} storyEncyclopedia={story} key={`${story.id}-mobile`} onRequestApiKey={onRequestApiKey} />
+          </div>
         </div>
       </div>
       
@@ -169,14 +200,14 @@ const WritingStudio: React.FC<WritingStudioProps> = ({ apiKey, story, onUpdateSt
       <div className="md:hidden fixed bottom-4 right-4 flex flex-col gap-3 z-30">
         <button 
             onClick={() => setIsMobileSidebarOpen(true)}
-            className="bg-indigo-600 text-white p-4 rounded-full shadow-lg flex items-center justify-center"
+            className="bg-indigo-600 text-white p-4 rounded-full shadow-lg flex items-center justify-center hover:bg-indigo-500 transition-colors"
             aria-label={t('studio.mobile.openEncyclopedia')}
         >
             <BookOpenIcon className="w-6 h-6" />
         </button>
          <button 
             onClick={() => setIsMobileChatOpen(true)}
-            className="bg-indigo-600 text-white p-4 rounded-full shadow-lg flex items-center justify-center"
+            className="bg-indigo-600 text-white p-4 rounded-full shadow-lg flex items-center justify-center hover:bg-indigo-500 transition-colors"
             aria-label={t('studio.mobile.openChat')}
         >
             <SparklesIcon className="w-6 h-6" />

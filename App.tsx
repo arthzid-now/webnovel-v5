@@ -7,13 +7,18 @@ import WritingStudio from './components/WritingStudio';
 import UniverseHub from './components/UniverseHub';
 import UniverseSetup from './components/UniverseSetup';
 import ApiKeyModal from './components/ApiKeyModal';
+import NotificationToast from './components/NotificationToast';
 import { SparklesIcon } from './components/icons/SparklesIcon';
 import { StoryEncyclopedia, Character, Chapter, Universe } from './types';
 import { useLanguage } from './contexts/LanguageContext';
 import LanguageToggle from './components/LanguageToggle';
 import { KeyIcon } from './components/icons/KeyIcon';
+import { marked } from 'marked';
+import JSZip from 'jszip';
 
 const API_KEY_STORAGE_KEY = 'google_ai_api_key';
+const BACKUP_WORD_COUNT_KEY = 'backup_last_word_count';
+const BACKUP_THRESHOLD = 2000;
 
 const createEmptyCharacter = (nameOrDesc: string = '', roles: string[] = []): Character => ({
   id: crypto.randomUUID(),
@@ -193,6 +198,8 @@ const App: React.FC = () => {
   const [editingStoryId, setEditingStoryId] = useState<string | null>(null);
   const [editingUniverseId, setEditingUniverseId] = useState<string | null>(null);
   const [view, setView] = useState<View>('dashboard');
+  const [toastMessage, setToastMessage] = useState<string | null>(null);
+  
   const storyFileInputRef = useRef<HTMLInputElement>(null);
   const universeFileInputRef = useRef<HTMLInputElement>(null);
   const { t } = useLanguage();
@@ -236,20 +243,33 @@ const App: React.FC = () => {
     loadData();
   }, []);
 
-  // Save stories to localStorage whenever they change
+  // Save stories to localStorage whenever they change & Check Backup
   useEffect(() => {
-    if (stories.length > 0) { // Avoid saving the initial empty state
+    if (stories.length > 0) { 
         try {
             localStorage.setItem('webnovel_stories', JSON.stringify(stories));
+            
+            // BACKUP REMINDER LOGIC
+            if (activeStoryId) {
+                const activeStory = stories.find(s => s.id === activeStoryId);
+                if (activeStory) {
+                    const currentWordCount = activeStory.chapters.reduce((acc, chap) => acc + (chap.content?.trim().split(/\s+/).length || 0), 0);
+                    const lastBackup = parseInt(localStorage.getItem(`${BACKUP_WORD_COUNT_KEY}_${activeStoryId}`) || '0', 10);
+                    
+                    if (currentWordCount - lastBackup > BACKUP_THRESHOLD) {
+                        setToastMessage(t('toast.backupReminder'));
+                    }
+                }
+            }
         } catch (error) {
             console.error("Failed to save stories to localStorage", error);
         }
     }
-  }, [stories]);
+  }, [stories, activeStoryId, t]);
   
   // Save universes to localStorage whenever they change
   useEffect(() => {
-    if (universes.length > 0) { // Avoid saving the initial empty state
+    if (universes.length > 0) { 
         try {
             localStorage.setItem('webnovel_universes', JSON.stringify(universes));
         } catch (error) {
@@ -290,10 +310,9 @@ const App: React.FC = () => {
 
     if (window.confirm(confirmMessage)) {
        try {
-            // Delete chat history from localStorage
             localStorage.removeItem(`webnovel_chat_${storyId}`);
+            localStorage.removeItem(`${BACKUP_WORD_COUNT_KEY}_${storyId}`); // Clear backup counter
 
-            // Update local state, which will trigger save to localStorage
             const updatedStories = stories.filter(s => s.id !== storyId);
             setStories(updatedStories);
             
@@ -408,11 +427,10 @@ const App: React.FC = () => {
               if (!newUniverse.id || !newUniverse.name) {
                   throw new Error(t('universeHub.importErrorFormat'));
               }
-              // Assign a new ID to prevent conflicts, but keep the original for file consistency
               const universeToSave = { ...migrateUniverseData(newUniverse), id: crypto.randomUUID() };
-              universeToSave.language = universeToSave.language || 'en'; // Ensure language is set
+              universeToSave.language = universeToSave.language || 'en'; 
               
-              handleSaveUniverse(universeToSave); // Save and update state
+              handleSaveUniverse(universeToSave); 
               
               alert(t('universeHub.importSuccess', { name: universeToSave.name }));
           } catch (error) {
@@ -452,30 +470,186 @@ const App: React.FC = () => {
     }
   };
 
-  const handleExportStory = (storyId: string) => {
+  // --- EXPORT HANDLER (Updated for Multiple Formats) ---
+  const handleExportStory = async (storyId: string, format: 'epub' | 'html' | 'txt' | 'json' | 'md' = 'md') => {
     const story = stories.find(s => s.id === storyId);
     if (!story) return alert(t('dashboard.exportNotFound'));
-
-    const encyclopediaData = { ...story };
-    delete (encyclopediaData as Partial<StoryEncyclopedia>).chapters;
-    const encyclopediaJson = JSON.stringify(encyclopediaData, null, 2);
-
-    const chaptersMarkdown = story.chapters
-        .map(chapter => `## ${chapter.title}\n\n${chapter.content}`)
-        .join('\n\n<!-- CHAPTER_BREAK -->\n\n');
-
-    const markdownContent = `<!-- ENCYCLOPEDIA_JSON_START -->\n${encyclopediaJson}\n<!-- ENCYCLOPEDIA_JSON_END -->\n\n${chaptersMarkdown}`;
-
-    const blob = new Blob([markdownContent], { type: 'text/markdown;charset=utf-8' });
-    const url = URL.createObjectURL(blob);
-    const a = document.createElement('a');
-    a.href = url;
+    
     const safeTitle = story.title.replace(/[^a-z0-9]/gi, '_').toLowerCase();
-    a.download = `${safeTitle}.md`;
-    document.body.appendChild(a);
-    a.click();
-    document.body.removeChild(a);
-    URL.revokeObjectURL(url);
+
+    // Update Backup Counter if JSON export
+    if (format === 'json') {
+        const currentWordCount = story.chapters.reduce((acc, chap) => acc + (chap.content?.trim().split(/\s+/).length || 0), 0);
+        localStorage.setItem(`${BACKUP_WORD_COUNT_KEY}_${storyId}`, currentWordCount.toString());
+        setToastMessage(null);
+    }
+
+    // --- JSON EXPORT (BACKUP) ---
+    if (format === 'json') {
+        const storyJson = JSON.stringify(story, null, 2);
+        downloadFile(storyJson, `${safeTitle}_backup.json`, 'application/json');
+        return;
+    }
+
+    // --- MD EXPORT (ORIGINAL) ---
+    if (format === 'md') {
+        const encyclopediaData = { ...story };
+        delete (encyclopediaData as Partial<StoryEncyclopedia>).chapters;
+        const encyclopediaJson = JSON.stringify(encyclopediaData, null, 2);
+        const chaptersMarkdown = story.chapters
+            .map(chapter => `## ${chapter.title}\n\n${chapter.content}`)
+            .join('\n\n<!-- CHAPTER_BREAK -->\n\n');
+        const markdownContent = `<!-- ENCYCLOPEDIA_JSON_START -->\n${encyclopediaJson}\n<!-- ENCYCLOPEDIA_JSON_END -->\n\n${chaptersMarkdown}`;
+        downloadFile(markdownContent, `${safeTitle}.md`, 'text/markdown;charset=utf-8');
+        return;
+    }
+
+    // --- TXT EXPORT (WATTPAD) ---
+    if (format === 'txt') {
+        const cleanText = story.chapters.map(chap => {
+            const cleanContent = chap.content
+                .replace(/\*\*(.*?)\*\*/g, '$1') // Remove Bold
+                .replace(/\*(.*?)\*/g, '$1')     // Remove Italic
+                .replace(/^#+\s/gm, '')          // Remove Headers
+                .replace(/`/g, '');              // Remove code ticks
+            return `${chap.title.toUpperCase()}\n\n${cleanContent}`;
+        }).join('\n\n' + '-'.repeat(20) + '\n\n');
+        
+        navigator.clipboard.writeText(cleanText).then(() => {
+            alert(t('export.copySuccess'));
+        }).catch(() => {
+            downloadFile(cleanText, `${safeTitle}_plain.txt`, 'text/plain;charset=utf-8');
+        });
+        return;
+    }
+
+    // --- HTML EXPORT ---
+    if (format === 'html') {
+        const chaptersHtml = story.chapters.map(chap => `
+            <div class="chapter">
+                <h2>${chap.title}</h2>
+                ${marked.parse(chap.content)}
+            </div>
+            <hr/>
+        `).join('');
+        
+        const fullHtml = `
+            <!DOCTYPE html>
+            <html>
+            <head>
+                <title>${story.title}</title>
+                <style>
+                    body { font-family: serif; max-width: 800px; margin: 0 auto; padding: 20px; line-height: 1.6; }
+                    h1, h2 { text-align: center; }
+                    hr { border: 0; border-top: 1px solid #ccc; margin: 40px 0; }
+                    p { margin-bottom: 1em; }
+                </style>
+            </head>
+            <body>
+                <h1>${story.title}</h1>
+                <p style="text-align:center;">By ${t('common.name')}</p>
+                ${chaptersHtml}
+            </body>
+            </html>
+        `;
+        downloadFile(fullHtml, `${safeTitle}.html`, 'text/html;charset=utf-8');
+        return;
+    }
+
+    // --- EPUB EXPORT (USING JSZIP) ---
+    if (format === 'epub') {
+        const zip = new JSZip();
+        
+        // 1. Mimetype (Uncompressed, First)
+        zip.file("mimetype", "application/epub+zip", { compression: "STORE" });
+        
+        // 2. Container XML
+        zip.folder("META-INF")?.file("container.xml", `<?xml version="1.0"?>
+            <container version="1.0" xmlns="urn:oasis:names:tc:opendocument:xmlns:container">
+                <rootfiles>
+                    <rootfile full-path="OEBPS/content.opf" media-type="application/oebps-package+xml"/>
+                </rootfiles>
+            </container>`);
+            
+        // 3. OEBPS Folder
+        const oebps = zip.folder("OEBPS");
+        if(!oebps) return;
+
+        // Generate XHTML for each chapter
+        story.chapters.forEach((chap, i) => {
+            const contentHtml = marked.parse(chap.content);
+            const xhtml = `<?xml version="1.0" encoding="utf-8"?>
+                <!DOCTYPE html PUBLIC "-//W3C//DTD XHTML 1.1//EN" "http://www.w3.org/TR/xhtml11/DTD/xhtml11.dtd">
+                <html xmlns="http://www.w3.org/1999/xhtml">
+                <head><title>${chap.title}</title></head>
+                <body>
+                    <h2>${chap.title}</h2>
+                    ${contentHtml}
+                </body>
+                </html>`;
+            oebps.file(`chapter_${i}.xhtml`, xhtml);
+        });
+
+        // Generate OPF (Manifest & Spine)
+        const manifestItems = story.chapters.map((_, i) => `<item id="chapter_${i}" href="chapter_${i}.xhtml" media-type="application/xhtml+xml"/>`).join('\n');
+        const spineItems = story.chapters.map((_, i) => `<itemref idref="chapter_${i}"/>`).join('\n');
+        
+        const opf = `<?xml version="1.0" encoding="utf-8"?>
+            <package xmlns="http://www.idpf.org/2007/opf" unique-identifier="BookId" version="2.0">
+                <metadata xmlns:dc="http://purl.org/dc/elements/1.1/" xmlns:opf="http://www.idpf.org/2007/opf">
+                    <dc:title>${story.title}</dc:title>
+                    <dc:language>${story.language}</dc:language>
+                    <dc:identifier id="BookId" opf:scheme="UUID">${story.id}</dc:identifier>
+                </metadata>
+                <manifest>
+                    <item id="ncx" href="toc.ncx" media-type="application/x-dtbncx+xml"/>
+                    ${manifestItems}
+                </manifest>
+                <spine toc="ncx">
+                    ${spineItems}
+                </spine>
+            </package>`;
+        oebps.file("content.opf", opf);
+
+        // Generate NCX (Table of Contents)
+        const navPoints = story.chapters.map((chap, i) => `
+            <navPoint id="navPoint-${i+1}" playOrder="${i+1}">
+                <navLabel><text>${chap.title}</text></navLabel>
+                <content src="chapter_${i}.xhtml"/>
+            </navPoint>`).join('\n');
+
+        const ncx = `<?xml version="1.0" encoding="UTF-8"?>
+            <!DOCTYPE ncx PUBLIC "-//NISO//DTD ncx 2005-1//EN" "http://www.daisy.org/z3986/2005/ncx-2005-1.dtd">
+            <ncx xmlns="http://www.daisy.org/z3986/2005/ncx/" version="2005-1">
+                <head><meta name="dtb:uid" content="${story.id}"/></head>
+                <docTitle><text>${story.title}</text></docTitle>
+                <navMap>${navPoints}</navMap>
+            </ncx>`;
+        oebps.file("toc.ncx", ncx);
+
+        // Generate Blob
+        const content = await zip.generateAsync({ type: "blob", mimeType: "application/epub+zip" });
+        const url = URL.createObjectURL(content);
+        const a = document.createElement('a');
+        a.href = url;
+        a.download = `${safeTitle}.epub`;
+        document.body.appendChild(a);
+        a.click();
+        document.body.removeChild(a);
+        URL.revokeObjectURL(url);
+    }
+  };
+
+  const downloadFile = (content: string, filename: string, mimeType: string) => {
+      const blob = new Blob([content], { type: mimeType });
+      const url = URL.createObjectURL(blob);
+      const a = document.createElement('a');
+      a.href = url;
+      a.download = filename;
+      document.body.appendChild(a);
+      a.click();
+      document.body.removeChild(a);
+      URL.revokeObjectURL(url);
   };
 
   const handleImportStory = (file: File) => {
@@ -508,7 +682,7 @@ const App: React.FC = () => {
                   chapters: chapters.length > 0 ? chapters : [{id: crypto.randomUUID(), title: 'Chapter 1', content: ''}],
               });
 
-              handleStorySave(newStory); // Save and update state
+              handleStorySave(newStory); 
               alert(t('dashboard.importSuccess', { title: newStory.title }));
           } catch (error) {
               alert(`${t('dashboard.importError')}: ${error instanceof Error ? error.message : "Unknown error"}`);
@@ -596,6 +770,14 @@ const App: React.FC = () => {
   return (
     <div className="min-h-screen bg-slate-900 text-white flex flex-col font-sans">
        {showApiKeyModal && <ApiKeyModal onSave={handleSaveApiKey} onClose={() => setShowApiKeyModal(false)} />}
+       {toastMessage && activeStoryId && (
+           <NotificationToast 
+              message={toastMessage} 
+              actionLabel={t('toast.backupAction')} 
+              onAction={() => handleExportStory(activeStoryId, 'json')} 
+              onClose={() => setToastMessage(null)}
+           />
+       )}
        
       <header className="bg-slate-800/50 backdrop-blur-sm border-b border-slate-700 p-4 sticky top-0 z-20">
         <div className="container mx-auto flex items-center justify-between">

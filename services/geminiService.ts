@@ -7,6 +7,28 @@ const initializeGenAI = (apiKey: string) => {
     return new GoogleGenAI({ apiKey });
 }
 
+// --- ERROR HANDLING UTILITY ---
+const generateWithRetry = async <T>(
+    fn: () => Promise<T>, 
+    retries: number = 3, 
+    delay: number = 2000
+): Promise<T> => {
+    try {
+        return await fn();
+    } catch (error: any) {
+        const isQuotaError = error.status === 429 || error.message?.includes('429') || error.message?.includes('RESOURCE_EXHAUSTED');
+        const isServerBusy = error.status === 503 || error.message?.includes('503');
+
+        if (retries > 0 && (isQuotaError || isServerBusy)) {
+            console.warn(`API Rate Limit or Busy (Status ${error.status || 'Unknown'}). Retrying in ${delay}ms...`);
+            await new Promise(resolve => setTimeout(resolve, delay));
+            // Exponential backoff
+            return generateWithRetry(fn, retries - 1, delay * 2); 
+        }
+        throw error;
+    }
+};
+
 const formatCharacterForPrompt = (character: Character): string => {
     if (!character || !character.name) return '';
     const rolesString = character.roles.length > 0 ? ` [${character.roles.join(', ')}]` : '';
@@ -726,14 +748,15 @@ export const generateStoryEncyclopediaSection = async (
 
     const finalPrompt = `${langInstruction}\n\n${prompt}`;
 
-    const responsePromise = ai.models.generateContent({
+    // Wrap the API call in the retry logic
+    const responsePromise = generateWithRetry(() => ai.models.generateContent({
         model: 'gemini-2.5-flash',
         contents: finalPrompt,
         config: {
             responseMimeType: 'application/json',
             responseSchema: config.schema,
         }
-    });
+    }));
 
     return handleJsonResponse(responsePromise, section);
 };
@@ -795,10 +818,11 @@ export const generateEditorAction = async (
         `;
     }
 
-    const response = await ai.models.generateContent({
+    // Wrap editor action in retry logic
+    const response = await generateWithRetry(() => ai.models.generateContent({
         model: 'gemini-2.5-flash',
         contents: prompt,
-    });
+    }));
 
     return response.text?.trim() || '';
 };
@@ -835,7 +859,8 @@ export const analyzeChapterContent = async (
     ${langInstruction}
     `;
 
-    const responsePromise = ai.models.generateContent({
+    // Wrap analysis in retry logic
+    const responsePromise = generateWithRetry(() => ai.models.generateContent({
         model: 'gemini-2.5-flash',
         contents: prompt,
         config: {
@@ -851,7 +876,7 @@ export const analyzeChapterContent = async (
                 required: ['newCharacters', 'newLocations', 'newPlotPoints', 'summary']
             }
         }
-    });
+    }));
 
     return handleJsonResponse(responsePromise, 'analyzeChapter');
 };
