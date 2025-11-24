@@ -1,3 +1,4 @@
+
 import React, { useState, useEffect, useRef, useMemo } from 'react';
 import { marked } from 'marked';
 import { Chapter, StoryEncyclopedia, AnalysisResult } from '../types';
@@ -120,7 +121,7 @@ const ChapterEditor: React.FC<ChapterEditorProps> = ({
           }
       } catch (error) {
           console.error("AI Action Failed", error);
-          alert(t('chat.errorMessage'));
+          alert(error instanceof Error ? error.message : t('chat.errorMessage'));
       } finally {
           setIsThinking(false);
       }
@@ -147,7 +148,7 @@ const ChapterEditor: React.FC<ChapterEditorProps> = ({
           }
       } catch (error) {
           console.error("Continue Failed", error);
-          alert(t('chat.errorMessage'));
+          alert(error instanceof Error ? error.message : t('chat.errorMessage'));
       } finally {
           setIsThinking(false);
       }
@@ -161,7 +162,7 @@ const ChapterEditor: React.FC<ChapterEditorProps> = ({
           setAnalysisResult(result);
       } catch (error) {
            console.error("Analysis Failed", error);
-           alert(t('chat.errorMessage'));
+           alert(error instanceof Error ? error.message : t('chat.errorMessage'));
       } finally {
           setIsThinking(false);
       }
@@ -172,13 +173,19 @@ const ChapterEditor: React.FC<ChapterEditorProps> = ({
       
       const updatedStory = { ...storyEncyclopedia };
       
-      // Add new data
+      // Helper to check if item exists by name (case insensitive)
+      const exists = (list: any[], name: string) => list.some(item => item.name.toLowerCase().trim() === name.toLowerCase().trim());
+
+      // Add new data with Deduplication
       if (result.newCharacters.length > 0) {
-          updatedStory.characters = [...updatedStory.characters, ...result.newCharacters];
+          const uniqueChars = result.newCharacters.filter(c => !exists(updatedStory.characters, c.name));
+          updatedStory.characters = [...updatedStory.characters, ...uniqueChars];
       }
       if (result.newLocations.length > 0) {
-          updatedStory.locations = [...updatedStory.locations, ...result.newLocations];
+          const uniqueLocs = result.newLocations.filter(l => !exists(updatedStory.locations, l.name));
+          updatedStory.locations = [...updatedStory.locations, ...uniqueLocs];
       }
+      
       if (result.newPlotPoints.length > 0) {
           // Use the act selected by the user
           if (updatedStory.storyArc[targetActIndex]) {

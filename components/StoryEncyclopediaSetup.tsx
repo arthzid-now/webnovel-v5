@@ -14,6 +14,7 @@ import { PencilIcon } from './icons/PencilIcon';
 import { StarIcon } from './icons/StarIcon';
 import { BoltIcon } from './icons/BoltIcon';
 import { CheckIcon } from './icons/CheckIcon';
+import { UserIcon } from './icons/UserIcon';
 import { useLanguage } from '../contexts/LanguageContext';
 
 
@@ -100,8 +101,19 @@ const CharacterForm: React.FC<{ character: Character; index: number; onCharacter
     const addCustomField = () => onCharacterChange(index, 'customFields', [...character.customFields, { id: crypto.randomUUID(), label: '', value: '' }]);
     const removeCustomField = (cfIndex: number) => onCharacterChange(index, 'customFields', character.customFields.filter((_, i) => i !== cfIndex));
     return (
-        <div className="bg-slate-700/50 p-4 rounded-lg space-y-4">
-            <div className="flex items-center justify-between mb-2"> <h4 className="font-semibold text-slate-200">{character.name || t('setup.characters.newCharacter')}</h4> <div className="flex items-center gap-2"> <SubGenerateButton onClick={() => onGenerateCharacter(index)} isLoading={isGenerating} title={t('setup.characters.generateThis')} /> <button type="button" onClick={() => onRemoveCharacter(index)} className="p-1.5 text-slate-400 hover:text-rose-400" title={t('setup.characters.delete')}><TrashIcon className="w-4 h-4" /></button> </div> </div>
+        <div className="bg-slate-700/30 p-4 rounded-lg space-y-4 border border-slate-600/50">
+            <div className="flex items-center justify-between mb-2 pb-2 border-b border-slate-600/50 md:hidden"> 
+                <h4 className="font-semibold text-slate-200">{character.name || t('setup.characters.newCharacter')}</h4> 
+                <div className="flex items-center gap-2"> 
+                    <SubGenerateButton onClick={() => onGenerateCharacter(index)} isLoading={isGenerating} title={t('setup.characters.generateThis')} /> 
+                    <button type="button" onClick={() => onRemoveCharacter(index)} className="p-1.5 text-slate-400 hover:text-rose-400" title={t('setup.characters.delete')}><TrashIcon className="w-4 h-4" /></button> 
+                </div> 
+            </div>
+            {/* Desktop Actions are moved to the roster/header, but we keep generate button inside for context on mobile or ease of access */}
+            <div className="hidden md:flex justify-end mb-2">
+                 <GenerateButton onClick={() => onGenerateCharacter(index)} disabled={false} isLoading={isGenerating} label={t('setup.characters.generateThis')} />
+            </div>
+
             <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
                 <FormField label={t('setup.characters.name')} name="name" value={character.name} onChange={handleChange} fullWidth/>
                 <div className="col-span-1 md:col-span-2"> <label className="block text-sm font-medium text-slate-300 mb-1">{t('setup.characters.roles')}</label> <TagsInput tags={character.roles} onTagsChange={handleRolesChange} placeholder={t('setup.characters.rolesPlaceholder')} /> </div>
@@ -152,6 +164,14 @@ const AutoBuildModal: React.FC<{ progress: string; steps: Record<string, boolean
     const { t } = useLanguage();
     const isComplete = progress === 'complete';
     const isError = !!error;
+
+    // Lock scroll when modal is open
+    useEffect(() => {
+        document.body.style.overflow = 'hidden';
+        return () => {
+            document.body.style.overflow = 'unset';
+        };
+    }, []);
 
     return (
         <div className="fixed inset-0 bg-slate-900/90 backdrop-blur-sm z-50 flex items-center justify-center p-4">
@@ -225,6 +245,8 @@ const StoryEncyclopediaSetup: React.FC<StoryEncyclopediaSetupProps> = ({ apiKey,
   const [activeTab, setActiveTab] = useState<string>('basic');
   // NEW: Active sub-tab for World & Lore
   const [activeWorldTab, setActiveWorldTab] = useState<string>('geo');
+  // NEW: Active character index for Master-Detail view
+  const [activeCharacterIndex, setActiveCharacterIndex] = useState<number>(0);
 
   const [showUniverseModal, setShowUniverseModal] = useState<boolean>(!initialData);
   const [disguiseNames, setDisguiseNames] = useState(false);
@@ -273,6 +295,18 @@ const StoryEncyclopediaSetup: React.FC<StoryEncyclopediaSetupProps> = ({ apiKey,
       return isBasicInfoComplete;
   }, [formData.universeName, formData.setting, isBasicInfoComplete]);
 
+  // --- HELPERS FOR DEDUPLICATION ---
+  const mergeUnique = (existing: LoreEntry[], incoming: LoreEntry[]) => {
+      const map = new Map();
+      existing.forEach(item => map.set(item.name.toLowerCase().trim(), item));
+      incoming.forEach(item => {
+          if (!map.has(item.name.toLowerCase().trim())) {
+              map.set(item.name.toLowerCase().trim(), item);
+          }
+      });
+      return Array.from(map.values());
+  };
+
   const handleGenerate = async (section: string, index?: number) => {
     if (!apiKey) {
       onRequestApiKey();
@@ -286,20 +320,20 @@ const StoryEncyclopediaSetup: React.FC<StoryEncyclopediaSetupProps> = ({ apiKey,
       else if (section === 'singleArcAct' && index !== undefined) setFormData(prev => { const newStoryArc = [...prev.storyArc]; newStoryArc[index] = result as StoryArcAct; return { ...prev, storyArc: newStoryArc }; });
       else if (section === 'relationships') setFormData(prev => ({ ...prev, relationships: [...prev.relationships, ...result.relationships] }));
       
-      // Handle World Lore Lists merging
+      // Handle World Lore Lists merging with Deduplication
       else if (section === 'worldLore' || section === 'world_nature' || section === 'world_power' || section === 'world_history') {
           setFormData(prev => ({
               ...prev,
-              locations: [...prev.locations, ...(result.locations || [])],
-              factions: [...prev.factions, ...(result.factions || [])],
-              lore: [...prev.lore, ...(result.lore || [])],
-              races: [...prev.races, ...(result.races || [])],
-              creatures: [...prev.creatures, ...(result.creatures || [])],
-              powers: [...prev.powers, ...(result.powers || [])],
-              items: [...prev.items, ...(result.items || [])],
-              technology: [...prev.technology, ...(result.technology || [])],
-              history: [...prev.history, ...(result.history || [])],
-              cultures: [...prev.cultures, ...(result.cultures || [])],
+              locations: mergeUnique(prev.locations, result.locations || []),
+              factions: mergeUnique(prev.factions, result.factions || []),
+              lore: mergeUnique(prev.lore, result.lore || []),
+              races: mergeUnique(prev.races, result.races || []),
+              creatures: mergeUnique(prev.creatures, result.creatures || []),
+              powers: mergeUnique(prev.powers, result.powers || []),
+              items: mergeUnique(prev.items, result.items || []),
+              technology: mergeUnique(prev.technology, result.technology || []),
+              history: mergeUnique(prev.history, result.history || []),
+              cultures: mergeUnique(prev.cultures, result.cultures || []),
           }));
       }
       
@@ -335,35 +369,29 @@ const StoryEncyclopediaSetup: React.FC<StoryEncyclopediaSetupProps> = ({ apiKey,
           setFormData(currentData);
           setCompletedSteps(prev => ({...prev, core: true}));
 
-          // 3. World (Lore) - NOW INCLUDES ALL SUB-SECTIONS
+          // 3. World (Lore) - NOW INCLUDES ALL SUB-SECTIONS WITH DEDUPLICATION
           setBuildProgress('world');
           const worldRes = await generateStoryEncyclopediaSection(apiKey, 'worldLore', currentData, contentLanguage);
-          
-          // Nature
           const natureRes = await generateStoryEncyclopediaSection(apiKey, 'world_nature', currentData, contentLanguage);
-          
-          // Power
           const powerRes = await generateStoryEncyclopediaSection(apiKey, 'world_power', currentData, contentLanguage);
-          
-          // History
           const historyRes = await generateStoryEncyclopediaSection(apiKey, 'world_history', currentData, contentLanguage);
 
           currentData = { 
               ...currentData, 
               // Geo
-              locations: [...currentData.locations, ...worldRes.locations],
-              factions: [...currentData.factions, ...worldRes.factions],
-              lore: [...currentData.lore, ...worldRes.lore],
+              locations: mergeUnique(currentData.locations, worldRes.locations || []),
+              factions: mergeUnique(currentData.factions, worldRes.factions || []),
+              lore: mergeUnique(currentData.lore, worldRes.lore || []),
               // Nature
-              races: [...currentData.races, ...natureRes.races],
-              creatures: [...currentData.creatures, ...natureRes.creatures],
+              races: mergeUnique(currentData.races, natureRes.races || []),
+              creatures: mergeUnique(currentData.creatures, natureRes.creatures || []),
               // Power
-              powers: [...currentData.powers, ...powerRes.powers],
-              items: [...currentData.items, ...powerRes.items],
-              technology: [...currentData.technology, ...powerRes.technology],
+              powers: mergeUnique(currentData.powers, powerRes.powers || []),
+              items: mergeUnique(currentData.items, powerRes.items || []),
+              technology: mergeUnique(currentData.technology, powerRes.technology || []),
               // History
-              history: [...currentData.history, ...historyRes.history],
-              cultures: [...currentData.cultures, ...historyRes.cultures],
+              history: mergeUnique(currentData.history, historyRes.history || []),
+              cultures: mergeUnique(currentData.cultures, historyRes.cultures || []),
           };
 
           if (showWorldBuilding || showMagicSystem) {
@@ -534,8 +562,28 @@ const StoryEncyclopediaSetup: React.FC<StoryEncyclopediaSetupProps> = ({ apiKey,
   };
   const handleGenreChange = (genre: string) => setFormData(prev => ({ ...prev, genres: prev.genres.includes(genre) ? prev.genres.filter(g => g !== genre) : [...prev.genres, genre] }));
   const handleCharacterChange = (index: number, field: keyof Character, value: any) => setFormData(prev => { const newChars = [...prev.characters]; newChars[index] = { ...newChars[index], [field]: value }; return { ...prev, characters: newChars }; });
-  const addCharacter = () => setFormData(prev => ({ ...prev, characters: [...prev.characters, createEmptyCharacter()] }));
-  const removeCharacter = (index: number) => setFormData(prev => ({ ...prev, characters: prev.characters.filter((_, i) => i !== index) }));
+  
+  const addCharacter = () => {
+      setFormData(prev => ({ ...prev, characters: [...prev.characters, createEmptyCharacter()] }));
+      // Switch to the new character immediately (will be at last index)
+      setActiveCharacterIndex(formData.characters.length);
+  };
+  
+  const removeCharacter = (index: number) => {
+      setFormData(prev => {
+          const characterIdToRemove = prev.characters[index].id;
+          const newCharacters = prev.characters.filter((_, i) => i !== index);
+          const newRelationships = prev.relationships.filter(rel => rel.character1Id !== characterIdToRemove && rel.character2Id !== characterIdToRemove);
+          return { ...prev, characters: newCharacters, relationships: newRelationships };
+      });
+      // Adjust active index if needed
+      if (index === activeCharacterIndex) {
+          setActiveCharacterIndex(Math.max(0, index - 1));
+      } else if (index < activeCharacterIndex) {
+          setActiveCharacterIndex(activeCharacterIndex - 1);
+      }
+  };
+
   const handleRelationshipChange = (index: number, field: keyof Relationship, value: string) => setFormData(prev => { const newRels = [...prev.relationships]; newRels[index] = { ...newRels[index], [field]: value }; return { ...prev, relationships: newRels }; });
   const addRelationship = () => setFormData(prev => ({ ...prev, relationships: [...prev.relationships, createEmptyRelationship()] }));
   const removeRelationship = (index: number) => setFormData(prev => ({ ...prev, relationships: prev.relationships.filter((_, i) => i !== index) }));
@@ -570,7 +618,6 @@ const StoryEncyclopediaSetup: React.FC<StoryEncyclopediaSetupProps> = ({ apiKey,
       {/* --- UNIVERSE SELECTION MODAL --- */}
       {showUniverseModal && (
         <div className="fixed inset-0 bg-slate-900/80 backdrop-blur-sm z-50 flex items-center justify-center p-4">
-            {/* ... (Existing Modal content, no changes needed) ... */}
             <div className="bg-slate-800 border border-slate-700 rounded-lg shadow-xl max-w-4xl w-full p-6 space-y-6 flex flex-col max-h-[90vh]">
                 <h2 className="text-2xl font-bold text-indigo-400 flex-shrink-0">{t('setup.universe.modalTitle')}</h2>
                 <div className="grid grid-cols-1 md:grid-cols-3 gap-6 flex-shrink-0">
@@ -653,7 +700,12 @@ const StoryEncyclopediaSetup: React.FC<StoryEncyclopediaSetupProps> = ({ apiKey,
                      <div>
                         <label className="block text-sm font-medium text-slate-300 mb-2">{t('setup.spark.genreLabel')}</label>
                         <div className="flex flex-wrap gap-2">
-                            {GENRES.map(genre => ( <label key={genre} className="flex items-center space-x-2 cursor-pointer bg-slate-700 px-3 py-1 rounded-full text-sm"> <input type="checkbox" checked={formData.genres.includes(genre)} onChange={() => handleGenreChange(genre)} className="form-checkbox h-4 w-4 text-indigo-600 bg-slate-600 border-slate-500 rounded focus:ring-indigo-500"/> <span>{genre}</span> </label> ))}
+                            {GENRES.map(genre => ( 
+                                <label key={genre.value} className="flex items-center space-x-2 cursor-pointer bg-slate-700 px-3 py-1 rounded-full text-sm hover:bg-slate-600 transition-colors" title={genre.description}> 
+                                    <input type="checkbox" checked={formData.genres.includes(genre.value)} onChange={() => handleGenreChange(genre.value)} className="form-checkbox h-4 w-4 text-indigo-600 bg-slate-600 border-slate-500 rounded focus:ring-indigo-500"/> 
+                                    <span>{genre.label}</span> 
+                                </label> 
+                            ))}
                         </div>
                         <input type="text" name="otherGenre" value={formData.otherGenre} onChange={handleChange} placeholder={t('setup.spark.otherGenrePlaceholder')} className="mt-3 w-full bg-slate-700 text-slate-200 placeholder-slate-400 rounded-md p-2 border border-slate-600 focus:ring-2 focus:ring-indigo-500 focus:outline-none transition" />
                     </div>
@@ -781,11 +833,100 @@ const StoryEncyclopediaSetup: React.FC<StoryEncyclopediaSetupProps> = ({ apiKey,
 
             {activeTab === 'characters' && <FormSection title={t('setup.tabs.characters')} onGenerate={() => handleGenerate('core')} generateDisabled={!isBasicInfoComplete} isGenerating={generatingSection === 'core'} grid={false}>
                 <FormField label={t('setup.characters.mainPlot')} name="mainPlot" value={formData.mainPlot} onChange={handleChange} isTextArea onGenerate={() => handleGenerate('mainPlot')} isGenerating={generatingSection === 'mainPlot'} />
-                <div className="space-y-4">
-                    <h3 className="text-lg font-semibold text-slate-300 mt-4 border-t border-slate-700 pt-4">{t('setup.characters.characters')}</h3>
-                    {formData.characters?.map((char, index) => ( <CharacterForm key={char.id} character={char} index={index} onCharacterChange={handleCharacterChange} onRemoveCharacter={removeCharacter} onGenerateCharacter={handleGenerate.bind(null, 'character')} isGenerating={generatingSection === `character_${index}`} /> ))}
-                    <button type="button" onClick={addCharacter} className="w-full text-sm py-2 px-4 border-2 border-dashed border-slate-600 text-slate-400 rounded-lg hover:bg-slate-700 flex items-center justify-center gap-2"><PlusIcon className="w-4 h-4" />{t('setup.characters.add')}</button>
+                
+                {/* --- MASTER-DETAIL LAYOUT FOR CHARACTERS --- */}
+                <h3 className="text-lg font-semibold text-slate-300 mt-4 border-t border-slate-700 pt-4">{t('setup.characters.characters')}</h3>
+                <div className="flex flex-col md:flex-row gap-4 bg-slate-900/50 p-2 rounded-lg border border-slate-700 min-h-[600px]">
+                    
+                    {/* LEFT COLUMN: CHARACTER ROSTER */}
+                    <div className="w-full md:w-1/3 flex flex-col gap-2 border-b md:border-b-0 md:border-r border-slate-700 pb-4 md:pb-0 md:pr-2">
+                        {/* Mobile Horizontal Scroll */}
+                        <div className="md:hidden flex overflow-x-auto whitespace-nowrap gap-2 pb-2 no-scrollbar">
+                             {formData.characters?.map((char, index) => (
+                                <button
+                                    key={char.id}
+                                    type="button"
+                                    onClick={() => setActiveCharacterIndex(index)}
+                                    className={`flex items-center gap-2 px-4 py-2 rounded-full text-sm font-medium transition-all flex-shrink-0 border ${activeCharacterIndex === index ? 'bg-indigo-600 border-indigo-500 text-white' : 'bg-slate-700 border-slate-600 text-slate-300'}`}
+                                >
+                                    <UserIcon className="w-4 h-4" />
+                                    {char.name || `Character ${index + 1}`}
+                                </button>
+                             ))}
+                             <button type="button" onClick={addCharacter} className="flex items-center justify-center w-10 h-10 rounded-full bg-slate-700 text-slate-400 hover:bg-indigo-600 hover:text-white transition-colors flex-shrink-0" title={t('setup.characters.add')}>
+                                <PlusIcon className="w-5 h-5" />
+                             </button>
+                        </div>
+
+                        {/* Desktop Vertical List */}
+                        <div className="hidden md:flex flex-col gap-2 overflow-y-auto max-h-[600px] pr-1 custom-scrollbar">
+                            {formData.characters?.map((char, index) => (
+                                <div 
+                                    key={char.id} 
+                                    onClick={() => setActiveCharacterIndex(index)}
+                                    className={`group p-3 rounded-lg cursor-pointer border transition-all ${activeCharacterIndex === index ? 'bg-indigo-900/30 border-indigo-500' : 'bg-slate-700/50 border-transparent hover:bg-slate-700 hover:border-slate-600'}`}
+                                >
+                                    <div className="flex justify-between items-center">
+                                        <div className="flex items-center gap-3 overflow-hidden">
+                                            <div className={`w-8 h-8 rounded-full flex items-center justify-center flex-shrink-0 ${activeCharacterIndex === index ? 'bg-indigo-600 text-white' : 'bg-slate-600 text-slate-400'}`}>
+                                                <UserIcon className="w-4 h-4" />
+                                            </div>
+                                            <div className="min-w-0">
+                                                <p className={`font-bold truncate text-sm ${activeCharacterIndex === index ? 'text-indigo-200' : 'text-slate-300'}`}>
+                                                    {char.name || t('setup.characters.newCharacter')}
+                                                </p>
+                                                <p className="text-xs text-slate-500 truncate">
+                                                    {char.roles.length > 0 ? char.roles.join(', ') : 'No Role'}
+                                                </p>
+                                            </div>
+                                        </div>
+                                        {/* NEW DELETE BUTTON */}
+                                        <button 
+                                            type="button" 
+                                            onClick={(e) => { 
+                                                e.stopPropagation(); 
+                                                if (window.confirm("Are you sure you want to delete this character?")) removeCharacter(index); 
+                                            }} 
+                                            className={`p-2 rounded-full hover:bg-slate-800 text-slate-500 hover:text-rose-400 transition-all ${activeCharacterIndex === index ? 'opacity-100' : 'opacity-0 group-hover:opacity-100'}`}
+                                            title={t('setup.characters.delete')}
+                                        >
+                                            <TrashIcon className="w-4 h-4" />
+                                        </button>
+                                    </div>
+                                </div>
+                            ))}
+                            <button 
+                                type="button" 
+                                onClick={addCharacter} 
+                                className="w-full py-3 border-2 border-dashed border-slate-600 text-slate-400 rounded-lg hover:bg-slate-700/50 hover:border-slate-500 hover:text-indigo-300 transition-all flex items-center justify-center gap-2 mt-2"
+                            >
+                                <PlusIcon className="w-5 h-5" />
+                                <span>{t('setup.characters.add')}</span>
+                            </button>
+                        </div>
+                    </div>
+
+                    {/* RIGHT COLUMN: SELECTED CHARACTER FORM */}
+                    <div className="w-full md:w-2/3 pl-0 md:pl-2 overflow-y-auto custom-scrollbar max-h-[600px]">
+                        {formData.characters.length > 0 && formData.characters[activeCharacterIndex] ? (
+                            <CharacterForm 
+                                key={formData.characters[activeCharacterIndex].id} 
+                                character={formData.characters[activeCharacterIndex]} 
+                                index={activeCharacterIndex} 
+                                onCharacterChange={handleCharacterChange} 
+                                onRemoveCharacter={removeCharacter} 
+                                onGenerateCharacter={handleGenerate.bind(null, 'character')} 
+                                isGenerating={generatingSection === `character_${activeCharacterIndex}`} 
+                            />
+                        ) : (
+                            <div className="h-full flex flex-col items-center justify-center text-slate-500">
+                                <p>{t('setup.characters.relationshipsNeed2')}</p>
+                                <button type="button" onClick={addCharacter} className="mt-4 px-4 py-2 bg-indigo-600 text-white rounded-lg hover:bg-indigo-500">{t('setup.characters.add')}</button>
+                            </div>
+                        )}
+                    </div>
                 </div>
+
                 <div className="space-y-4">
                     <div className="flex justify-between items-center mt-4 border-t border-slate-700 pt-4">
                         <h3 className="text-lg font-semibold text-slate-300">{t('setup.characters.relationships')}</h3>

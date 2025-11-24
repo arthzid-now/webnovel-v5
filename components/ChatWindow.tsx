@@ -1,3 +1,4 @@
+
 import React, { useState, useRef, useEffect, useCallback } from 'react';
 import { Chat } from '@google/genai';
 import { Message, MessageAuthor, StoryEncyclopedia } from '../types';
@@ -26,13 +27,15 @@ const ChatWindow: React.FC<ChatWindowProps> = ({ apiKey, storyEncyclopedia, onRe
   const chatContainerRef = useRef<HTMLDivElement>(null);
   
   // Effect for setting up the chat session with Gemini
+  // FIX: Only re-initialize when Story ID changes, API Key changes, or Thinking Mode changes.
+  // We do NOT want to reset the session every time the user types in the editor (which updates storyEncyclopedia content).
   useEffect(() => {
     if (apiKey) {
       chatRef.current = createChatSession(apiKey, isThinkingMode, storyEncyclopedia);
     } else {
       chatRef.current = null;
     }
-  }, [apiKey, isThinkingMode, storyEncyclopedia]);
+  }, [apiKey, isThinkingMode, storyEncyclopedia.id]); // Changed dependency from full object to ID
   
   // Effect for loading messages from localStorage
   useEffect(() => {

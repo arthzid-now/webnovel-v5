@@ -1,4 +1,5 @@
-import React, { useState } from 'react';
+
+import React, { useState, useEffect } from 'react';
 import { KeyIcon } from './icons/KeyIcon';
 import { SparklesIcon } from './icons/SparklesIcon';
 import { useLanguage } from '../contexts/LanguageContext';
@@ -11,6 +12,14 @@ interface ApiKeyModalProps {
 const ApiKeyModal: React.FC<ApiKeyModalProps> = ({ onSave, onClose }) => {
   const [key, setKey] = useState('');
   const { t } = useLanguage();
+
+  // Lock scroll when modal is open
+  useEffect(() => {
+      document.body.style.overflow = 'hidden';
+      return () => {
+          document.body.style.overflow = 'unset';
+      };
+  }, []);
 
   const handleSave = () => {
     if (key.trim()) {

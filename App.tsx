@@ -187,6 +187,14 @@ const migrateUniverseData = (data: any): Universe => {
     return parsed as Universe;
 }
 
+const sanitizeForXhtml = (html: string): string => {
+    // Convert standard HTML5 void tags to XHTML self-closing tags
+    return html
+        .replace(/<br>/g, '<br />')
+        .replace(/<hr>/g, '<hr />')
+        .replace(/<img([^>]+)>/g, '<img$1 />');
+};
+
 type View = 'dashboard' | 'setup' | 'studio' | 'universeHub' | 'universeSetup';
 
 const App: React.FC = () => {
@@ -577,14 +585,15 @@ const App: React.FC = () => {
 
         // Generate XHTML for each chapter
         story.chapters.forEach((chap, i) => {
-            const contentHtml = marked.parse(chap.content);
+            const contentHtml = marked.parse(chap.content) as string;
+            const sanitizedContent = sanitizeForXhtml(contentHtml);
             const xhtml = `<?xml version="1.0" encoding="utf-8"?>
                 <!DOCTYPE html PUBLIC "-//W3C//DTD XHTML 1.1//EN" "http://www.w3.org/TR/xhtml11/DTD/xhtml11.dtd">
                 <html xmlns="http://www.w3.org/1999/xhtml">
                 <head><title>${chap.title}</title></head>
                 <body>
                     <h2>${chap.title}</h2>
-                    ${contentHtml}
+                    ${sanitizedContent}
                 </body>
                 </html>`;
             oebps.file(`chapter_${i}.xhtml`, xhtml);

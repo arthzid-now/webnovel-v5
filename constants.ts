@@ -1,3 +1,4 @@
+
 import { ModelType } from './types';
 
 export const SYSTEM_INSTRUCTION_EN = `You are a world-class webnovel writing assistant. Your goal is to help the user brainstorm ideas, develop characters, create outlines, write chapter drafts, and refine their story.
@@ -25,8 +26,55 @@ Ikuti aturan ini:
 
 export const MAX_THINKING_BUDGET = 32768;
 
-export const GENRES_EN = ['Harem', 'Transmigration', 'Romance', 'System', 'Fantasy', 'Sci-Fi', 'Action', 'Adventure', 'Comedy', 'Mystery', 'Urban', 'Wuxia', 'Xianxia', 'Mature'];
-export const GENRES_ID = ['Harem', 'Transmigrasi', 'Romansa', 'Sistem', 'Fantasi', 'Fiksi Ilmiah', 'Aksi', 'Petualangan', 'Komedi', 'Misteri', 'Perkotaan', 'Wuxia', 'Xianxia', 'Dewasa'];
+export const GENRES_EN = [
+    { value: 'Action', label: 'Action', description: 'Focuses on physical challenges, fights, and chases.' },
+    { value: 'Adventure', label: 'Adventure', description: 'Journeys to new worlds or locations; exploration focused.' },
+    { value: 'Comedy', label: 'Comedy', description: 'Humorous tone, funny situations, and witty dialogue.' },
+    { value: 'Drama', label: 'Drama', description: 'Serious stories focusing on realistic characters and emotional conflict.' },
+    { value: 'Fantasy', label: 'Fantasy', description: 'Magic, supernatural elements, and imaginary worlds.' },
+    { value: 'Harem', label: 'Harem', description: 'Protagonist attracts multiple love interests.' },
+    { value: 'Historical', label: 'Historical', description: 'Set in a real-world past era (e.g., Victorian, Feudal Japan).' },
+    { value: 'Horror', label: 'Horror', description: 'Intended to scare, unsettle, or horrify the reader.' },
+    { value: 'Mature', label: 'Mature', description: 'Contains adult themes, violence, or sexual content.' },
+    { value: 'Mystery', label: 'Mystery', description: 'Focuses on solving a crime, puzzle, or secret.' },
+    { value: 'Psychological', label: 'Psychological', description: 'Emphasizes the inner life and mental states of characters; mind games.' },
+    { value: 'Romance', label: 'Romance', description: 'Focuses on romantic love and relationships.' },
+    { value: 'School Life', label: 'School Life', description: 'Set in a school environment; focuses on student life and youth.' },
+    { value: 'Sci-Fi', label: 'Sci-Fi', description: 'Futuristic science, technology, space exploration, or aliens.' },
+    { value: 'Slice of Life', label: 'Slice of Life', description: 'Realistic representation of everyday life experiences.' },
+    { value: 'Supernatural', label: 'Supernatural', description: 'Modern setting with ghosts, vampires, or other paranormal elements.' },
+    { value: 'System', label: 'System', description: 'Protagonist uses a game-like interface/status screen in real life.' },
+    { value: 'Thriller', label: 'Thriller', description: 'Fast-paced, high stakes, anxiety-inducing suspense.' },
+    { value: 'Transmigration', label: 'Transmigration', description: 'Protagonist travels to another world or body (Isekai).' },
+    { value: 'Urban', label: 'Urban', description: 'Set in a modern city environment.' },
+    { value: 'Wuxia', label: 'Wuxia', description: 'Martial heroes, chivalry, and low-fantasy martial arts.' },
+    { value: 'Xianxia', label: 'Xianxia', description: 'Immortal heroes, cultivation, Daoism, and high fantasy.' }
+];
+
+export const GENRES_ID = [
+    { value: 'Aksi', label: 'Aksi', description: 'Berfokus pada tantangan fisik, pertarungan, dan kejar-kejaran.' },
+    { value: 'Dewasa', label: 'Dewasa', description: 'Mengandung tema dewasa, kekerasan, atau konten seksual.' },
+    { value: 'Drama', label: 'Drama', description: 'Cerita serius yang berfokus pada karakter realistis dan konflik emosional.' },
+    { value: 'Fantasi', label: 'Fantasi', description: 'Sihir, elemen supranatural, dan dunia imajiner.' },
+    { value: 'Fiksi Ilmiah', label: 'Fiksi Ilmiah', description: 'Sains futuristik, teknologi, penjelajahan luar angkasa.' },
+    { value: 'Harem', label: 'Harem', description: 'Protagonis menarik banyak minat cinta.' },
+    { value: 'Horor', label: 'Horor', description: 'Bertujuan untuk menakut-nakuti atau membuat pembaca merasa ngeri.' },
+    { value: 'Kehidupan Sekolah', label: 'Kehidupan Sekolah', description: 'Berlatar di lingkungan sekolah; fokus pada kehidupan siswa.' },
+    { value: 'Komedi', label: 'Komedi', description: 'Nada humor, situasi lucu, dan dialog jenaka.' },
+    { value: 'Misteri', label: 'Misteri', description: 'Berfokus pada pemecahan kejahatan, teka-teki, atau rahasia.' },
+    { value: 'Perkotaan', label: 'Perkotaan', description: 'Berlatar di lingkungan kota modern.' },
+    { value: 'Petualangan', label: 'Petualangan', description: 'Perjalanan ke dunia atau lokasi baru; fokus pada eksplorasi.' },
+    { value: 'Psikologis', label: 'Psikologis', description: 'Menekankan kehidupan batin dan kondisi mental karakter; permainan pikiran.' },
+    { value: 'Romansa', label: 'Romansa', description: 'Berfokus pada cinta romantis dan hubungan.' },
+    { value: 'Sejarah', label: 'Sejarah', description: 'Berlatar di era masa lalu dunia nyata (misal: Majapahit, Victorian).' },
+    { value: 'Sistem', label: 'Sistem', description: 'Protagonis menggunakan antarmuka/layar status seperti game di dunia nyata.' },
+    { value: 'Slice of Life', label: 'Slice of Life', description: 'Gambaran realistis pengalaman kehidupan sehari-hari yang santai.' },
+    { value: 'Supranatural', label: 'Supranatural', description: 'Latar modern dengan hantu, vampir, atau elemen paranormal lainnya.' },
+    { value: 'Thriller', label: 'Thriller', description: 'Alur cepat, taruhan tinggi, ketegangan yang memicu kecemasan.' },
+    { value: 'Transmigrasi', label: 'Transmigrasi', description: 'Protagonis berpindah ke dunia atau tubuh lain (Isekai).' },
+    { value: 'Wuxia', label: 'Wuxia', description: 'Pahlawan bela diri, ksatria, dan seni bela diri fantasi rendah.' },
+    { value: 'Xianxia', label: 'Xianxia', description: 'Pahlawan abadi, kultivasi, Taoisme, dan fantasi tinggi.' }
+];
 
 export const PROSE_STYLES_EN = [
     { value: 'Light and descriptive, with witty dialogue.', description: 'Ideal for stories balancing world-building with character interactions.' },

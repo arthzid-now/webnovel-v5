@@ -1,4 +1,5 @@
-import React, { useState } from 'react';
+
+import React, { useState, useEffect } from 'react';
 import { AnalysisResult, Character, LoreEntry, StoryArcAct } from '../types';
 import { useLanguage } from '../contexts/LanguageContext';
 import { CheckIcon } from './icons/CheckIcon';
@@ -22,6 +23,14 @@ const ChapterAnalysisModal: React.FC<ChapterAnalysisModalProps> = ({ result, sto
     
     // Default to the last act as it's the most likely target for new content
     const [selectedActIndex, setSelectedActIndex] = useState<number>(Math.max(0, storyArc.length - 1));
+
+    // Lock scroll when modal is open
+    useEffect(() => {
+        document.body.style.overflow = 'hidden';
+        return () => {
+            document.body.style.overflow = 'unset';
+        };
+    }, []);
 
     const toggleChar = (index: number) => setSelectedChars(prev => { const n = [...prev]; n[index] = !n[index]; return n; });
     const toggleLoc = (index: number) => setSelectedLocs(prev => { const n = [...prev]; n[index] = !n[index]; return n; });

@@ -1,11 +1,22 @@
 
-import { GoogleGenAI, Chat, Type } from "@google/genai";
+import { GoogleGenAI, Chat, Type, GenerateContentResponse } from "@google/genai";
 import { ModelType, StoryEncyclopedia, StoryArcAct, Character, Relationship, CustomField, LoreEntry, Universe, AnalysisResult } from '../types';
 import { SYSTEM_INSTRUCTION_EN, SYSTEM_INSTRUCTION_ID, MAX_THINKING_BUDGET, PROSE_STYLES_EN, PROSE_STYLES_ID, STRUCTURE_TEMPLATES } from '../constants';
 
 const initializeGenAI = (apiKey: string) => {
     return new GoogleGenAI({ apiKey });
 }
+
+// --- SAFETY SETTINGS (JAILBREAK / CREATIVE FREEDOM) ---
+// We disable all safety filters to ensure the AI doesn't block creative writing 
+// containing conflict, romance, or mature themes standard in webnovels.
+const SAFETY_SETTINGS = [
+    { category: 'HARM_CATEGORY_HARASSMENT', threshold: 'BLOCK_NONE' },
+    { category: 'HARM_CATEGORY_HATE_SPEECH', threshold: 'BLOCK_NONE' },
+    { category: 'HARM_CATEGORY_SEXUALLY_EXPLICIT', threshold: 'BLOCK_NONE' },
+    { category: 'HARM_CATEGORY_DANGEROUS_CONTENT', threshold: 'BLOCK_NONE' },
+    { category: 'HARM_CATEGORY_CIVIC_INTEGRITY', threshold: 'BLOCK_NONE' }
+];
 
 // --- ERROR HANDLING UTILITY ---
 const generateWithRetry = async <T>(
@@ -17,13 +28,18 @@ const generateWithRetry = async <T>(
         return await fn();
     } catch (error: any) {
         const isQuotaError = error.status === 429 || error.message?.includes('429') || error.message?.includes('RESOURCE_EXHAUSTED');
-        const isServerBusy = error.status === 503 || error.message?.includes('503');
+        const isServerBusy = error.status === 503 || error.message?.includes('503') || error.message?.includes('Overloaded');
 
         if (retries > 0 && (isQuotaError || isServerBusy)) {
             console.warn(`API Rate Limit or Busy (Status ${error.status || 'Unknown'}). Retrying in ${delay}ms...`);
             await new Promise(resolve => setTimeout(resolve, delay));
             // Exponential backoff
             return generateWithRetry(fn, retries - 1, delay * 2); 
+        }
+        
+        // Enhance error message for user clarity
+        if (isQuotaError) {
+            throw new Error("Quota Exceeded (429). Your API key has hit its daily or minute limit. Please wait a while or check your billing.");
         }
         throw error;
     }
@@ -189,6 +205,7 @@ export const createChatSession = (apiKey: string, isThinkingMode: boolean, story
 
     const config: any = {
         systemInstruction: dynamicSystemInstruction,
+        safetySettings: SAFETY_SETTINGS, // Apply safety settings
     };
 
     if (model === ModelType.PRO && isThinkingMode) {
@@ -755,6 +772,7 @@ export const generateStoryEncyclopediaSection = async (
         config: {
             responseMimeType: 'application/json',
             responseSchema: config.schema,
+            safetySettings: SAFETY_SETTINGS, // Apply safety settings
         }
     }));
 
@@ -819,9 +837,12 @@ export const generateEditorAction = async (
     }
 
     // Wrap editor action in retry logic
-    const response = await generateWithRetry(() => ai.models.generateContent({
+    const response = await generateWithRetry<GenerateContentResponse>(() => ai.models.generateContent({
         model: 'gemini-2.5-flash',
         contents: prompt,
+        config: {
+            safetySettings: SAFETY_SETTINGS, // Apply safety settings
+        }
     }));
 
     return response.text?.trim() || '';
@@ -865,6 +886,7 @@ export const analyzeChapterContent = async (
         contents: prompt,
         config: {
             responseMimeType: 'application/json',
+            safetySettings: SAFETY_SETTINGS, // Apply safety settings
             responseSchema: {
                 type: Type.OBJECT,
                 properties: {

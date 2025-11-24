@@ -1,4 +1,5 @@
-import React from 'react';
+
+import React, { useEffect } from 'react';
 import { useLanguage } from '../contexts/LanguageContext';
 import { BookOpenIcon } from './icons/BookOpenIcon';
 import { DownloadIcon } from './icons/DownloadIcon';
@@ -39,6 +40,14 @@ const ExportOption: React.FC<{
 
 const ExportModal: React.FC<ExportModalProps> = ({ onClose, onExport }) => {
     const { t } = useLanguage();
+
+    // Lock scroll when modal is open
+    useEffect(() => {
+        document.body.style.overflow = 'hidden';
+        return () => {
+            document.body.style.overflow = 'unset';
+        };
+    }, []);
 
     return (
         <div className="fixed inset-0 bg-slate-900/80 backdrop-blur-sm z-50 flex items-center justify-center p-4" onClick={onClose}>
