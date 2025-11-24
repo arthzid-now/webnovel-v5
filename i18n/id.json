@@ -1,3 +1,4 @@
+
 {
   "app": {
     "title": "Studio AI Webnovel"
@@ -123,12 +124,25 @@
       "wordsPerChapter": "Kata per Bab"
     },
     "world": {
-      "worldBuilding": "Pembangunan Dunia",
-      "magicSystem": "Sistem/Sihir"
+      "subTabs": {
+        "geo": "Geografi & Politik",
+        "nature": "Alam & Biologi",
+        "power": "Kekuatan & Aset",
+        "history": "Sejarah & Budaya"
+      },
+      "worldBuilding": "Pembangunan Dunia (Ringkasan)",
+      "magicSystem": "Sistem/Sihir (Ringkasan)"
     },
     "lore": {
       "locations": "Lokasi",
       "factions": "Faksi",
+      "races": "Ras / Spesies",
+      "creatures": "Bestiary / Makhluk",
+      "powers": "Mantra / Skill / Kemampuan",
+      "items": "Item / Artefak",
+      "technology": "Teknologi",
+      "history": "Sejarah & Garis Waktu",
+      "cultures": "Budaya & Tradisi",
       "general": "Lore Umum",
       "addEntry": "Tambah Entri {{title}}",
       "removeEntry": "Hapus Entri {{title}}"
@@ -139,7 +153,6 @@
       "relationships": "Hubungan",
       "add": "Tambah Karakter",
       "addRelationship": "Tambah Hubungan",
-      "generateRelationships": "Buat Hubungan",
       "relationshipsNeed2": "Perlu min. 2 karakter",
       "character1": "Karakter 1",
       "character2": "Karakter 2",

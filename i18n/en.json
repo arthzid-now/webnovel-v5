@@ -1,3 +1,4 @@
+
 {
   "app": {
     "title": "Webnovel AI Studio"
@@ -122,12 +123,25 @@
       "wordsPerChapter": "Words Per Chapter"
     },
     "world": {
-      "worldBuilding": "World Building",
-      "magicSystem": "System/Magic"
+      "subTabs": {
+        "geo": "Geography & Politics",
+        "nature": "Nature & Biology",
+        "power": "Power & Assets",
+        "history": "History & Culture"
+      },
+      "worldBuilding": "World Building (Summary)",
+      "magicSystem": "System/Magic (Summary)"
     },
     "lore": {
       "locations": "Locations",
       "factions": "Factions",
+      "races": "Races / Species",
+      "creatures": "Bestiary / Creatures",
+      "powers": "Spells / Skills / Abilities",
+      "items": "Items / Artifacts",
+      "technology": "Technology",
+      "history": "History & Timeline",
+      "cultures": "Culture & Traditions",
       "general": "General Lore",
       "addEntry": "Add {{title}} Entry",
       "removeEntry": "Remove {{title}} Entry"

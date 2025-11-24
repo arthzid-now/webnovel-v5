@@ -1,3 +1,4 @@
+
 export enum MessageAuthor {
   USER = 'user',
   AI = 'ai',
@@ -79,13 +80,27 @@ export interface Universe {
   name: string;
   description: string;
   isFavorite?: boolean;
-  // Structured world-building
+  
+  // Geography & Politics
   locations: LoreEntry[];
   factions: LoreEntry[];
-  lore: LoreEntry[];
-  // Legacy fields for simpler use cases or migration
-  magicSystem?: string;
-  worldBuilding?: string;
+  
+  // Nature & Biology
+  races: LoreEntry[];
+  creatures: LoreEntry[];
+
+  // Power & Assets
+  magicSystem?: string; // Summary
+  powers: LoreEntry[];  // Specific spells/skills
+  items: LoreEntry[];
+  technology: LoreEntry[];
+
+  // History & Culture
+  history: LoreEntry[];
+  cultures: LoreEntry[];
+  lore: LoreEntry[]; // General Lore (Misc)
+  
+  worldBuilding?: string; // Summary
 }
 
 
@@ -115,10 +130,26 @@ export interface StoryEncyclopedia {
   // --- Fields snapshotted from a Universe ---
   universeId: string | null; // Link to the master Universe
   universeName: string;      // Display name of the universe
+  
+  // Geography & Politics
   locations: LoreEntry[];
   factions: LoreEntry[];
-  lore: LoreEntry[];
+  
+  // Nature & Biology
+  races: LoreEntry[];
+  creatures: LoreEntry[];
+
+  // Power & Assets
   magicSystem?: string;
+  powers: LoreEntry[];
+  items: LoreEntry[];
+  technology: LoreEntry[];
+
+  // History & Culture
+  history: LoreEntry[];
+  cultures: LoreEntry[];
+  lore: LoreEntry[]; // General Lore
+
   worldBuilding?: string;
   
   // For real-world templates

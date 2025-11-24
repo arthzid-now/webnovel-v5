@@ -1,3 +1,4 @@
+
 import React, { useState, useMemo, useEffect } from 'react';
 import { StoryEncyclopedia, StoryArcAct, Character, Relationship, CustomField, LoreEntry, PlotPoint, Universe } from '../types';
 import { GENRES_EN, GENRES_ID, PROSE_STYLES_EN, PROSE_STYLES_ID, NARRATIVE_PERSPECTIVES_EN, NARRATIVE_PERSPECTIVES_ID, STORY_FORMATS, STRUCTURE_TEMPLATES } from '../constants';
@@ -57,15 +58,17 @@ const createInitialFormData = (language: 'en' | 'id'): StoryEncyclopedia => ({
   universeId: null,
   universeName: language === 'id' ? 'Dunia Kustom' : 'Custom World',
   locations: [], factions: [], lore: [], magicSystem: '', worldBuilding: '',
+  // NEW WORLD ARRAYS
+  races: [], creatures: [], powers: [], items: [], technology: [], history: [], cultures: [],
   disguiseRealWorldNames: false,
 });
 
 // --- Reusable UI Sub-components ---
-const GenerateButton: React.FC<{onClick: () => void; disabled: boolean; isLoading: boolean;}> = ({ onClick, disabled, isLoading}) => {
+const GenerateButton: React.FC<{onClick: () => void; disabled: boolean; isLoading: boolean; label?: string}> = ({ onClick, disabled, isLoading, label }) => {
     const { t } = useLanguage();
     return (
         <button type="button" onClick={onClick} disabled={disabled || isLoading} className="flex items-center justify-center gap-2 px-3 py-1 text-sm font-semibold text-indigo-300 bg-slate-700/50 rounded-md border border-slate-600 hover:bg-slate-700 disabled:opacity-50 disabled:cursor-not-allowed transition-all">
-            {isLoading ? <><SpinnerIcon className="w-4 h-4" />{t('common.generating')}</> : <><SparklesIcon className="w-4 h-4" />{t('common.generateWithAi')}</>}
+            {isLoading ? <><SpinnerIcon className="w-4 h-4" />{t('common.generating')}</> : <><SparklesIcon className="w-4 h-4" />{label || t('common.generateWithAi')}</>}
         </button>
     );
 }
@@ -127,19 +130,19 @@ const CharacterForm: React.FC<{ character: Character; index: number; onCharacter
     );
 };
 
-const LoreListEditor: React.FC<{ listTitle: string; listType: 'locations' | 'factions' | 'lore'; entries: LoreEntry[]; onLoreChange: Function; onAdd: Function; onRemove: Function; }> = ({ listTitle, listType, entries, onLoreChange, onAdd, onRemove }) => {
+const LoreListEditor: React.FC<{ listTitle: string; entries: LoreEntry[]; onLoreChange: (index: number, field: keyof LoreEntry, value: string) => void; onAdd: () => void; onRemove: (index: number) => void; }> = ({ listTitle, entries, onLoreChange, onAdd, onRemove }) => {
     const { t } = useLanguage();
     return (
         <div className="space-y-4">
             <h3 className="text-lg font-semibold text-slate-300 mt-4 border-t border-slate-700 pt-4">{listTitle}</h3>
             {entries?.map((entry, index) => (
                 <div key={entry.id} className="p-3 bg-slate-700/50 rounded-md space-y-2 relative">
-                    <input type="text" placeholder={t('common.name')} value={entry.name} onChange={(e) => onLoreChange(listType, index, 'name', e.target.value)} className="w-full bg-slate-600 font-bold text-slate-100 placeholder-slate-400 rounded-md p-2 border border-slate-500 focus:ring-2 focus:ring-indigo-500 focus:outline-none" />
-                    <textarea placeholder={t('common.description')} value={entry.description} onChange={(e) => onLoreChange(listType, index, 'description', e.target.value)} rows={3} className="w-full bg-slate-600 text-slate-200 placeholder-slate-400 rounded-md p-2 border border-slate-500 focus:ring-2 focus:ring-indigo-500 focus:outline-none" />
-                    <button type="button" onClick={() => onRemove(listType, index)} className="absolute top-2 right-2 p-1.5 text-slate-400 hover:text-rose-400" title={t('setup.lore.removeEntry', { title: listTitle })}><TrashIcon className="w-4 h-4" /></button>
+                    <input type="text" placeholder={t('common.name')} value={entry.name} onChange={(e) => onLoreChange(index, 'name', e.target.value)} className="w-full bg-slate-600 font-bold text-slate-100 placeholder-slate-400 rounded-md p-2 border border-slate-500 focus:ring-2 focus:ring-indigo-500 focus:outline-none" />
+                    <textarea placeholder={t('common.description')} value={entry.description} onChange={(e) => onLoreChange(index, 'description', e.target.value)} rows={3} className="w-full bg-slate-600 text-slate-200 placeholder-slate-400 rounded-md p-2 border border-slate-500 focus:ring-2 focus:ring-indigo-500 focus:outline-none" />
+                    <button type="button" onClick={() => onRemove(index)} className="absolute top-2 right-2 p-1.5 text-slate-400 hover:text-rose-400" title={t('setup.lore.removeEntry', { title: listTitle })}><TrashIcon className="w-4 h-4" /></button>
                 </div>
             ))}
-            <button type="button" onClick={() => onAdd(listType)} className="w-full text-sm py-2 px-4 border-2 border-dashed border-slate-600 text-slate-400 rounded-lg hover:bg-slate-700 hover:border-slate-500 transition-colors flex items-center justify-center gap-2"><PlusIcon className="w-4 h-4" />{t('setup.lore.addEntry', { title: listTitle })}</button>
+            <button type="button" onClick={onAdd} className="w-full text-sm py-2 px-4 border-2 border-dashed border-slate-600 text-slate-400 rounded-lg hover:bg-slate-700 hover:border-slate-500 transition-colors flex items-center justify-center gap-2"><PlusIcon className="w-4 h-4" />{t('setup.lore.addEntry', { title: listTitle })}</button>
         </div>
     );
 };
@@ -220,6 +223,9 @@ const StoryEncyclopediaSetup: React.FC<StoryEncyclopediaSetupProps> = ({ apiKey,
   const [generatingSection, setGeneratingSection] = useState<string | null>(null);
   const [error, setError] = useState<string | null>(null);
   const [activeTab, setActiveTab] = useState<string>('basic');
+  // NEW: Active sub-tab for World & Lore
+  const [activeWorldTab, setActiveWorldTab] = useState<string>('geo');
+
   const [showUniverseModal, setShowUniverseModal] = useState<boolean>(!initialData);
   const [disguiseNames, setDisguiseNames] = useState(false);
   const [styleExample, setStyleExample] = useState('');
@@ -230,7 +236,7 @@ const StoryEncyclopediaSetup: React.FC<StoryEncyclopediaSetupProps> = ({ apiKey,
   const [buildProgress, setBuildProgress] = useState<string>('');
   const [completedSteps, setCompletedSteps] = useState<Record<string, boolean>>({});
 
-  const MAX_CUSTOM_STYLE_CHARS = 6000; // ~1000 words
+  const MAX_CUSTOM_STYLE_CHARS = 6000; 
 
   const isEditing = !!initialData;
   const GENRES = contentLanguage === 'id' ? GENRES_ID : GENRES_EN;
@@ -251,7 +257,6 @@ const StoryEncyclopediaSetup: React.FC<StoryEncyclopediaSetupProps> = ({ apiKey,
       setFormData(initialData);
       setContentLanguage(initialData.language);
     } else {
-      // When creating a new story, if the content language changes, reset the form.
       setFormData(createInitialFormData(contentLanguage));
     }
   }, [initialData, contentLanguage]);
@@ -280,6 +285,24 @@ const StoryEncyclopediaSetup: React.FC<StoryEncyclopediaSetupProps> = ({ apiKey,
       if (section === 'character' && index !== undefined) setFormData(prev => { const newCharacters = [...prev.characters]; newCharacters[index] = { ...result, id: newCharacters[index].id }; return { ...prev, characters: newCharacters }; });
       else if (section === 'singleArcAct' && index !== undefined) setFormData(prev => { const newStoryArc = [...prev.storyArc]; newStoryArc[index] = result as StoryArcAct; return { ...prev, storyArc: newStoryArc }; });
       else if (section === 'relationships') setFormData(prev => ({ ...prev, relationships: [...prev.relationships, ...result.relationships] }));
+      
+      // Handle World Lore Lists merging
+      else if (section === 'worldLore' || section === 'world_nature' || section === 'world_power' || section === 'world_history') {
+          setFormData(prev => ({
+              ...prev,
+              locations: [...prev.locations, ...(result.locations || [])],
+              factions: [...prev.factions, ...(result.factions || [])],
+              lore: [...prev.lore, ...(result.lore || [])],
+              races: [...prev.races, ...(result.races || [])],
+              creatures: [...prev.creatures, ...(result.creatures || [])],
+              powers: [...prev.powers, ...(result.powers || [])],
+              items: [...prev.items, ...(result.items || [])],
+              technology: [...prev.technology, ...(result.technology || [])],
+              history: [...prev.history, ...(result.history || [])],
+              cultures: [...prev.cultures, ...(result.cultures || [])],
+          }));
+      }
+      
       else setFormData(prev => ({ ...prev, ...result }));
     } catch (err) { setError(err instanceof Error ? err.message : "An unknown error occurred."); } 
     finally { setGeneratingSection(null); }
@@ -290,14 +313,13 @@ const StoryEncyclopediaSetup: React.FC<StoryEncyclopediaSetupProps> = ({ apiKey,
           onRequestApiKey();
           return;
       }
-      // REMOVED WINDOW.CONFIRM for direct action
       
       setIsAutoBuilding(true);
       setBuildProgress('basic');
       setCompletedSteps({});
       setError(null);
 
-      let currentData = { ...formData }; // Accumulate changes locally
+      let currentData = { ...formData };
       
       try {
           // 1. Basic Info
@@ -309,22 +331,42 @@ const StoryEncyclopediaSetup: React.FC<StoryEncyclopediaSetupProps> = ({ apiKey,
           // 2. Core (Plot & Characters)
           setBuildProgress('core');
           const coreRes = await generateStoryEncyclopediaSection(apiKey, 'core', currentData, contentLanguage);
-          // Only replace/add if arrays are empty to avoid dups if run multiple times, but for auto-build usually we want fresh
           currentData = { ...currentData, ...coreRes }; 
           setFormData(currentData);
           setCompletedSteps(prev => ({...prev, core: true}));
 
-          // 3. World (Lore)
+          // 3. World (Lore) - NOW INCLUDES ALL SUB-SECTIONS
           setBuildProgress('world');
           const worldRes = await generateStoryEncyclopediaSection(apiKey, 'worldLore', currentData, contentLanguage);
+          
+          // Nature
+          const natureRes = await generateStoryEncyclopediaSection(apiKey, 'world_nature', currentData, contentLanguage);
+          
+          // Power
+          const powerRes = await generateStoryEncyclopediaSection(apiKey, 'world_power', currentData, contentLanguage);
+          
+          // History
+          const historyRes = await generateStoryEncyclopediaSection(apiKey, 'world_history', currentData, contentLanguage);
+
           currentData = { 
               ...currentData, 
+              // Geo
               locations: [...currentData.locations, ...worldRes.locations],
               factions: [...currentData.factions, ...worldRes.factions],
-              lore: [...currentData.lore, ...worldRes.lore]
+              lore: [...currentData.lore, ...worldRes.lore],
+              // Nature
+              races: [...currentData.races, ...natureRes.races],
+              creatures: [...currentData.creatures, ...natureRes.creatures],
+              // Power
+              powers: [...currentData.powers, ...powerRes.powers],
+              items: [...currentData.items, ...powerRes.items],
+              technology: [...currentData.technology, ...powerRes.technology],
+              // History
+              history: [...currentData.history, ...historyRes.history],
+              cultures: [...currentData.cultures, ...historyRes.cultures],
           };
+
           if (showWorldBuilding || showMagicSystem) {
-             // Generate specific fields if needed
              if (showWorldBuilding) {
                  const wbRes = await generateStoryEncyclopediaSection(apiKey, 'worldBuilding', currentData, contentLanguage);
                  currentData = { ...currentData, ...wbRes };
@@ -350,7 +392,6 @@ const StoryEncyclopediaSetup: React.FC<StoryEncyclopediaSetupProps> = ({ apiKey,
           setBuildProgress('arc');
           const arcRes = await generateStoryEncyclopediaSection(apiKey, 'arc', currentData, contentLanguage);
           if (arcRes.storyArc) {
-              // Ensure IDs are unique
               const mappedArc = arcRes.storyArc.map((act: any) => ({
                   ...act,
                   plotPoints: (act.plotPoints || []).map((p: any) => ({ ...p, id: crypto.randomUUID() }))
@@ -370,10 +411,8 @@ const StoryEncyclopediaSetup: React.FC<StoryEncyclopediaSetupProps> = ({ apiKey,
           setBuildProgress('complete');
 
       } catch (err) {
-          // Pass the error to the state so the modal can display it
           setError(err instanceof Error ? err.message : "Auto-build failed.");
           setBuildProgress('error');
-          // IMPORTANT: Do NOT close the modal here (setIsAutoBuilding(false)) so the user can see the error
       }
   };
   
@@ -413,6 +452,14 @@ const StoryEncyclopediaSetup: React.FC<StoryEncyclopediaSetupProps> = ({ apiKey,
             lore: formData.lore,
             magicSystem: formData.magicSystem,
             worldBuilding: formData.worldBuilding,
+            // NEW FIELDS
+            races: formData.races,
+            creatures: formData.creatures,
+            powers: formData.powers,
+            items: formData.items,
+            technology: formData.technology,
+            history: formData.history,
+            cultures: formData.cultures
         };
         onSaveAsUniverse(newUniverse);
         alert(t('setup.universe.saveSuccess', { name: universeName }));
@@ -420,14 +467,23 @@ const StoryEncyclopediaSetup: React.FC<StoryEncyclopediaSetupProps> = ({ apiKey,
   };
 
   const handleSelectUniverse = (universe: Universe | null) => {
+    const genIds = (arr: LoreEntry[]) => (arr || []).map(l => ({...l, id: crypto.randomUUID()}));
+    
     if (universe) {
         setFormData(prev => ({
             ...prev,
             universeId: universe.id,
             universeName: universe.name,
-            locations: universe.locations.map(l => ({...l, id: crypto.randomUUID()})),
-            factions: universe.factions.map(f => ({...f, id: crypto.randomUUID()})),
-            lore: universe.lore.map(l => ({...l, id: crypto.randomUUID()})),
+            locations: genIds(universe.locations),
+            factions: genIds(universe.factions),
+            lore: genIds(universe.lore),
+            races: genIds(universe.races),
+            creatures: genIds(universe.creatures),
+            powers: genIds(universe.powers),
+            items: genIds(universe.items),
+            technology: genIds(universe.technology),
+            history: genIds(universe.history),
+            cultures: genIds(universe.cultures),
             magicSystem: universe.magicSystem,
             worldBuilding: universe.worldBuilding,
             disguiseRealWorldNames: false,
@@ -437,7 +493,7 @@ const StoryEncyclopediaSetup: React.FC<StoryEncyclopediaSetupProps> = ({ apiKey,
             ...prev,
             universeId: null,
             universeName: contentLanguage === 'id' ? 'Dunia Kustom' : 'Custom World',
-            locations: [], factions: [], lore: [], magicSystem: '', worldBuilding: '',
+            locations: [], factions: [], lore: [], races:[], creatures:[], powers:[], items:[], technology:[], history:[], cultures:[], magicSystem: '', worldBuilding: '',
             disguiseRealWorldNames: false,
         }));
     }
@@ -449,20 +505,19 @@ const StoryEncyclopediaSetup: React.FC<StoryEncyclopediaSetupProps> = ({ apiKey,
         ...prev,
         universeId: null,
         universeName: 'Real World',
-        locations: [], factions: [], lore: [], magicSystem: '', worldBuilding: '',
+        locations: [], factions: [], lore: [], races:[], creatures:[], powers:[], items:[], technology:[], history:[], cultures:[], magicSystem: '', worldBuilding: '',
         disguiseRealWorldNames: disguiseNames,
     }));
     setShowUniverseModal(false);
   };
 
 
-  // --- Handlers for Form State Changes (delegated for brevity) ---
+  // --- Handlers for Form State Changes ---
   const handleChange = (e: React.ChangeEvent<HTMLInputElement | HTMLTextAreaElement | HTMLSelectElement>) => {
     const { name, value } = e.target;
     if (name === 'customProseStyleByExample' && value.length > MAX_CUSTOM_STYLE_CHARS) {
-        return; // Prevent typing past the limit
+        return; 
     }
-    // Handle Format change side effects
     if (name === 'format') {
         const selectedFormat = STORY_FORMATS.find(f => f.value === value);
         if (selectedFormat && (!formData.totalChapters || !formData.wordsPerChapter)) {
@@ -490,9 +545,11 @@ const StoryEncyclopediaSetup: React.FC<StoryEncyclopediaSetupProps> = ({ apiKey,
   const handlePlotPointChange = (actIndex: number, ppIndex: number, value: string) => setFormData(prev => { const newArc = [...prev.storyArc]; const newPPs = [...newArc[actIndex].plotPoints]; newPPs[ppIndex] = { ...newPPs[ppIndex], summary: value }; newArc[actIndex] = { ...newArc[actIndex], plotPoints: newPPs }; return { ...prev, storyArc: newArc }; });
   const addPlotPoint = (actIndex: number) => setFormData(prev => { const newArc = [...prev.storyArc]; newArc[actIndex].plotPoints.push(createEmptyPlotPoint()); return { ...prev, storyArc: newArc }; });
   const removePlotPoint = (actIndex: number, ppIndex: number) => setFormData(prev => { const newArc = [...prev.storyArc]; newArc[actIndex].plotPoints = newArc[actIndex].plotPoints.filter((_, i) => i !== ppIndex); return { ...prev, storyArc: newArc }; });
-  const handleLoreChange = (type: 'locations' | 'factions' | 'lore', index: number, field: keyof LoreEntry, value: string) => setFormData(prev => { const newEntries = [...prev[type]]; newEntries[index] = { ...newEntries[index], [field]: value }; return { ...prev, [type]: newEntries }; });
-  const addLoreEntry = (type: 'locations' | 'factions' | 'lore') => setFormData(prev => ({ ...prev, [type]: [...prev[type], createEmptyLoreEntry()] }));
-  const removeLoreEntry = (type: 'locations' | 'factions' | 'lore', index: number) => setFormData(prev => ({ ...prev, [type]: prev[type].filter((_, i) => i !== index) }));
+  
+  // GENERIC LORE HANDLER
+  const handleLoreChange = (type: any, index: number, field: keyof LoreEntry, value: string) => setFormData(prev => { const newEntries = [...(prev as any)[type]]; newEntries[index] = { ...newEntries[index], [field]: value }; return { ...prev, [type]: newEntries }; });
+  const addLoreEntry = (type: any) => setFormData(prev => ({ ...prev, [type]: [...(prev as any)[type], createEmptyLoreEntry()] }));
+  const removeLoreEntry = (type: any, index: number) => setFormData(prev => ({ ...prev, [type]: (prev as any)[type].filter((_: any, i: number) => i !== index) }));
 
   const handleSubmit = (e: React.FormEvent) => { e.preventDefault(); onStoryCreate(formData); };
   
@@ -513,17 +570,15 @@ const StoryEncyclopediaSetup: React.FC<StoryEncyclopediaSetupProps> = ({ apiKey,
       {/* --- UNIVERSE SELECTION MODAL --- */}
       {showUniverseModal && (
         <div className="fixed inset-0 bg-slate-900/80 backdrop-blur-sm z-50 flex items-center justify-center p-4">
+            {/* ... (Existing Modal content, no changes needed) ... */}
             <div className="bg-slate-800 border border-slate-700 rounded-lg shadow-xl max-w-4xl w-full p-6 space-y-6 flex flex-col max-h-[90vh]">
                 <h2 className="text-2xl font-bold text-indigo-400 flex-shrink-0">{t('setup.universe.modalTitle')}</h2>
-                
                 <div className="grid grid-cols-1 md:grid-cols-3 gap-6 flex-shrink-0">
-                    {/* Option 1: Blank Slate */}
                     <button onClick={() => handleSelectUniverse(null)} className="text-center p-6 bg-slate-700 hover:bg-slate-600 rounded-lg border border-slate-600 hover:border-indigo-500 transition-all flex flex-col items-center justify-center">
                         <PencilIcon className="w-8 h-8 mb-2 text-slate-400" />
                         <h3 className="font-bold text-slate-100">{t('setup.universe.blankCanvas')}</h3>
                         <p className="text-sm text-slate-400 mt-1">{t('setup.universe.blankCanvasDesc')}</p>
                     </button>
-                    {/* Option 2: Real World Template */}
                     <div className="text-center p-6 bg-slate-700 rounded-lg border border-slate-600 flex flex-col items-center justify-between">
                        <div>
                             <GlobeIcon className="w-8 h-8 mb-2 text-slate-400 mx-auto" />
@@ -538,14 +593,12 @@ const StoryEncyclopediaSetup: React.FC<StoryEncyclopediaSetupProps> = ({ apiKey,
                            <button onClick={handleRealWorldSelect} className="w-full bg-indigo-600 text-white font-semibold py-2 px-4 rounded-md hover:bg-indigo-500 transition-colors">{t('common.confirm')}</button>
                        </div>
                     </div>
-                     {/* Option 3: Universe Library */}
                      <div className="text-center p-6 bg-slate-700 rounded-lg border border-slate-600 flex flex-col items-center justify-center">
                         <DatabaseIcon className="w-8 h-8 mb-2 text-slate-400" />
                         <h3 className="font-bold text-slate-100">{t('setup.universe.fromLibrary')}</h3>
                         <p className="text-sm text-slate-400 mt-1">{t('setup.universe.fromLibraryDesc')}</p>
                     </div>
                 </div>
-                
                 {sortedUniverseLibrary.length > 0 && (
                      <div className="flex-grow overflow-y-auto -mx-2 px-2">
                         <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
@@ -565,7 +618,6 @@ const StoryEncyclopediaSetup: React.FC<StoryEncyclopediaSetupProps> = ({ apiKey,
                         </div>
                     </div>
                 )}
-               
                 {onCancel && <button type="button" onClick={onCancel} className="text-sm text-slate-400 hover:text-slate-200 absolute top-4 right-4">{t('common.cancel')}</button>}
             </div>
         </div>
@@ -638,38 +690,85 @@ const StoryEncyclopediaSetup: React.FC<StoryEncyclopediaSetupProps> = ({ apiKey,
                 }
             > 
                 <FormField label={t('setup.basic.title')} name="title" value={formData.title} onChange={handleChange} fullWidth/>
-                
-                {/* NEW: STORY FORMAT TOGGLE */}
                 <div className="col-span-1 md:col-span-2">
                     <label className="block text-sm font-medium text-slate-300 mb-2">{t('setup.basic.format')}</label>
                     <div className="flex flex-col md:flex-row gap-4">
                         {STORY_FORMATS.map((fmt) => (
                             <label key={fmt.value} className={`flex-1 p-3 rounded-lg border cursor-pointer transition-all ${formData.format === fmt.value ? 'bg-indigo-900/40 border-indigo-500' : 'bg-slate-700/50 border-slate-600 hover:border-slate-500'}`}>
                                 <div className="flex items-center gap-3">
-                                    <input 
-                                        type="radio" 
-                                        name="format" 
-                                        value={fmt.value} 
-                                        checked={formData.format === fmt.value} 
-                                        onChange={handleChange} 
-                                        className="text-indigo-600 focus:ring-indigo-500 bg-slate-700 border-slate-500"
-                                    />
-                                    <div>
-                                        <div className="font-bold text-slate-200">{fmt.label}</div>
-                                        <div className="text-xs text-slate-400 mt-0.5">{fmt.defaultChapters} Chaps • {fmt.defaultWords} Words</div>
-                                    </div>
+                                    <input type="radio" name="format" value={fmt.value} checked={formData.format === fmt.value} onChange={handleChange} className="text-indigo-600 focus:ring-indigo-500 bg-slate-700 border-slate-500"/>
+                                    <div><div className="font-bold text-slate-200">{fmt.label}</div><div className="text-xs text-slate-400 mt-0.5">{fmt.defaultChapters} Chaps • {fmt.defaultWords} Words</div></div>
                                 </div>
                             </label>
                         ))}
                     </div>
                      <p className="text-xs text-slate-400 mt-2">{t('setup.basic.formatDesc')}</p>
                 </div>
-
                 <FormField label={t('setup.basic.setting')} name="setting" value={formData.setting} onChange={handleChange} isTextArea fullWidth placeholder={t('setup.basic.settingPlaceholder')}/> 
                 <FormField label={t('setup.basic.totalChapters')} name="totalChapters" value={formData.totalChapters} onChange={handleChange} /> 
                 <FormField label={t('setup.basic.wordsPerChapter')} name="wordsPerChapter" value={formData.wordsPerChapter} onChange={handleChange} /> 
             </FormSection>}
-            {activeTab === 'world' && <FormSection title={t('setup.tabs.world')} grid={false} onGenerate={() => handleGenerate('worldLore')} generateDisabled={!isWorldLoreReadyForGen} isGenerating={generatingSection === 'worldLore'} actions={<button type="button" onClick={handleSaveAsUniverse} className="flex items-center gap-2 px-3 py-1 text-sm font-semibold text-slate-300 bg-slate-700/50 rounded-md border border-slate-600 hover:bg-slate-700"><DatabaseIcon className="w-4 h-4" /> {t('setup.universe.saveToLibrary')}</button>}> {showWorldBuilding && <FormField label={t('setup.world.worldBuilding')} name="worldBuilding" value={formData.worldBuilding || ''} onChange={handleChange} isTextArea onGenerate={() => handleGenerate('worldBuilding')} isGenerating={generatingSection === 'worldBuilding'} />} {showMagicSystem && <FormField label={t('setup.world.magicSystem')} name="magicSystem" value={formData.magicSystem || ''} onChange={handleChange} isTextArea onGenerate={() => handleGenerate('magicSystem')} isGenerating={generatingSection === 'magicSystem'} />} <LoreListEditor listTitle={t('setup.lore.locations')} listType="locations" entries={formData.locations} onLoreChange={handleLoreChange} onAdd={addLoreEntry} onRemove={removeLoreEntry}/> <LoreListEditor listTitle={t('setup.lore.factions')} listType="factions" entries={formData.factions} onLoreChange={handleLoreChange} onAdd={addLoreEntry} onRemove={removeLoreEntry}/> <LoreListEditor listTitle={t('setup.lore.general')} listType="lore" entries={formData.lore} onLoreChange={handleLoreChange} onAdd={addLoreEntry} onRemove={removeLoreEntry}/> </FormSection>}
+            
+            {/* UPDATED WORLD TAB WITH SUB-NAVIGATION */}
+            {activeTab === 'world' && (
+                <div className="bg-slate-800 p-6 rounded-lg border border-slate-700">
+                    <div className="flex justify-between items-center mb-4 border-b border-slate-600 pb-2">
+                         <h3 className="text-xl font-bold text-indigo-400">{t('setup.tabs.world')}</h3>
+                         <button type="button" onClick={handleSaveAsUniverse} className="flex items-center gap-2 px-3 py-1 text-sm font-semibold text-slate-300 bg-slate-700/50 rounded-md border border-slate-600 hover:bg-slate-700"><DatabaseIcon className="w-4 h-4" /> {t('setup.universe.saveToLibrary')}</button>
+                    </div>
+
+                    {/* Sub-Tabs */}
+                    <div className="flex space-x-1 bg-slate-900/50 p-1 rounded-md mb-4">
+                        <button type="button" onClick={() => setActiveWorldTab('geo')} className={`flex-1 py-1.5 text-sm font-medium rounded-md transition-colors ${activeWorldTab === 'geo' ? 'bg-slate-700 text-white shadow' : 'text-slate-400 hover:text-slate-200'}`}>{t('world.subTabs.geo')}</button>
+                        <button type="button" onClick={() => setActiveWorldTab('nature')} className={`flex-1 py-1.5 text-sm font-medium rounded-md transition-colors ${activeWorldTab === 'nature' ? 'bg-slate-700 text-white shadow' : 'text-slate-400 hover:text-slate-200'}`}>{t('world.subTabs.nature')}</button>
+                        <button type="button" onClick={() => setActiveWorldTab('power')} className={`flex-1 py-1.5 text-sm font-medium rounded-md transition-colors ${activeWorldTab === 'power' ? 'bg-slate-700 text-white shadow' : 'text-slate-400 hover:text-slate-200'}`}>{t('world.subTabs.power')}</button>
+                        <button type="button" onClick={() => setActiveWorldTab('history')} className={`flex-1 py-1.5 text-sm font-medium rounded-md transition-colors ${activeWorldTab === 'history' ? 'bg-slate-700 text-white shadow' : 'text-slate-400 hover:text-slate-200'}`}>{t('world.subTabs.history')}</button>
+                    </div>
+
+                    <div className="space-y-4">
+                        {/* Geography & Politics */}
+                        {activeWorldTab === 'geo' && (
+                            <>
+                                <div className="flex justify-end"><GenerateButton onClick={() => handleGenerate('worldLore')} disabled={!isWorldLoreReadyForGen} isLoading={generatingSection === 'worldLore'} label={t('common.generateWithAi')}/></div>
+                                {showWorldBuilding && <FormField label={t('setup.world.worldBuilding')} name="worldBuilding" value={formData.worldBuilding || ''} onChange={handleChange} isTextArea onGenerate={() => handleGenerate('worldBuilding')} isGenerating={generatingSection === 'worldBuilding'} />}
+                                <LoreListEditor listTitle={t('setup.lore.locations')} entries={formData.locations} onLoreChange={(i, f, v) => handleLoreChange('locations', i, f, v)} onAdd={() => addLoreEntry('locations')} onRemove={(i) => removeLoreEntry('locations', i)}/>
+                                <LoreListEditor listTitle={t('setup.lore.factions')} entries={formData.factions} onLoreChange={(i, f, v) => handleLoreChange('factions', i, f, v)} onAdd={() => addLoreEntry('factions')} onRemove={(i) => removeLoreEntry('factions', i)}/>
+                                <LoreListEditor listTitle={t('setup.lore.general')} entries={formData.lore} onLoreChange={(i, f, v) => handleLoreChange('lore', i, f, v)} onAdd={() => addLoreEntry('lore')} onRemove={(i) => removeLoreEntry('lore', i)}/>
+                            </>
+                        )}
+                        
+                        {/* Nature & Biology */}
+                        {activeWorldTab === 'nature' && (
+                            <>
+                                <div className="flex justify-end"><GenerateButton onClick={() => handleGenerate('world_nature')} disabled={!isWorldLoreReadyForGen} isLoading={generatingSection === 'world_nature'} label={t('common.generateWithAi')}/></div>
+                                <LoreListEditor listTitle={t('setup.lore.races')} entries={formData.races} onLoreChange={(i, f, v) => handleLoreChange('races', i, f, v)} onAdd={() => addLoreEntry('races')} onRemove={(i) => removeLoreEntry('races', i)}/>
+                                <LoreListEditor listTitle={t('setup.lore.creatures')} entries={formData.creatures} onLoreChange={(i, f, v) => handleLoreChange('creatures', i, f, v)} onAdd={() => addLoreEntry('creatures')} onRemove={(i) => removeLoreEntry('creatures', i)}/>
+                            </>
+                        )}
+                        
+                        {/* Power & Assets */}
+                        {activeWorldTab === 'power' && (
+                            <>
+                                <div className="flex justify-end"><GenerateButton onClick={() => handleGenerate('world_power')} disabled={!isWorldLoreReadyForGen} isLoading={generatingSection === 'world_power'} label={t('common.generateWithAi')}/></div>
+                                {showMagicSystem && <FormField label={t('setup.world.magicSystem')} name="magicSystem" value={formData.magicSystem || ''} onChange={handleChange} isTextArea onGenerate={() => handleGenerate('magicSystem')} isGenerating={generatingSection === 'magicSystem'} />}
+                                <LoreListEditor listTitle={t('setup.lore.powers')} entries={formData.powers} onLoreChange={(i, f, v) => handleLoreChange('powers', i, f, v)} onAdd={() => addLoreEntry('powers')} onRemove={(i) => removeLoreEntry('powers', i)}/>
+                                <LoreListEditor listTitle={t('setup.lore.items')} entries={formData.items} onLoreChange={(i, f, v) => handleLoreChange('items', i, f, v)} onAdd={() => addLoreEntry('items')} onRemove={(i) => removeLoreEntry('items', i)}/>
+                                <LoreListEditor listTitle={t('setup.lore.technology')} entries={formData.technology} onLoreChange={(i, f, v) => handleLoreChange('technology', i, f, v)} onAdd={() => addLoreEntry('technology')} onRemove={(i) => removeLoreEntry('technology', i)}/>
+                            </>
+                        )}
+                        
+                        {/* History & Culture */}
+                        {activeWorldTab === 'history' && (
+                            <>
+                                <div className="flex justify-end"><GenerateButton onClick={() => handleGenerate('world_history')} disabled={!isWorldLoreReadyForGen} isLoading={generatingSection === 'world_history'} label={t('common.generateWithAi')}/></div>
+                                <LoreListEditor listTitle={t('setup.lore.history')} entries={formData.history} onLoreChange={(i, f, v) => handleLoreChange('history', i, f, v)} onAdd={() => addLoreEntry('history')} onRemove={(i) => removeLoreEntry('history', i)}/>
+                                <LoreListEditor listTitle={t('setup.lore.cultures')} entries={formData.cultures} onLoreChange={(i, f, v) => handleLoreChange('cultures', i, f, v)} onAdd={() => addLoreEntry('cultures')} onRemove={(i) => removeLoreEntry('cultures', i)}/>
+                            </>
+                        )}
+                    </div>
+                </div>
+            )}
+
             {activeTab === 'characters' && <FormSection title={t('setup.tabs.characters')} onGenerate={() => handleGenerate('core')} generateDisabled={!isBasicInfoComplete} isGenerating={generatingSection === 'core'} grid={false}>
                 <FormField label={t('setup.characters.mainPlot')} name="mainPlot" value={formData.mainPlot} onChange={handleChange} isTextArea onGenerate={() => handleGenerate('mainPlot')} isGenerating={generatingSection === 'mainPlot'} />
                 <div className="space-y-4">
@@ -691,7 +790,7 @@ const StoryEncyclopediaSetup: React.FC<StoryEncyclopediaSetupProps> = ({ apiKey,
                             </button>
                         )}
                     </div>
-
+                    {/* ... (Relationships form remains the same) ... */}
                     {allCharacters.length < 2 ? (
                         <p className="text-sm text-slate-400 text-center">{t('setup.characters.relationshipsNeed2')}</p>
                     ) : (
@@ -729,8 +828,6 @@ const StoryEncyclopediaSetup: React.FC<StoryEncyclopediaSetupProps> = ({ apiKey,
                                 {formData.storyArc.length > 1 && (<button type="button" onClick={() => handleRemoveAct(index)} className="p-1 text-slate-400 hover:text-red-500 ml-1"><TrashIcon className="w-4 h-4" /></button>)} 
                             </div> 
                         </div> 
-                        
-                        {/* NEW: CHAPTER RANGE & TEMPLATE */}
                         <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-3 bg-slate-800/50 p-3 rounded-md">
                             <div>
                                 <label className="block text-xs font-medium text-slate-400 mb-1">{t('setup.arc.start')}</label>
@@ -742,18 +839,12 @@ const StoryEncyclopediaSetup: React.FC<StoryEncyclopediaSetupProps> = ({ apiKey,
                             </div>
                             <div className="lg:col-span-2">
                                 <label className="block text-xs font-medium text-slate-400 mb-1">{t('setup.arc.template')}</label>
-                                <select 
-                                    value={act.structureTemplate || 'freestyle'} 
-                                    onChange={(e) => handleArcChange(index, 'structureTemplate', e.target.value)}
-                                    className="w-full bg-slate-700 text-slate-200 text-sm rounded-md p-1.5 border border-slate-600 focus:outline-none focus:border-indigo-500"
-                                >
+                                <select value={act.structureTemplate || 'freestyle'} onChange={(e) => handleArcChange(index, 'structureTemplate', e.target.value)} className="w-full bg-slate-700 text-slate-200 text-sm rounded-md p-1.5 border border-slate-600 focus:outline-none focus:border-indigo-500">
                                     {STRUCTURE_TEMPLATES.map(tmp => <option key={tmp.value} value={tmp.value}>{tmp.label}</option>)}
                                 </select>
                             </div>
                         </div>
-
                         <textarea value={act.description} onChange={(e) => handleArcChange(index, 'description', e.target.value)} rows={2} placeholder={t('setup.arc.actDescPlaceholder')} className="w-full bg-slate-600 text-slate-200 placeholder-slate-400 rounded-md p-2 border border-slate-500" /> 
-                        
                         <div className="pl-4 border-l-2 border-slate-600 space-y-2"> 
                             <h5 className="text-sm font-medium text-slate-300">{t('setup.arc.plotPoints')}</h5> 
                             {act.plotPoints?.map((pp, ppIndex) => ( 
@@ -769,50 +860,14 @@ const StoryEncyclopediaSetup: React.FC<StoryEncyclopediaSetupProps> = ({ apiKey,
                 <button type="button" onClick={handleAddAct} className="w-full py-2 px-4 border-2 border-dashed border-slate-600 text-slate-400 rounded-lg hover:bg-slate-700">{t('setup.arc.addAct')}</button> 
             </FormSection>}
             {activeTab === 'tone' && <FormSection title={t('setup.tabs.tone')} onGenerate={() => handleGenerate('tone')} generateDisabled={!isStoryArcComplete} isGenerating={generatingSection === 'tone'}> 
-                <div><FormField label={t('setup.tone.comedy')} name="comedyLevel" value={formData.comedyLevel} onChange={handleChange} /><p className="text-xs text-slate-400 mt-1">{t('setup.tone.comedyDesc')}</p></div> 
+                {/* ... (Tone form remains the same) ... */}
+                 <div><FormField label={t('setup.tone.comedy')} name="comedyLevel" value={formData.comedyLevel} onChange={handleChange} /><p className="text-xs text-slate-400 mt-1">{t('setup.tone.comedyDesc')}</p></div> 
                 <div><FormField label={t('setup.tone.romance')} name="romanceLevel" value={formData.romanceLevel} onChange={handleChange} /><p className="text-xs text-slate-400 mt-1">{t('setup.tone.romanceDesc')}</p></div> 
                 <div><FormField label={t('setup.tone.action')} name="actionLevel" value={formData.actionLevel} onChange={handleChange} /><p className="text-xs text-slate-400 mt-1">{t('setup.tone.actionDesc')}</p></div> 
                 {showMaturityLevel && (<div><FormField label={t('setup.tone.maturity')} name="maturityLevel" value={formData.maturityLevel} onChange={handleChange} /><p className="text-xs text-slate-400 mt-1">{t('setup.tone.maturityDesc')}</p></div>)} 
-                
-                <div className="col-span-1 md:col-span-2">
-                    <label htmlFor="narrativePerspective" className="block text-sm font-medium text-slate-300 mb-1">{t('setup.tone.pov')}</label>
-                    <select id="narrativePerspective" name="narrativePerspective" value={formData.narrativePerspective} onChange={handleChange} className="w-full bg-slate-700 text-slate-200 rounded-md p-2 border border-slate-600 focus:ring-2 focus:ring-indigo-500 focus:outline-none">
-                        {NARRATIVE_PERSPECTIVES.map(pov => <option key={pov.value} value={pov.value}>{pov.value}</option>)}
-                    </select>
-                    <p className="text-xs text-slate-400 mt-1">{t('setup.tone.povDesc')}</p>
-                </div>
-
-                <div className="col-span-1 md:col-span-2">
-                    <label htmlFor="proseStyle" className="block text-sm font-medium text-slate-300 mb-1">{t('setup.tone.prose')}</label>
-                    <div className="flex items-center gap-2">
-                        <select id="proseStyle" name="proseStyle" value={formData.proseStyle} onChange={handleChange} className="w-full bg-slate-700 text-slate-200 rounded-md p-2 border border-slate-600 focus:ring-2 focus:ring-indigo-500 focus:outline-none">
-                            {PROSE_STYLES.map(style => <option key={style.value} value={style.value}>{style.value}</option>)}
-                        </select>
-                        <button type="button" onClick={handleGenerateStyleExample} disabled={isGeneratingExample} className="px-3 py-2 text-sm bg-slate-600 hover:bg-slate-500 rounded-md whitespace-nowrap disabled:opacity-50 flex items-center justify-center">
-                            {isGeneratingExample ? <SpinnerIcon className="w-5 h-5"/> : t('setup.tone.showExample')}
-                        </button>
-                    </div>
-                     {isGeneratingExample && <p className="text-xs text-slate-400 mt-2 flex items-center gap-2"><SpinnerIcon className="w-3 h-3"/>{t('common.generating')}</p>}
-                     {styleExample && <p className="text-xs text-slate-400 mt-2 bg-slate-700/50 p-2 rounded-md border border-slate-600">"{styleExample}"</p>}
-                </div>
-                
-                <div className="col-span-1 md:col-span-2">
-                    <label htmlFor="customProseStyleByExample" className="block text-sm font-medium text-slate-300 mb-1">{t('setup.tone.customStyleTitle')}</label>
-                    <textarea
-                        id="customProseStyleByExample"
-                        name="customProseStyleByExample"
-                        value={formData.customProseStyleByExample || ''}
-                        onChange={handleChange}
-                        rows={6}
-                        placeholder={t('setup.tone.customStylePlaceholder', { maxChars: MAX_CUSTOM_STYLE_CHARS })}
-                        className="w-full bg-slate-700 text-slate-200 placeholder-slate-400 rounded-md p-2 border border-slate-600 focus:ring-2 focus:ring-indigo-500 focus:outline-none transition duration-200"
-                    />
-                    <div className="flex justify-between items-center text-xs text-slate-400 mt-1">
-                        <p>{t('setup.tone.customStyleOverride')}</p>
-                        <span>{(formData.customProseStyleByExample || '').length} / {MAX_CUSTOM_STYLE_CHARS}</span>
-                    </div>
-                </div>
-
+                <div className="col-span-1 md:col-span-2"> <label htmlFor="narrativePerspective" className="block text-sm font-medium text-slate-300 mb-1">{t('setup.tone.pov')}</label> <select id="narrativePerspective" name="narrativePerspective" value={formData.narrativePerspective} onChange={handleChange} className="w-full bg-slate-700 text-slate-200 rounded-md p-2 border border-slate-600 focus:ring-2 focus:ring-indigo-500 focus:outline-none"> {NARRATIVE_PERSPECTIVES.map(pov => <option key={pov.value} value={pov.value}>{pov.value}</option>)} </select> <p className="text-xs text-slate-400 mt-1">{t('setup.tone.povDesc')}</p> </div>
+                <div className="col-span-1 md:col-span-2"> <label htmlFor="proseStyle" className="block text-sm font-medium text-slate-300 mb-1">{t('setup.tone.prose')}</label> <div className="flex items-center gap-2"> <select id="proseStyle" name="proseStyle" value={formData.proseStyle} onChange={handleChange} className="w-full bg-slate-700 text-slate-200 rounded-md p-2 border border-slate-600 focus:ring-2 focus:ring-indigo-500 focus:outline-none"> {PROSE_STYLES.map(style => <option key={style.value} value={style.value}>{style.value}</option>)} </select> <button type="button" onClick={handleGenerateStyleExample} disabled={isGeneratingExample} className="px-3 py-2 text-sm bg-slate-600 hover:bg-slate-500 rounded-md whitespace-nowrap disabled:opacity-50 flex items-center justify-center"> {isGeneratingExample ? <SpinnerIcon className="w-5 h-5"/> : t('setup.tone.showExample')} </button> </div> {styleExample && <p className="text-xs text-slate-400 mt-2 bg-slate-700/50 p-2 rounded-md border border-slate-600">"{styleExample}"</p>} </div>
+                <div className="col-span-1 md:col-span-2"> <label htmlFor="customProseStyleByExample" className="block text-sm font-medium text-slate-300 mb-1">{t('setup.tone.customStyleTitle')}</label> <textarea id="customProseStyleByExample" name="customProseStyleByExample" value={formData.customProseStyleByExample || ''} onChange={handleChange} rows={6} placeholder={t('setup.tone.customStylePlaceholder', { maxChars: MAX_CUSTOM_STYLE_CHARS })} className="w-full bg-slate-700 text-slate-200 placeholder-slate-400 rounded-md p-2 border border-slate-600 focus:ring-2 focus:ring-indigo-500 focus:outline-none transition duration-200" /> <div className="flex justify-between items-center text-xs text-slate-400 mt-1"> <p>{t('setup.tone.customStyleOverride')}</p> <span>{(formData.customProseStyleByExample || '').length} / {MAX_CUSTOM_STYLE_CHARS}</span> </div> </div>
             </FormSection>}
             </div>
 

@@ -1,3 +1,4 @@
+
 import React, { useState, useEffect, useCallback, useRef } from 'react';
 import ReactDOM from 'react-dom/client';
 import StoryEncyclopediaSetup from './components/StoryEncyclopediaSetup';
@@ -116,10 +117,19 @@ const migrateStoryData = (data: any): StoryEncyclopedia => {
         parsed.relationships = parsed.relationships.map((rel:any) => ({...rel, id: rel.id || crypto.randomUUID()}));
     }
     
-    // New structured world-building fields
-    if (parsed.locations === null || parsed.locations === undefined) parsed.locations = [];
-    if (parsed.factions === null || parsed.factions === undefined) parsed.factions = [];
-    if (parsed.lore === null || parsed.lore === undefined) parsed.lore = [];
+    // New structured world-building fields initialization
+    if (!parsed.locations) parsed.locations = [];
+    if (!parsed.factions) parsed.factions = [];
+    if (!parsed.lore) parsed.lore = [];
+    
+    // NEW FIELDS
+    if (!parsed.races) parsed.races = [];
+    if (!parsed.creatures) parsed.creatures = [];
+    if (!parsed.powers) parsed.powers = [];
+    if (!parsed.items) parsed.items = [];
+    if (!parsed.technology) parsed.technology = [];
+    if (!parsed.history) parsed.history = [];
+    if (!parsed.cultures) parsed.cultures = [];
     
     if (!parsed.chapters) {
         parsed.chapters = [{ id: crypto.randomUUID(), title: 'Chapter 1', content: '' }];
@@ -156,9 +166,19 @@ const migrateUniverseData = (data: any): Universe => {
     let parsed = { ...data };
     if (!parsed.id) parsed.id = crypto.randomUUID();
     if (!parsed.language) parsed.language = 'en';
-    if (parsed.locations === null || parsed.locations === undefined) parsed.locations = [];
-    if (parsed.factions === null || parsed.factions === undefined) parsed.factions = [];
-    if (parsed.lore === null || parsed.lore === undefined) parsed.lore = [];
+    if (!parsed.locations) parsed.locations = [];
+    if (!parsed.factions) parsed.factions = [];
+    if (!parsed.lore) parsed.lore = [];
+    
+    // NEW FIELDS
+    if (!parsed.races) parsed.races = [];
+    if (!parsed.creatures) parsed.creatures = [];
+    if (!parsed.powers) parsed.powers = [];
+    if (!parsed.items) parsed.items = [];
+    if (!parsed.technology) parsed.technology = [];
+    if (!parsed.history) parsed.history = [];
+    if (!parsed.cultures) parsed.cultures = [];
+
     return parsed as Universe;
 }
 
@@ -389,7 +409,7 @@ const App: React.FC = () => {
                   throw new Error(t('universeHub.importErrorFormat'));
               }
               // Assign a new ID to prevent conflicts, but keep the original for file consistency
-              const universeToSave = { ...newUniverse, id: crypto.randomUUID() };
+              const universeToSave = { ...migrateUniverseData(newUniverse), id: crypto.randomUUID() };
               universeToSave.language = universeToSave.language || 'en'; // Ensure language is set
               
               handleSaveUniverse(universeToSave); // Save and update state
@@ -482,11 +502,11 @@ const App: React.FC = () => {
                   return { id: crypto.randomUUID(), title, content: chapterContent };
               }).filter((c): c is Chapter => c !== null);
 
-              const newStory: StoryEncyclopedia = {
+              const newStory: StoryEncyclopedia = migrateStoryData({
                   ...encyclopediaData,
                   id: crypto.randomUUID(),
                   chapters: chapters.length > 0 ? chapters : [{id: crypto.randomUUID(), title: 'Chapter 1', content: ''}],
-              };
+              });
 
               handleStorySave(newStory); // Save and update state
               alert(t('dashboard.importSuccess', { title: newStory.title }));

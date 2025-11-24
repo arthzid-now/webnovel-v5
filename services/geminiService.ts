@@ -1,3 +1,4 @@
+
 import { GoogleGenAI, Chat, Type } from "@google/genai";
 import { ModelType, StoryEncyclopedia, StoryArcAct, Character, Relationship, CustomField, LoreEntry, Universe, AnalysisResult } from '../types';
 import { SYSTEM_INSTRUCTION_EN, SYSTEM_INSTRUCTION_ID, MAX_THINKING_BUDGET, PROSE_STYLES_EN, PROSE_STYLES_ID, STRUCTURE_TEMPLATES } from '../constants';
@@ -54,8 +55,16 @@ const formatStoryEncyclopediaForPrompt = (storyEncyclopedia: StoryEncyclopedia):
     const charactersString = storyEncyclopedia.characters?.map(formatCharacterForPrompt).join('') || 'N/A';
     const relationshipsString = formatRelationshipsForPrompt(storyEncyclopedia.relationships, storyEncyclopedia.characters);
     
+    // --- UPDATED LORE INJECTION ---
     const locationsString = formatLoreForPrompt(storyEncyclopedia.locations, 'Locations');
     const factionsString = formatLoreForPrompt(storyEncyclopedia.factions, 'Factions');
+    const racesString = formatLoreForPrompt(storyEncyclopedia.races, 'Races & Species');
+    const creaturesString = formatLoreForPrompt(storyEncyclopedia.creatures, 'Bestiary & Creatures');
+    const powersString = formatLoreForPrompt(storyEncyclopedia.powers, 'Specific Powers & Spells');
+    const itemsString = formatLoreForPrompt(storyEncyclopedia.items, 'Items & Artifacts');
+    const techString = formatLoreForPrompt(storyEncyclopedia.technology, 'Technology');
+    const historyString = formatLoreForPrompt(storyEncyclopedia.history, 'History & Timeline');
+    const culturesString = formatLoreForPrompt(storyEncyclopedia.cultures, 'Culture & Traditions');
     const loreString = formatLoreForPrompt(storyEncyclopedia.lore, 'General Lore');
     
     const universeNameString = `${storyEncyclopedia.universeName}${storyEncyclopedia.disguiseRealWorldNames ? (storyEncyclopedia.language === 'id' ? ' (nama disamarkan)' : ' (names disguised)') : ''}`;
@@ -105,11 +114,20 @@ ${charactersString}
 **RELATIONSHIPS:**
 ${relationshipsString}
 
-${storyEncyclopedia.worldBuilding ? `\n**WORLD BUILDING (SUMMARY):** ${storyEncyclopedia.worldBuilding}` : ''}
+**WORLD BUILDING & LORE:**
+${storyEncyclopedia.worldBuilding ? `\n**WORLD SUMMARY:** ${storyEncyclopedia.worldBuilding}` : ''}
+${storyEncyclopedia.magicSystem ? `\n**MAGIC/SYSTEM RULES:** ${storyEncyclopedia.magicSystem}` : ''}
 ${locationsString}
 ${factionsString}
+${racesString}
+${creaturesString}
+${powersString}
+${itemsString}
+${techString}
+${historyString}
+${culturesString}
 ${loreString}
-${storyEncyclopedia.magicSystem ? `\n**MAGIC/SYSTEM RULES (SUMMARY):** ${storyEncyclopedia.magicSystem}` : ''}
+
 
 **PREVIOUS STORY EVENTS (CHRONOLOGICAL MEMORY):**
 The following is the established chronology of events. You must adhere to this timeline.
@@ -233,27 +251,36 @@ const generationConfig: any = {
         prompt: (context: string, options: { idea: string }) => {
             const storyData = JSON.parse(context) as Partial<StoryEncyclopedia>;
             const allGenres = [...(storyData.genres || []), storyData.otherGenre].filter(Boolean).join(', ');
+            const isNovelFormat = storyData.format === 'novel';
+
+            // DYNAMIC DEFAULTS BASED ON FORMAT
+            const chapterCountPrompt = isNovelFormat 
+                ? "between 20-50 (Traditional Novel)" 
+                : "between 100-300 (Webnovel)";
+            const wordCountPrompt = isNovelFormat
+                ? "between 3000-5000"
+                : "between 1500-2000";
             
-            let instruction = `Based on the user's core idea: "${options.idea}" and their chosen genres: "${allGenres}", generate the basic info for a webnovel.\n`;
+            let instruction = `Based on the user's core idea: "${options.idea}" and their chosen genres: "${allGenres}", generate the basic info for a ${storyData.format || 'webnovel'}.\n`;
             const existingInfo = [
                 storyData.title && `Title: "${storyData.title}"`,
                 storyData.setting && `Setting: "${storyData.setting}"`,
             ].filter(Boolean).join(', ');
 
             if (existingInfo) {
-                instruction += `The user has already started writing some details: ${existingInfo}. Your task is to COMPLETE the remaining fields (title, setting, totalChapters, wordsPerChapter). Enhance the existing details if you can, but prioritize filling in the blanks. Ensure the number of chapters is between 100-300 and words per chapter is between 1500-3000.`;
+                instruction += `The user has already started writing some details: ${existingInfo}. Your task is to COMPLETE the remaining fields. Enhance the existing details if you can. Ensure the number of chapters is ${chapterCountPrompt} and words per chapter is ${wordCountPrompt}.`;
             } else {
-                instruction += `Come up with a fitting title, a setting, a planned number of chapters (between 100-300), and words per chapter (between 1500-3000).`;
+                instruction += `Come up with a fitting title, a setting, a planned number of chapters (${chapterCountPrompt}), and words per chapter (${wordCountPrompt}).`;
             }
             return instruction;
         },
         schema: {
             type: Type.OBJECT,
             properties: {
-                title: { type: Type.STRING, description: "The title of the webnovel." },
+                title: { type: Type.STRING, description: "The title of the story." },
                 setting: { type: Type.STRING, description: "A one or two sentence description of the story's setting." },
-                totalChapters: { type: Type.STRING, description: "A number between 100 and 300." },
-                wordsPerChapter: { type: Type.STRING, description: "A number between 1500 and 3000." },
+                totalChapters: { type: Type.STRING, description: "Total planned chapters." },
+                wordsPerChapter: { type: Type.STRING, description: "Target word count per chapter." },
             },
             required: ["title", "setting", "totalChapters", "wordsPerChapter"]
         }
@@ -290,40 +317,59 @@ const generationConfig: any = {
             required: ["mainPlot", "characters"]
         }
     },
-    worldLore: {
+    // --- UPDATED WORLD GENERATORS ---
+    worldLore: { // Maps to Geography & General
         prompt: (context: string) => {
-            const storyData = JSON.parse(context) as StoryEncyclopedia;
-            const setting = storyData.setting;
-            const disguise = storyData.disguiseRealWorldNames;
-            const existingLocations = storyData.locations?.length > 0;
-            const existingFactions = storyData.factions?.length > 0;
-            const existingLore = storyData.lore?.length > 0;
-
-            let basePrompt = '';
-
-            if (storyData.universeName.toLowerCase().includes('real world') && setting) {
-                 const disguiseInstruction = disguise 
-                    ? `You MUST create fictional but recognizable names for all generated locations and factions (e.g., 'New York' becomes 'Liberty City', 'NYPD' becomes 'LCPD').`
-                    : `Use the real, official names for all locations and factions.`;
-                basePrompt = `The story is set in the real world, specifically in/around "${setting}". Based on this setting, generate a list of 3-5 key locations and 2-3 key factions that define the area. ${disguiseInstruction}`;
-            } else {
-                basePrompt = `Based on the story context: \n\n${context}\n\nGenerate a list of 2-3 important locations, 2-3 important factions/groups, and 2-3 key lore items/concepts with brief descriptions that fit the story's genre and plot.`;
-            }
-            
-            if (existingLocations || existingFactions || existingLore) {
-                basePrompt += `\n\nThe user has already created some entries. Do not replace them. Your task is to ADD NEW, distinct entries to supplement the existing ones.`;
-            }
-            
-            return basePrompt;
+            return `Based on the story context provided below, generate a list of 2-3 important locations, 2-3 important factions/groups, and 2-3 general lore items. \n\n${context}`;
         },
         schema: {
             type: Type.OBJECT,
             properties: {
-                locations: { type: Type.ARRAY, description: "A list of key locations.", items: loreEntrySchema },
-                factions: { type: Type.ARRAY, description: "A list of key factions or groups.", items: loreEntrySchema },
-                lore: { type: Type.ARRAY, description: "A list of key lore items or concepts.", items: loreEntrySchema },
+                locations: { type: Type.ARRAY, items: loreEntrySchema },
+                factions: { type: Type.ARRAY, items: loreEntrySchema },
+                lore: { type: Type.ARRAY, items: loreEntrySchema },
             },
             required: ["locations", "factions", "lore"]
+        }
+    },
+    world_nature: { // Nature & Biology
+        prompt: (context: string) => {
+            return `Based on the story context provided below, generate:\n1. A list of 2-3 unique races or species inhabiting the world (e.g., Elves, Cyborgs, Cultivator Clans).\n2. A list of 2-3 unique creatures, monsters, or bestiary entries.\n\n${context}`;
+        },
+        schema: {
+            type: Type.OBJECT,
+            properties: {
+                races: { type: Type.ARRAY, items: loreEntrySchema },
+                creatures: { type: Type.ARRAY, items: loreEntrySchema },
+            },
+            required: ["races", "creatures"]
+        }
+    },
+    world_power: { // Power & Assets
+        prompt: (context: string) => {
+            return `Based on the story context provided below, generate:\n1. A list of 2-3 specific powers, spells, or cultivation techniques.\n2. A list of 2-3 significant items, artifacts, or equipment.\n3. A list of 1-2 technological elements (if applicable, otherwise leave empty).\n\n${context}`;
+        },
+        schema: {
+            type: Type.OBJECT,
+            properties: {
+                powers: { type: Type.ARRAY, items: loreEntrySchema },
+                items: { type: Type.ARRAY, items: loreEntrySchema },
+                technology: { type: Type.ARRAY, items: loreEntrySchema },
+            },
+            required: ["powers", "items"]
+        }
+    },
+    world_history: { // History & Culture
+        prompt: (context: string) => {
+            return `Based on the story context provided below, generate:\n1. A list of 2-3 historical events or timelines that shaped the current world.\n2. A list of 2-3 cultural traditions, festivals, religions, or social norms.\n\n${context}`;
+        },
+        schema: {
+            type: Type.OBJECT,
+            properties: {
+                history: { type: Type.ARRAY, items: loreEntrySchema },
+                cultures: { type: Type.ARRAY, items: loreEntrySchema },
+            },
+            required: ["history", "cultures"]
         }
     },
     mainPlot: {
@@ -437,10 +483,53 @@ const generationConfig: any = {
         prompt: (context: string) => {
             const storyData = JSON.parse(context) as StoryEncyclopedia;
             const existingActs = storyData.storyArc?.filter(a => a.title || a.description).length > 0;
+            const templateList = STRUCTURE_TEMPLATES.map(t => `- ${t.value} (${t.label}): ${t.description}`).join('\n');
+            const totalChapters = parseInt(storyData.totalChapters || '100', 10) || 100;
+            const format = storyData.format || 'webnovel';
+            const isWebnovel = format === 'webnovel';
+
+            // POSITIVE MATHEMATICAL CONSTRAINTS (Forced Asymmetry)
+            const targetPlotPoints = isWebnovel 
+                ? "Act 1: 3-5 pts, Act 2: 8-12 pts, Act 3: 5-8 pts, Act 4: 2-4 pts"
+                : "Act 1: 3-5 pts, Act 2: 6-10 pts, Act 3: 4-6 pts";
+
             if (existingActs) {
-                return `Based on the following story context: \n\n${context}\n\nThe user has already started outlining the story arc. Your task is to COMPLETE the 4-act structure. For each act, if it's already started, enhance it. If it's empty, generate a title, a 1-2 sentence description, and 2-4 key plot points that logically follow the previous act and build towards the main plot's conclusion.`;
+                return `Based on the following story context: \n\n${context}\n\nThe user has already started outlining the story arc. Your task is to COMPLETE the 4-act structure. For each act, if it's already started, enhance it. If it's empty, generate a title, a 1-2 sentence description, and key plot points that logically follow the previous act and build towards the main plot's conclusion.`;
             }
-            return `Based on the following story context: \n\n${context}\n\nGenerate a 4-act story arc. For each act, provide a title, a 1-2 sentence description, and 2-4 key plot points that outline what happens in that act.`;
+
+            return `
+            **SMART ARCHITECT MODE: FULL GENERATION**
+            
+            Based on the following story context, generate a complete 4-Act Story Arc.
+            
+            **STORY CONTEXT:**
+            ${context}
+            
+            **AVAILABLE STRUCTURE TEMPLATES:**
+            ${templateList}
+            
+            **CRITICAL ARCHITECTURE INSTRUCTIONS:**
+            
+            1. **PACING & ASYMMETRY PROTOCOL:**
+               You must strictly adhere to the following distribution of plot points density. Do NOT make them equal.
+               **TARGET DENSITY:** ${targetPlotPoints}
+            
+            2. **TEMPLATE DIVERSITY:**
+               - Act 1 Template: Choose a template suitable for setups (e.g., 'heros_journey' or 'freestyle').
+               - Act 2 Template: MUST be different (e.g., 'kishotenketsu' for twists, or 'fichtean' for crises).
+               - Act 3 Template: Choose a template for climaxes (e.g., 'seven_point' or 'save_the_cat').
+               - Explicitly assign these values to \`structureTemplate\`.
+            
+            3. **FORMAT SPECIFICS (${format.toUpperCase()}):**
+               ${isWebnovel ? '- WEBNOVEL: Act 2 is the main body. It requires the most plot points. End acts with cliffhangers.' : '- NOVEL: Focus on character arcs and thematic depth.'}
+            
+            4. **CHAPTER ESTIMATION:**
+               - Total Chapters: approx ${totalChapters}.
+               - Distribute chapters: Act 1 (~15%), Act 2 (~50%), Act 3 (~25%), Act 4 (~10%).
+               - Fill \`startChapter\` and \`endChapter\` accordingly (as strings).
+            
+            Return a JSON object with a "storyArc" array containing 4 Act objects.
+            `;
         },
         schema: {
             type: Type.OBJECT,
@@ -452,9 +541,12 @@ const generationConfig: any = {
                         properties: {
                             title: { type: Type.STRING },
                             description: { type: Type.STRING },
-                            plotPoints: { type: Type.ARRAY, items: plotPointSchema }
+                            plotPoints: { type: Type.ARRAY, items: plotPointSchema },
+                            startChapter: { type: Type.STRING, description: "Estimated start chapter number (as string)" },
+                            endChapter: { type: Type.STRING, description: "Estimated end chapter number (as string)" },
+                            structureTemplate: { type: Type.STRING, description: "The value key of the selected template (e.g., 'heros_journey')" }
                         },
-                        required: ["title", "description", "plotPoints"]
+                        required: ["title", "description", "plotPoints", "startChapter", "endChapter", "structureTemplate"]
                     }
                 }
             },
@@ -499,16 +591,27 @@ const handleJsonResponse = async (responsePromise: Promise<any>, section: string
         const response = await responsePromise;
         let jsonString = response.text ? response.text.trim() : '';
         
-        // Basic cleanup for Markdown JSON code blocks if present
-        if (jsonString.startsWith('```json')) {
-            jsonString = jsonString.replace(/^```json\s*/, '').replace(/\s*```$/, '');
-        } else if (jsonString.startsWith('```')) {
-             jsonString = jsonString.replace(/^```\s*/, '').replace(/\s*```$/, '');
+        // --- IMPROVED JSON EXTRACTION ---
+        // Look for the first '{' and the last '}' to isolate the JSON object
+        const jsonMatch = jsonString.match(/\{[\s\S]*\}/);
+        if (jsonMatch) {
+            jsonString = jsonMatch[0];
+        } else {
+            if (jsonString.startsWith('```json')) {
+                jsonString = jsonString.replace(/^```json\s*/, '').replace(/\s*```$/, '');
+            } else if (jsonString.startsWith('```')) {
+                 jsonString = jsonString.replace(/^```\s*/, '').replace(/\s*```$/, '');
+            }
         }
 
         const generatedData = JSON.parse(jsonString);
 
         // --- Post-processing and data sanitization ---
+        const addIdsToLore = (loreArray?: any[]) => {
+            if (!loreArray) return [];
+            return loreArray.map((item: any) => ({ ...item, id: crypto.randomUUID() }));
+        };
+
         if (section.startsWith('character')) {
             if (!generatedData.customFields) generatedData.customFields = [];
             return generatedData as Character;
@@ -529,16 +632,10 @@ const handleJsonResponse = async (responsePromise: Promise<any>, section: string
             }));
         }
 
-        const addIdsToLore = (loreArray?: any[]) => {
-            if (!loreArray) return [];
-            return loreArray.map((item: any) => ({ ...item, id: crypto.randomUUID() }));
-        };
-
         if (section === 'core' && generatedData) {
             if (generatedData.characters && Array.isArray(generatedData.characters)) {
                 generatedData.characters.forEach((char: Partial<Character>) => {
                     if (!char.customFields) char.customFields = [];
-                    // Ensure ID is present on new characters
                     if (!char.id) char.id = crypto.randomUUID();
                 });
             }
@@ -547,10 +644,21 @@ const handleJsonResponse = async (responsePromise: Promise<any>, section: string
             generatedData.lore = addIdsToLore(generatedData.lore);
         }
         
-        if (section === 'worldLore' && generatedData) {
-             generatedData.locations = addIdsToLore(generatedData.locations);
-             generatedData.factions = addIdsToLore(generatedData.factions);
-             generatedData.lore = addIdsToLore(generatedData.lore || []);
+        // Handle new World Lore sections
+        if (section === 'worldLore' || section === 'world_nature' || section === 'world_power' || section === 'world_history') {
+             if(generatedData.locations) generatedData.locations = addIdsToLore(generatedData.locations);
+             if(generatedData.factions) generatedData.factions = addIdsToLore(generatedData.factions);
+             if(generatedData.lore) generatedData.lore = addIdsToLore(generatedData.lore);
+             
+             if(generatedData.races) generatedData.races = addIdsToLore(generatedData.races);
+             if(generatedData.creatures) generatedData.creatures = addIdsToLore(generatedData.creatures);
+             
+             if(generatedData.powers) generatedData.powers = addIdsToLore(generatedData.powers);
+             if(generatedData.items) generatedData.items = addIdsToLore(generatedData.items);
+             if(generatedData.technology) generatedData.technology = addIdsToLore(generatedData.technology);
+             
+             if(generatedData.history) generatedData.history = addIdsToLore(generatedData.history);
+             if(generatedData.cultures) generatedData.cultures = addIdsToLore(generatedData.cultures);
         }
         
         if (section === 'analyzeChapter') {
@@ -561,14 +669,12 @@ const handleJsonResponse = async (responsePromise: Promise<any>, section: string
                 });
              }
              if (generatedData.newLocations) generatedData.newLocations = addIdsToLore(generatedData.newLocations);
-             // Ensure empty arrays if missing
              if (!generatedData.newPlotPoints) generatedData.newPlotPoints = [];
         }
 
         return generatedData;
     } catch (error) {
         console.error(`Error processing AI response for section ${section}:`, error);
-        // Improved error message for user context
         const errorMessage = error instanceof Error 
             ? `The AI returned an invalid response. ${error.message}` 
             : "The AI returned a response that was not valid JSON. Please try again.";

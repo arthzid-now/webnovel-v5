@@ -1,3 +1,4 @@
+
 import React, { useState, useEffect } from 'react';
 import { Universe, LoreEntry } from '../types';
 import { GlobeIcon } from './icons/GlobeIcon';
@@ -19,21 +20,22 @@ const createInitialFormData = (language: 'en' | 'id'): Universe => ({
   language: language,
   name: '',
   description: '',
-  locations: [],
-  factions: [],
-  lore: [],
+  // Initialized empty arrays for all categories
+  locations: [], factions: [], lore: [],
+  races: [], creatures: [],
+  powers: [], items: [], technology: [],
+  history: [], cultures: [],
   magicSystem: '',
   worldBuilding: '',
 });
 
 const LoreListEditor: React.FC<{
     listTitle: string;
-    listType: 'locations' | 'factions' | 'lore';
     entries: LoreEntry[];
-    onLoreChange: (type: 'locations' | 'factions' | 'lore', index: number, field: keyof LoreEntry, value: string) => void;
-    onAdd: (type: 'locations' | 'factions' | 'lore') => void;
-    onRemove: (type: 'locations' | 'factions' | 'lore', index: number) => void;
-}> = ({ listTitle, listType, entries, onLoreChange, onAdd, onRemove }) => {
+    onLoreChange: (index: number, field: keyof LoreEntry, value: string) => void;
+    onAdd: () => void;
+    onRemove: (index: number) => void;
+}> = ({ listTitle, entries, onLoreChange, onAdd, onRemove }) => {
     const { t } = useLanguage();
     return (
      <div className="space-y-4">
@@ -44,19 +46,19 @@ const LoreListEditor: React.FC<{
                     type="text"
                     placeholder={t('common.name')}
                     value={entry.name}
-                    onChange={(e) => onLoreChange(listType, index, 'name', e.target.value)}
+                    onChange={(e) => onLoreChange(index, 'name', e.target.value)}
                     className="w-full bg-slate-600 font-bold text-slate-100 placeholder-slate-400 rounded-md p-2 border border-slate-500 focus:ring-2 focus:ring-indigo-500 focus:outline-none"
                 />
                 <textarea
                     placeholder={t('common.description')}
                     value={entry.description}
-                    onChange={(e) => onLoreChange(listType, index, 'description', e.target.value)}
+                    onChange={(e) => onLoreChange(index, 'description', e.target.value)}
                     rows={3}
                     className="w-full bg-slate-600 text-slate-200 placeholder-slate-400 rounded-md p-2 border border-slate-500 focus:ring-2 focus:ring-indigo-500 focus:outline-none"
                 />
                 <button
                     type="button"
-                    onClick={() => onRemove(listType, index)}
+                    onClick={() => onRemove(index)}
                     className="absolute top-2 right-2 p-1.5 text-slate-400 hover:text-rose-400"
                     title={t('universeSetup.removeEntry', { listTitle: listTitle })}
                 >
@@ -66,7 +68,7 @@ const LoreListEditor: React.FC<{
         ))}
         <button
             type="button"
-            onClick={() => onAdd(listType)}
+            onClick={onAdd}
             className="w-full text-sm py-2 px-4 border-2 border-dashed border-slate-600 text-slate-400 rounded-lg hover:bg-slate-700 hover:border-slate-500 transition-colors flex items-center justify-center gap-2"
         >
             <PlusIcon className="w-4 h-4" />
@@ -96,20 +98,23 @@ const UniverseSetup: React.FC<UniverseSetupProps> = ({ apiKey, onSave, initialDa
     setFormData(prev => ({ ...prev, [name]: value }));
   };
   
-  const handleLoreChange = (type: 'locations' | 'factions' | 'lore', index: number, field: keyof LoreEntry, value: string) => {
+  // Generic handler for ANY lore list in the Universe object
+  const handleLoreChange = (type: keyof Universe, index: number, field: keyof LoreEntry, value: string) => {
       setFormData(prev => {
-          const newEntries = [...prev[type]];
+          // Type assertion needed because TS doesn't know for sure that prev[type] is LoreEntry[]
+          const list = (prev[type] as LoreEntry[]) || [];
+          const newEntries = [...list];
           newEntries[index] = { ...newEntries[index], [field]: value };
           return { ...prev, [type]: newEntries };
       });
   };
 
-  const addLoreEntry = (type: 'locations' | 'factions' | 'lore') => {
-      setFormData(prev => ({ ...prev, [type]: [...prev[type], createEmptyLoreEntry()] }));
+  const addLoreEntry = (type: keyof Universe) => {
+      setFormData(prev => ({ ...prev, [type]: [...((prev[type] as LoreEntry[]) || []), createEmptyLoreEntry()] }));
   };
 
-  const removeLoreEntry = (type: 'locations' | 'factions' | 'lore', index: number) => {
-      setFormData(prev => ({ ...prev, [type]: prev[type].filter((_, i) => i !== index) }));
+  const removeLoreEntry = (type: keyof Universe, index: number) => {
+      setFormData(prev => ({ ...prev, [type]: (prev[type] as LoreEntry[]).filter((_, i) => i !== index) }));
   };
 
   const handleSubmit = (e: React.FormEvent) => {
@@ -150,20 +155,53 @@ const UniverseSetup: React.FC<UniverseSetupProps> = ({ apiKey, onSave, initialDa
             </div>
           </div>
           
-          <div className="bg-slate-800 p-6 rounded-lg border border-slate-700 space-y-4">
-              <h3 className="text-xl font-bold text-indigo-400">{t('universeSetup.worldAndLore')}</h3>
-              <div>
-                <label htmlFor="worldBuilding" className="block text-sm font-medium text-slate-300 mb-1">{t('universeSetup.worldBuildingSummary')}</label>
-                <textarea id="worldBuilding" name="worldBuilding" value={formData.worldBuilding || ''} onChange={handleChange} rows={3} className="w-full bg-slate-700 text-slate-200 placeholder-slate-400 rounded-md p-2 border border-slate-600 focus:ring-2 focus:ring-indigo-500 focus:outline-none transition duration-200" />
-              </div>
-              <div>
-                <label htmlFor="magicSystem" className="block text-sm font-medium text-slate-300 mb-1">{t('universeSetup.magicSystemSummary')}</label>
-                <textarea id="magicSystem" name="magicSystem" value={formData.magicSystem || ''} onChange={handleChange} rows={3} className="w-full bg-slate-700 text-slate-200 placeholder-slate-400 rounded-md p-2 border border-slate-600 focus:ring-2 focus:ring-indigo-500 focus:outline-none transition duration-200" />
+          <div className="bg-slate-800 p-6 rounded-lg border border-slate-700 space-y-8">
+              <h3 className="text-xl font-bold text-indigo-400 border-b border-slate-600 pb-2">{t('universeSetup.worldAndLore')}</h3>
+              
+              <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
+                <div>
+                    <label htmlFor="worldBuilding" className="block text-sm font-medium text-slate-300 mb-1">{t('universeSetup.worldBuildingSummary')}</label>
+                    <textarea id="worldBuilding" name="worldBuilding" value={formData.worldBuilding || ''} onChange={handleChange} rows={3} className="w-full bg-slate-700 text-slate-200 placeholder-slate-400 rounded-md p-2 border border-slate-600 focus:ring-2 focus:ring-indigo-500 focus:outline-none" />
+                </div>
+                <div>
+                    <label htmlFor="magicSystem" className="block text-sm font-medium text-slate-300 mb-1">{t('universeSetup.magicSystemSummary')}</label>
+                    <textarea id="magicSystem" name="magicSystem" value={formData.magicSystem || ''} onChange={handleChange} rows={3} className="w-full bg-slate-700 text-slate-200 placeholder-slate-400 rounded-md p-2 border border-slate-600 focus:ring-2 focus:ring-indigo-500 focus:outline-none" />
+                </div>
               </div>
 
-              <LoreListEditor listTitle={t('universeSetup.locations')} listType="locations" entries={formData.locations} onLoreChange={handleLoreChange} onAdd={addLoreEntry} onRemove={removeLoreEntry} />
-              <LoreListEditor listTitle={t('universeSetup.factions')} listType="factions" entries={formData.factions} onLoreChange={handleLoreChange} onAdd={addLoreEntry} onRemove={removeLoreEntry} />
-              <LoreListEditor listTitle={t('universeSetup.generalLore')} listType="lore" entries={formData.lore} onLoreChange={handleLoreChange} onAdd={addLoreEntry} onRemove={removeLoreEntry} />
+              {/* Expanded Universe Editing Sections */}
+              <div>
+                  <h4 className="text-sm font-bold text-slate-500 uppercase tracking-wide mb-2">{t('world.subTabs.geo')}</h4>
+                  <div className="grid grid-cols-1 gap-6">
+                     <LoreListEditor listTitle={t('universeSetup.locations')} entries={formData.locations} onLoreChange={(i, f, v) => handleLoreChange('locations', i, f, v)} onAdd={() => addLoreEntry('locations')} onRemove={(i) => removeLoreEntry('locations', i)} />
+                     <LoreListEditor listTitle={t('universeSetup.factions')} entries={formData.factions} onLoreChange={(i, f, v) => handleLoreChange('factions', i, f, v)} onAdd={() => addLoreEntry('factions')} onRemove={(i) => removeLoreEntry('factions', i)} />
+                  </div>
+              </div>
+
+              <div>
+                  <h4 className="text-sm font-bold text-slate-500 uppercase tracking-wide mb-2 pt-4 border-t border-slate-700">{t('world.subTabs.nature')}</h4>
+                   <div className="grid grid-cols-1 gap-6">
+                     <LoreListEditor listTitle={t('setup.lore.races')} entries={formData.races || []} onLoreChange={(i, f, v) => handleLoreChange('races', i, f, v)} onAdd={() => addLoreEntry('races')} onRemove={(i) => removeLoreEntry('races', i)} />
+                     <LoreListEditor listTitle={t('setup.lore.creatures')} entries={formData.creatures || []} onLoreChange={(i, f, v) => handleLoreChange('creatures', i, f, v)} onAdd={() => addLoreEntry('creatures')} onRemove={(i) => removeLoreEntry('creatures', i)} />
+                  </div>
+              </div>
+
+              <div>
+                  <h4 className="text-sm font-bold text-slate-500 uppercase tracking-wide mb-2 pt-4 border-t border-slate-700">{t('world.subTabs.power')}</h4>
+                   <div className="grid grid-cols-1 gap-6">
+                     <LoreListEditor listTitle={t('setup.lore.powers')} entries={formData.powers || []} onLoreChange={(i, f, v) => handleLoreChange('powers', i, f, v)} onAdd={() => addLoreEntry('powers')} onRemove={(i) => removeLoreEntry('powers', i)} />
+                     <LoreListEditor listTitle={t('setup.lore.items')} entries={formData.items || []} onLoreChange={(i, f, v) => handleLoreChange('items', i, f, v)} onAdd={() => addLoreEntry('items')} onRemove={(i) => removeLoreEntry('items', i)} />
+                     <LoreListEditor listTitle={t('setup.lore.technology')} entries={formData.technology || []} onLoreChange={(i, f, v) => handleLoreChange('technology', i, f, v)} onAdd={() => addLoreEntry('technology')} onRemove={(i) => removeLoreEntry('technology', i)} />
+                  </div>
+              </div>
+
+               <div>
+                  <h4 className="text-sm font-bold text-slate-500 uppercase tracking-wide mb-2 pt-4 border-t border-slate-700">{t('world.subTabs.history')}</h4>
+                   <div className="grid grid-cols-1 gap-6">
+                     <LoreListEditor listTitle={t('setup.lore.history')} entries={formData.history || []} onLoreChange={(i, f, v) => handleLoreChange('history', i, f, v)} onAdd={() => addLoreEntry('history')} onRemove={(i) => removeLoreEntry('history', i)} />
+                     <LoreListEditor listTitle={t('setup.lore.cultures')} entries={formData.cultures || []} onLoreChange={(i, f, v) => handleLoreChange('cultures', i, f, v)} onAdd={() => addLoreEntry('cultures')} onRemove={(i) => removeLoreEntry('cultures', i)} />
+                  </div>
+              </div>
           </div>
 
           <div className="flex justify-center items-center gap-4 pt-4">
