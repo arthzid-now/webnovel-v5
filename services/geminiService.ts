@@ -17,6 +17,28 @@ const SAFETY_SETTINGS = [
 ];
 
 // --- ERROR HANDLING UTILITY ---
+export const getFriendlyErrorMessage = (error: any): string => {
+    const msg = (error.message || error.toString()).toLowerCase();
+    
+    if (msg.includes('429') || msg.includes('resource_exhausted') || msg.includes('quota')) {
+        return "🚧 API Quota Exceeded (429). Kunci API Anda mencapai batas harian atau per menit. Tunggu sebentar.";
+    }
+    if (msg.includes('503') || msg.includes('overloaded') || msg.includes('unavailable')) {
+        return "🔥 AI Server Overloaded (503). Server Google lagi sibuk banget. Coba lagi dalam 1 menit.";
+    }
+    if (msg.includes('safety') || msg.includes('blocked') || msg.includes('harm_category')) {
+        return "🛡️ Content Blocked by Safety Filters. AI menolak merespon karena konten dianggap terlalu eksplisit/berbahaya (NSFW/Gore). Coba haluskan prompt Anda.";
+    }
+    if (msg.includes('recitation') || msg.includes('copyright')) {
+        return "©️ Content Blocked (Copyright). AI menolak karena potensi pelanggaran hak cipta.";
+    }
+    if (msg.includes('api key') || msg.includes('403')) {
+        return "🔑 Invalid API Key. Cek kembali API Key Anda.";
+    }
+    
+    return `🤖 AI Error: ${error.message || "Unknown error occurred."}`;
+};
+
 const generateWithRetry = async <T>(
     fn: () => Promise<T>, 
     retries: number = 3, 
@@ -34,10 +56,32 @@ const generateWithRetry = async <T>(
             return generateWithRetry(fn, retries - 1, delay * 2); 
         }
         
-        if (isQuotaError) {
-            throw new Error("Quota Exceeded (429). Your API key has hit its daily or minute limit. Please wait a while or check your billing.");
-        }
         throw error;
+    }
+};
+
+// Helper to check for safety blocks in response
+const validateResponse = (response: any) => {
+    if (!response || !response.candidates || response.candidates.length === 0) {
+        if (response.promptFeedback?.blockReason) {
+             throw new Error(`Request Blocked: ${response.promptFeedback.blockReason}. The AI refused the prompt.`);
+        }
+        // If absolutely nothing comes back, it's often a silent safety block in newer models
+        return; 
+    }
+    
+    const candidate = response.candidates[0];
+    // Check finish reason specifically
+    if (candidate.finishReason === 'SAFETY') {
+        throw new Error("SAFETY_BLOCK: The AI found your request or the story context too explicit/unsafe.");
+    }
+    if (candidate.finishReason === 'RECITATION') {
+        throw new Error("RECITATION_BLOCK: Copyright infringement detected.");
+    }
+    
+    // If no text but also no specific error, warn but don't crash (could be function call, though we don't use them yet)
+    if (!candidate.content?.parts?.[0]?.text && candidate.finishReason !== 'STOP' && candidate.finishReason !== 'MAX_TOKENS') {
+         // console.warn(`Generation Stopped: ${candidate.finishReason}`);
     }
 };
 
@@ -73,7 +117,7 @@ const formatRelationshipsForPrompt = (relationships: Relationship[], characters:
 
 const formatLoreForPrompt = (lore: LoreEntry[], title: string): string => {
     if (!lore || lore.length === 0) return '';
-    const entries = lore.map(item => `- ${item.name}: ${item.description}`).join('\n');
+    const entries = lore.map(item => `- ${item.date ? `[${item.date}] ` : ''}${item.name}: ${item.description}`).join('\n');
     return `\n**${title.toUpperCase()}:**\n${entries}`;
 }
 
@@ -235,7 +279,7 @@ export const createChatSession = (
     }
 
     const history: Content[] = previousHistory
-        .filter(msg => msg.id !== 'initial-ai-message' && !msg.id.startsWith('ai-placeholder'))
+        .filter(msg => msg.id !== 'initial-ai-message' && !msg.id.startsWith('ai-placeholder') && !msg.id.startsWith('ai-error'))
         .map(msg => ({
             role: msg.author === MessageAuthor.USER ? 'user' : 'model',
             parts: [{ text: msg.text }]
@@ -306,6 +350,7 @@ const loreEntrySchema = {
     properties: {
         name: { type: Type.STRING },
         description: { type: Type.STRING, description: "A 1-2 sentence description." },
+        date: { type: Type.STRING, description: "Optional: For history items, specific year or era (e.g. '1500 AE' or 'Year 2050')." },
     },
     required: ["name", "description"]
 };
@@ -381,7 +426,7 @@ const generationConfig: any = {
             required: ["mainPlot", "characters"]
         }
     },
-    worldLore: { // Maps to Geography & General
+    worldLore: { 
         prompt: (context: string) => {
             return `Based on the story context provided below, generate a list of 2-3 important locations, 2-3 important factions/groups, and 2-3 general lore items. \n\n${context}`;
         },
@@ -395,7 +440,7 @@ const generationConfig: any = {
             required: ["locations", "factions", "lore"]
         }
     },
-    world_nature: { // Nature & Biology
+    world_nature: { 
         prompt: (context: string) => {
             return `Based on the story context provided below, generate:\n1. A list of 2-3 unique races or species inhabiting the world (e.g., Elves, Cyborgs, Cultivator Clans).\n2. A list of 2-3 unique creatures, monsters, or bestiary entries.\n\n${context}`;
         },
@@ -408,7 +453,7 @@ const generationConfig: any = {
             required: ["races", "creatures"]
         }
     },
-    world_power: { // Power & Assets
+    world_power: { 
         prompt: (context: string) => {
             return `Based on the story context provided below, generate:\n1. A list of 2-3 specific powers, spells, or cultivation techniques.\n2. A list of 2-3 significant items, artifacts, or equipment.\n3. A list of 1-2 technological elements (if applicable, otherwise leave empty).\n\n${context}`;
         },
@@ -422,9 +467,9 @@ const generationConfig: any = {
             required: ["powers", "items"]
         }
     },
-    world_history: { // History & Culture
+    world_history: { 
         prompt: (context: string) => {
-            return `Based on the story context provided below, generate:\n1. A list of 2-3 historical events or timelines that shaped the current world.\n2. A list of 2-3 cultural traditions, festivals, religions, or social norms.\n\n${context}`;
+            return `Based on the story context provided below, generate:\n1. A list of 3-5 historical events or timelines that shaped the current world. IMPORTANT: You MUST include a 'date' or 'era' for each historical event (e.g. 'Year 500', 'Age of Fire', '2000 BC').\n2. A list of 2-3 cultural traditions, festivals, religions, or social norms.\n\n${context}`;
         },
         schema: {
             type: Type.OBJECT,
@@ -545,52 +590,25 @@ const generationConfig: any = {
         prompt: (context: string) => {
             const storyData = JSON.parse(context) as StoryEncyclopedia;
             const existingActs = storyData.storyArc?.filter(a => a.title || a.description).length > 0;
-            const templateList = STRUCTURE_TEMPLATES.map(t => `- ${t.value} (${t.label}): ${t.description}`).join('\n');
             const totalChapters = parseInt(storyData.totalChapters || '100', 10) || 100;
             const format = storyData.format || 'webnovel';
             const isWebnovel = format === 'webnovel';
 
-            const targetPlotPoints = isWebnovel 
-                ? "Act 1: 3-5 pts, Act 2: 8-12 pts, Act 3: 5-8 pts, Act 4: 2-4 pts"
-                : "Act 1: 3-5 pts, Act 2: 6-10 pts, Act 3: 4-6 pts";
-
             if (existingActs) {
                 return `Based on the following story context: \n\n${context}\n\nThe user has already started outlining the story arc. Your task is to COMPLETE the 4-act structure. For each act, if it's already started, enhance it. If it's empty, generate a title, a 1-2 sentence description, and key plot points that logically follow the previous act and build towards the main plot's conclusion.`;
             }
-
-            return `
-            **SMART ARCHITECT MODE: FULL GENERATION**
             
-            Based on the following story context, generate a complete 4-Act Story Arc.
+            return `Based on the story context provided below, generate a detailed 4-act story arc (Kishōtenketsu or Standard 4-Act).
+            - Act 1: Introduction & Inciting Incident (Approx 15% of story)
+            - Act 2: Rising Action & Complications (Approx 35% of story)
+            - Act 3: Twist/Midpoint & Deepening Crisis (Approx 35% of story)
+            - Act 4: Climax & Resolution (Approx 15% of story)
             
-            **STORY CONTEXT:**
-            ${context}
+            Total Chapters: ${totalChapters}.
+            Format: ${isWebnovel ? 'Webnovel (Episodic, Fast Paced)' : 'Traditional Novel'}.
             
-            **AVAILABLE STRUCTURE TEMPLATES:**
-            ${templateList}
-            
-            **CRITICAL ARCHITECTURE INSTRUCTIONS:**
-            
-            1. **PACING & ASYMMETRY PROTOCOL:**
-               You must strictly adhere to the following distribution of plot points density. Do NOT make them equal.
-               **TARGET DENSITY:** ${targetPlotPoints}
-            
-            2. **TEMPLATE DIVERSITY:**
-               - Act 1 Template: Choose a template suitable for setups (e.g., 'heros_journey' or 'freestyle').
-               - Act 2 Template: MUST be different (e.g., 'kishotenketsu' for twists, or 'fichtean' for crises).
-               - Act 3 Template: Choose a template for climaxes (e.g., 'seven_point' or 'save_the_cat').
-               - Explicitly assign these values to \`structureTemplate\`.
-            
-            3. **FORMAT SPECIFICS (${format.toUpperCase()}):**
-               ${isWebnovel ? '- WEBNOVEL: Act 2 is the main body. It requires the most plot points. End acts with cliffhangers.' : '- NOVEL: Focus on character arcs and thematic depth.'}
-            
-            4. **CHAPTER ESTIMATION:**
-               - Total Chapters: approx ${totalChapters}.
-               - Distribute chapters: Act 1 (~15%), Act 2 (~50%), Act 3 (~25%), Act 4 (~10%).
-               - Fill \`startChapter\` and \`endChapter\` accordingly (as strings).
-            
-            Return a JSON object with a "storyArc" array containing 4 Act objects.
-            `;
+            For each act, provide a Title, a Description, a Start/End Chapter range, and 3-5 Key Plot Points.
+            \n\n${context}`;
         },
         schema: {
             type: Type.OBJECT,
@@ -602,12 +620,11 @@ const generationConfig: any = {
                         properties: {
                             title: { type: Type.STRING },
                             description: { type: Type.STRING },
-                            plotPoints: { type: Type.ARRAY, items: plotPointSchema },
-                            startChapter: { type: Type.STRING, description: "Estimated start chapter number (as string)" },
-                            endChapter: { type: Type.STRING, description: "Estimated end chapter number (as string)" },
-                            structureTemplate: { type: Type.STRING, description: "The value key of the selected template (e.g., 'heros_journey')" }
+                            startChapter: { type: Type.STRING },
+                            endChapter: { type: Type.STRING },
+                            plotPoints: { type: Type.ARRAY, items: plotPointSchema }
                         },
-                        required: ["title", "description", "plotPoints", "startChapter", "endChapter", "structureTemplate"]
+                        required: ["title", "description", "plotPoints"]
                     }
                 }
             },
@@ -615,348 +632,197 @@ const generationConfig: any = {
         }
     },
     tone: {
-        prompt: (context: string, language: 'en' | 'id') => {
-            const styles = language === 'id' ? PROSE_STYLES_ID : PROSE_STYLES_EN;
-            const styleOptions = styles.map(s => `- "${s.value}"`).join('\n');
-            return `Based on the following story context: \n\n${context}\n\nSuggest the tone and style. Provide a comedy, romance, and action level from 1-10. If the context contains mature genres, also suggest a maturity level from 1-10, otherwise default maturity to "1". For the 'proseStyle' field, you MUST select ONE of the following options. Return the value exactly as it appears in the list.\n\nValid Prose Styles:\n${styleOptions}`;
+        prompt: (context: string) => {
+            return `Based on the story context provided below, analyze and suggest the best tone and style settings. 
+            - Recommend levels (1-10) for Comedy, Romance, Action, and Maturity based on the genre and plot.
+            - Choose the best Narrative Perspective (e.g. "Third Person Limited") and Prose Style (e.g. "Fast-paced").
+            - EXTRACT A STYLE DNA: Analyze the genres and plot to create a "Style Profile" instruction. This should be a paragraph instructing the AI on how to write prose for this specific story (e.g. "Use short, punchy sentences. Focus on sensory details of smell and sound. Dialogue should be witty.").
+            \n\n${context}`;
         },
         schema: {
             type: Type.OBJECT,
             properties: {
-                comedyLevel: { type: Type.STRING, description: "A number from 1 to 10." },
-                romanceLevel: { type: Type.STRING, description: "A number from 1 to 10." },
-                actionLevel: { type: Type.STRING, description: "A number from 1 to 10." },
-                maturityLevel: { type: Type.STRING, description: "A number from 1 to 10." },
-                proseStyle: { type: Type.STRING, description: "The most fitting prose style." },
+                comedyLevel: { type: Type.STRING },
+                romanceLevel: { type: Type.STRING },
+                actionLevel: { type: Type.STRING },
+                maturityLevel: { type: Type.STRING },
+                narrativePerspective: { type: Type.STRING },
+                proseStyle: { type: Type.STRING },
+                styleProfile: { type: Type.STRING, description: "A prompt instruction paragraph defining the specific voice and writing style." }
             },
-            required: ["comedyLevel", "romanceLevel", "actionLevel", "maturityLevel", "proseStyle"]
+            required: ["comedyLevel", "romanceLevel", "actionLevel", "maturityLevel", "narrativePerspective", "proseStyle", "styleProfile"]
         }
     },
     styleExample: {
-        prompt: (style: string, language: 'en' | 'id') => {
-            const langInstruction = language === 'id' ? 'Tulis paragraf dalam Bahasa Indonesia.' : 'Write the paragraph in English.';
-            return `Generate a short, illustrative paragraph (about 3-4 sentences) that perfectly demonstrates the following prose style for a webnovel: "${style}". The paragraph should be about a generic fantasy or urban fantasy scene. ${langInstruction}`;
+        prompt: (context: string, options: { style: string }) => {
+            return `Generate a 100-word writing sample that perfectly demonstrates the following prose style: "${options.style}". Do not explain the style, just write a scene segment demonstrating it.`;
         },
-        schema: {
-            type: Type.OBJECT,
-            properties: {
-                example: { type: Type.STRING, description: "The generated example paragraph." },
-            },
-            required: ["example"]
-        }
+        schema: { type: Type.OBJECT, properties: { example: { type: Type.STRING } }, required: ["example"] }
     },
-    // --- STYLE DNA EXTRACTOR ---
     analyzeStyle: {
-        prompt: (context: string, sampleText: string) => {
-            return `
-            **STYLE DNA ANALYZER**
+        prompt: (context: string, options: { style: string }) => {
+            return `Analyze the following writing sample provided by the user. Deconstruct its "Style DNA".
+            Identify:
+            1. Sentence structure (length, complexity, rhythm).
+            2. Vocabulary (simple, archaic, flowery, technical).
+            3. Tone (humorous, dark, detached, intimate).
+            4. Dialogue style (realistic, stylized, monologue-heavy).
+            5. Sensory focus (visual, kinesthetic, internal monologue).
             
-            Analyze the following text sample provided by the user. This text serves as the "Style Reference" for a webnovel.
-            
-            **TEXT SAMPLE:**
-            "${sampleText}"
-            
-            **TASK:**
-            Extract the "Style DNA" or "Voice Profile" of this author. Focus on:
-            1. **Sentence Structure:** (e.g., Short/punchy vs Long/flowery, Staccato vs Lyrical).
-            2. **Vocabulary Level:** (e.g., Simple/modern vs Archaic/complex, Technical vs Casual).
-            3. **Tone & Atmosphere:** (e.g., Cynical, Whimsical, Dark, Hype-focused).
-            4. **Specific Quirks:** (e.g., Uses lots of onomatopoeia, ignores dialogue tags, emphasizes internal monologue).
-            
-            **OUTPUT:**
-            Return a concise but descriptive paragraph (3-5 sentences) that acts as a direct instruction to a Ghostwriter AI on how to mimic this exact style.
-            Start with: "MIMIC THIS STYLE:"
-            `;
+            Output a concise but comprehensive instruction paragraph (100-150 words) that can be fed into an AI to REPLICATE this exact style.
+            \n\nSAMPLE:\n"${options.style}"`;
         },
-        schema: {
-            type: Type.OBJECT,
-            properties: {
-                styleProfile: { type: Type.STRING, description: "The extracted style instructions (Style DNA)." },
-            },
-            required: ["styleProfile"]
-        }
+        schema: { type: Type.OBJECT, properties: { styleProfile: { type: Type.STRING } }, required: ["styleProfile"] }
     }
 };
 
-const handleJsonResponse = async (responsePromise: Promise<any>, section: string) => {
-    try {
-        const response = await responsePromise;
-        let jsonString = response.text ? response.text.trim() : '';
-        
-        const jsonMatch = jsonString.match(/\{[\s\S]*\}/);
-        if (jsonMatch) {
-            jsonString = jsonMatch[0];
-        } else {
-            if (jsonString.startsWith('```json')) {
-                jsonString = jsonString.replace(/^```json\s*/, '').replace(/\s*```$/, '');
-            } else if (jsonString.startsWith('```')) {
-                 jsonString = jsonString.replace(/^```\s*/, '').replace(/\s*```$/, '');
-            }
-        }
-
-        const generatedData = JSON.parse(jsonString);
-
-        const addIdsToLore = (loreArray?: any[]) => {
-            if (!loreArray) return [];
-            return loreArray.map((item: any) => ({ ...item, id: crypto.randomUUID() }));
-        };
-
-        if (section.startsWith('character')) {
-            if (!generatedData.customFields) generatedData.customFields = [];
-            return generatedData as Character;
-        }
-
-        if (section.startsWith('relationships') && generatedData.relationships) {
-            generatedData.relationships = generatedData.relationships.map((r: any) => ({ ...r, id: crypto.randomUUID() }));
-        }
-
-        if (section.startsWith('singleArcAct')) {
-            generatedData.plotPoints = (generatedData.plotPoints || []).map((p: any) => ({ ...p, id: crypto.randomUUID() }));
-        }
-
-        if (section.startsWith('arc') && generatedData.storyArc) {
-            generatedData.storyArc = generatedData.storyArc.map((act: any) => ({
-                ...act,
-                plotPoints: (act.plotPoints || []).map((p: any) => ({ ...p, id: crypto.randomUUID() }))
-            }));
-        }
-
-        if (section === 'core' && generatedData) {
-            if (generatedData.characters && Array.isArray(generatedData.characters)) {
-                generatedData.characters.forEach((char: Partial<Character>) => {
-                    if (!char.customFields) char.customFields = [];
-                    if (!char.id) char.id = crypto.randomUUID();
-                });
-            }
-            generatedData.locations = addIdsToLore(generatedData.locations);
-            generatedData.factions = addIdsToLore(generatedData.factions);
-            generatedData.lore = addIdsToLore(generatedData.lore);
-        }
-        
-        if (section === 'worldLore' || section === 'world_nature' || section === 'world_power' || section === 'world_history') {
-             if(generatedData.locations) generatedData.locations = addIdsToLore(generatedData.locations);
-             if(generatedData.factions) generatedData.factions = addIdsToLore(generatedData.factions);
-             if(generatedData.lore) generatedData.lore = addIdsToLore(generatedData.lore);
-             
-             if(generatedData.races) generatedData.races = addIdsToLore(generatedData.races);
-             if(generatedData.creatures) generatedData.creatures = addIdsToLore(generatedData.creatures);
-             
-             if(generatedData.powers) generatedData.powers = addIdsToLore(generatedData.powers);
-             if(generatedData.items) generatedData.items = addIdsToLore(generatedData.items);
-             if(generatedData.technology) generatedData.technology = addIdsToLore(generatedData.technology);
-             
-             if(generatedData.history) generatedData.history = addIdsToLore(generatedData.history);
-             if(generatedData.cultures) generatedData.cultures = addIdsToLore(generatedData.cultures);
-        }
-        
-        if (section === 'analyzeChapter') {
-             if (generatedData.newCharacters) {
-                generatedData.newCharacters.forEach((char: Partial<Character>) => {
-                    if (!char.customFields) char.customFields = [];
-                    if (!char.id) char.id = crypto.randomUUID();
-                });
-             }
-             if (generatedData.newLocations) generatedData.newLocations = addIdsToLore(generatedData.newLocations);
-             if (!generatedData.newPlotPoints) generatedData.newPlotPoints = [];
-        }
-
-        return generatedData;
-    } catch (error) {
-        console.error(`Error processing AI response for section ${section}:`, error);
-        const errorMessage = error instanceof Error 
-            ? `The AI returned an invalid response. ${error.message}` 
-            : "The AI returned a response that was not valid JSON. Please try again.";
-        throw new Error(errorMessage);
-    }
-};
-
+// --- MAIN GENERATION FUNCTIONS ---
 
 export const generateStoryEncyclopediaSection = async (
-    apiKey: string,
-    section: string,
-    storyEncyclopedia: Partial<StoryEncyclopedia | Universe>,
+    apiKey: string, 
+    section: string, 
+    currentContext: any,
     language: 'en' | 'id',
-    options?: { idea?: string; index?: number; style?: string },
+    options: any = {}
 ): Promise<any> => {
     const ai = initializeGenAI(apiKey);
-    const configKey = Object.keys(generationConfig).find(key => section.startsWith(key)) || '';
-    const config = generationConfig[configKey];
-    if (!config) throw new Error(`Invalid section for generation: ${section}`);
-
-    const langInstruction = language === 'id' 
-        ? 'Generate the entire JSON response strictly in Bahasa Indonesia.' 
-        : 'Generate the entire JSON response strictly in English.';
+    const model = ModelType.FLASH; 
     
-    const context = JSON.stringify(storyEncyclopedia, null, 2);
-    let prompt = '';
+    // For specific sections that need more brain power, use Pro
+    const usePro = ['core', 'arc', 'tone', 'analyzeStyle'].includes(section);
+    const selectedModel = usePro ? ModelType.PRO : ModelType.FLASH;
 
-    if (section === 'basic') {
-        if (!options?.idea) throw new Error("An initial idea is required to generate basic info.");
-        prompt = config.prompt(context, { idea: options.idea });
-    } else if (section.startsWith('singleArcAct')) {
-        const actIndex = options?.index ?? 0;
-        const totalActs = (storyEncyclopedia as StoryEncyclopedia).storyArc?.length || 4;
-        prompt = config.prompt(context, actIndex, totalActs);
-    } else if (section === 'tone') {
-        prompt = config.prompt(context, language);
-    } else if (section === 'relationships') {
-        const characterJSON = JSON.stringify((storyEncyclopedia as StoryEncyclopedia).characters?.map(c => ({id: c.id, name: c.name})), null, 2);
-        prompt = config.prompt(context, characterJSON);
-    } else if (section === 'styleExample') {
-        if (!options?.style) throw new Error("A style is required to generate an example.");
-        prompt = config.prompt(options.style, language);
-    } else if (section.startsWith('character')) {
-        prompt = config.prompt(context, { index: options?.index ?? 0 });
-    } else if (section === 'analyzeStyle') {
-        // For style analysis, we pass the sample text as options.style or assume it's in context (less reliable)
-        // Better to pass it explicitly
-        const sampleText = options?.style || (storyEncyclopedia as StoryEncyclopedia).customProseStyleByExample || '';
-        prompt = config.prompt(context, sampleText);
-    }
-    else {
-        prompt = config.prompt(context);
-    }
+    const config = generationConfig[section];
+    if (!config) throw new Error(`Invalid generation section: ${section}`);
 
-    const finalPrompt = `${langInstruction}\n\n${prompt}`;
+    const contextString = JSON.stringify(currentContext, null, 2);
+    const prompt = config.prompt(contextString, options);
+    
+    const systemInstruction = language === 'id' ? 
+        "Anda adalah asisten penulis kreatif ahli. Tugas Anda adalah menghasilkan struktur JSON yang valid untuk ensiklopedia cerita berdasarkan permintaan pengguna. JANGAN gunakan markdown di luar string JSON. Hanya kembalikan JSON mentah." :
+        "You are an expert creative writing assistant. Your task is to generate valid JSON structures for story encyclopedias based on user requests. DO NOT use markdown outside of the JSON string. Return raw JSON only.";
 
-    const responsePromise = generateWithRetry(() => ai.models.generateContent({
-        model: 'gemini-2.5-flash',
-        contents: finalPrompt,
-        config: {
-            responseMimeType: 'application/json',
-            responseSchema: config.schema,
-            safetySettings: SAFETY_SETTINGS, 
-        }
-    }));
-
-    return handleJsonResponse(responsePromise, section);
+    return generateWithRetry(async () => {
+        const response = await ai.models.generateContent({
+            model: selectedModel,
+            contents: prompt,
+            config: {
+                responseMimeType: "application/json",
+                responseSchema: config.schema,
+                systemInstruction: systemInstruction,
+                safetySettings: SAFETY_SETTINGS,
+            }
+        });
+        
+        validateResponse(response);
+        
+        if (!response.text) throw new Error("No response generated.");
+        return JSON.parse(response.text);
+    });
 };
-
-
-// --- NEW: AI Tools for Editor & Analysis ---
 
 export const generateEditorAction = async (
     apiKey: string,
     action: 'rewrite' | 'expand' | 'fixGrammar' | 'beatToProse' | 'continue' | 'autoFormat',
-    text: string,
+    selectedText: string,
     context: { precedingText: string; followingText: string; storyContext: StoryEncyclopedia }
 ): Promise<string> => {
     const ai = initializeGenAI(apiKey);
-    const language = context.storyContext.language;
-    const langInstruction = language === 'id' ? 'Response must be in Bahasa Indonesia.' : 'Response must be in English.';
-    
-    const contextString = formatStoryEncyclopediaForPrompt(context.storyContext);
+    const isId = context.storyContext.language === 'id';
     
     let prompt = '';
-    
-    if (action === 'continue') {
-        prompt = `
-        ${contextString}
-        
-        --- CURRENT WRITING CONTEXT ---
-        The user is currently writing a chapter. 
-        Preceding Text (What comes before):
-        "${context.precedingText.slice(-2000)}"
+    const styleContext = context.storyContext.styleProfile ? `\nSTYLE DNA TO MIMIC:\n${context.storyContext.styleProfile}` : '';
 
-        TASK: Continue writing the story from the exact point where the text ends. 
-        - Mimic the existing style, tone, and narrative perspective (POV).
-        - Do not repeat the last sentence.
-        - Write about 200-400 words.
-        ${langInstruction}
-        `;
-    } else {
-        let instruction = '';
-        switch(action) {
-            case 'rewrite': instruction = 'Rewrite the selected text to improve flow, vocabulary, and impact while keeping the original meaning.'; break;
-            case 'fixGrammar': instruction = 'Fix all grammar, spelling, and punctuation errors in the selected text. Do not change the style.'; break;
-            case 'expand': instruction = 'Expand the selected text with more sensory details, internal monologue, and descriptive language. Make it more immersive.'; break;
-            case 'beatToProse': instruction = 'Convert the selected bullet points or rough outline into full, high-quality novel prose. Add dialogue and action.'; break;
-            case 'autoFormat': instruction = `
-                Analyze the selected text.
-                Identify any phrases or sentences that are in a foreign language relative to the story's main language (${language === 'id' ? 'Indonesian' : 'English'}).
-                Wrap only these foreign phrases in markdown italics (*...*).
-                Leave names, proper nouns, and the main language text untouched.
-                Return the full text with the formatting applied.
-            `; break;
-        }
-
-        prompt = `
-        ${contextString}
-        
-        --- EDITING TASK ---
-        Selected Text:
-        "${text}"
-        
-        Context (Preceding): "...${context.precedingText.slice(-500)}"
-        Context (Following): "${context.followingText.slice(0, 500)}..."
-        
-        INSTRUCTION: ${instruction}
-        ${langInstruction}
-        Return ONLY the result text.
-        `;
+    switch (action) {
+        case 'rewrite':
+            prompt = `Rewrite the following text to improve flow, vocabulary, and impact. Keep the original meaning. ${styleContext}\n\nTEXT:\n"${selectedText}"`;
+            break;
+        case 'expand':
+            prompt = `Expand the following text into a more detailed scene. Add sensory details, internal monologue, or dialogue where appropriate. ${styleContext}\n\nTEXT:\n"${selectedText}"`;
+            break;
+        case 'fixGrammar':
+            prompt = `Fix grammar, spelling, and punctuation in the following text. Do not change the style or meaning.\n\nTEXT:\n"${selectedText}"`;
+            break;
+        case 'beatToProse':
+            prompt = `Convert the following plot beats/outline into full narrative prose. ${styleContext}\n\nBEATS:\n"${selectedText}"`;
+            break;
+        case 'autoFormat':
+            prompt = `Format the text for a novel. 
+            1. Ensure standard punctuation (quotes for dialogue).
+            2. Put thoughts in italics if they are internal monologue.
+            3. IMPORTANT: Identify any "System Messages" (like LitRPG screens) or "Foreign/Magic Language" and format them distinctively (e.g. with bold or specific brackets).
+            4. Do not change the actual words, just the formatting/markdown.
+            \n\nTEXT:\n"${selectedText}"`;
+            break;
+        case 'continue':
+            prompt = `Continue the story from the current point. Write the next few paragraphs (approx 200-300 words). Adhere strictly to the established style and plot direction. ${styleContext}
+            \n\nCONTEXT SO FAR:\n...${context.precedingText.slice(-1000)}
+            \n\n(The story continues below...)`;
+            break;
     }
 
-    const response = await generateWithRetry<GenerateContentResponse>(() => ai.models.generateContent({
-        model: 'gemini-2.5-flash',
-        contents: prompt,
-        config: {
-            safetySettings: SAFETY_SETTINGS, 
-        }
-    }));
+    return generateWithRetry(async () => {
+        const response = await ai.models.generateContent({
+            model: ModelType.FLASH,
+            contents: prompt,
+            config: {
+                systemInstruction: isId ? SYSTEM_INSTRUCTION_ID + formatStoryEncyclopediaForPrompt(context.storyContext) : SYSTEM_INSTRUCTION_EN + formatStoryEncyclopediaForPrompt(context.storyContext),
+                safetySettings: SAFETY_SETTINGS
+            }
+        });
 
-    return response.text?.trim() || '';
+        validateResponse(response);
+        return response.text || '';
+    });
 };
 
 export const analyzeChapterContent = async (
     apiKey: string,
-    chapterText: string,
-    storyEncyclopedia: StoryEncyclopedia
+    content: string,
+    storyContext: StoryEncyclopedia
 ): Promise<AnalysisResult> => {
     const ai = initializeGenAI(apiKey);
-    const language = storyEncyclopedia.language;
-    const langInstruction = language === 'id' ? 'Response must be in Bahasa Indonesia.' : 'Response must be in English.';
-
-    const existingCharacters = storyEncyclopedia.characters.map(c => c.name).join(', ');
-    const existingLocations = storyEncyclopedia.locations.map(l => l.name).join(', ');
     
     const prompt = `
-    Analyze the following chapter text for a webnovel and extract NEW elements that should be added to the Story Encyclopedia.
+    Analyze the following chapter text. Identify any NEW elements that are not currently in the Story Encyclopedia context provided below.
     
-    EXISTING CHARACTERS: ${existingCharacters}
-    EXISTING LOCATIONS: ${existingLocations}
+    Looking for:
+    1. **New Characters**: Important named characters introduced for the first time.
+    2. **New Locations**: Significant locations visited.
+    3. **New Plot Points**: Key events that happened in this chapter (summarize them).
     
-    CHAPTER TEXT:
-    "${chapterText}"
+    Story Context (Existing Data):
+    - Characters: ${storyContext.characters.map(c => c.name).join(', ')}
+    - Locations: ${storyContext.locations.map(l => l.name).join(', ')}
     
-    TASK:
-    1. Identify NEW important characters introduced in this chapter (ignore minor unnamed ones).
-    2. Identify NEW important locations visited.
-    3. Summarize 3-5 key plot points that happened in this chapter.
-    4. Provide a brief 1-sentence summary of the whole chapter.
-    
-    IMPORTANT: Do not include characters or locations that are already listed in the "EXISTING" lists above.
-    
-    ${langInstruction}
+    Chapter Text:
+    "${content.substring(0, 10000)}..." (Truncated for analysis)
     `;
 
-    const responsePromise = generateWithRetry(() => ai.models.generateContent({
-        model: 'gemini-2.5-flash',
-        contents: prompt,
-        config: {
-            responseMimeType: 'application/json',
-            safetySettings: SAFETY_SETTINGS, 
-            responseSchema: {
-                type: Type.OBJECT,
-                properties: {
-                    newCharacters: { type: Type.ARRAY, items: characterSchema },
-                    newLocations: { type: Type.ARRAY, items: loreEntrySchema },
-                    newPlotPoints: { type: Type.ARRAY, items: { type: Type.STRING } },
-                    summary: { type: Type.STRING }
-                },
-                required: ['newCharacters', 'newLocations', 'newPlotPoints', 'summary']
-            }
-        }
-    }));
+    const schema = {
+        type: Type.OBJECT,
+        properties: {
+            newCharacters: { type: Type.ARRAY, items: characterSchema },
+            newLocations: { type: Type.ARRAY, items: loreEntrySchema },
+            newPlotPoints: { type: Type.ARRAY, items: { type: Type.STRING } },
+            summary: { type: Type.STRING, description: "A brief analysis summary." }
+        },
+        required: ["newCharacters", "newLocations", "newPlotPoints", "summary"]
+    };
 
-    return handleJsonResponse(responsePromise, 'analyzeChapter');
+    return generateWithRetry(async () => {
+        const response = await ai.models.generateContent({
+            model: ModelType.FLASH,
+            contents: prompt,
+            config: {
+                responseMimeType: "application/json",
+                responseSchema: schema,
+                safetySettings: SAFETY_SETTINGS
+            }
+        });
+        
+        validateResponse(response);
+        if (!response.text) throw new Error("No analysis generated");
+        return JSON.parse(response.text);
+    });
 };

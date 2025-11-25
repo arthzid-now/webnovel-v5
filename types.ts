@@ -93,6 +93,7 @@ export interface LoreEntry {
     id: string;
     name: string;
     description: string;
+    date?: string; // For timeline/history items
 }
 
 export interface StoryEncyclopedia {

@@ -3,7 +3,7 @@ import React, { useState, useRef, useEffect, useCallback } from 'react';
 import { Chat } from '@google/genai';
 import { Message, MessageAuthor, StoryEncyclopedia, Persona } from '../types';
 import { DEFAULT_PERSONAS } from '../constants';
-import { createChatSession } from '../services/geminiService';
+import { createChatSession, getFriendlyErrorMessage } from '../services/geminiService';
 import { MessageComponent } from './Message';
 import { SendIcon } from './icons/SendIcon';
 import { BrainCircuitIcon } from './icons/BrainCircuitIcon';
@@ -78,7 +78,6 @@ const ChatWindow: React.FC<ChatWindowProps> = ({ apiKey, storyEncyclopedia, onRe
                 setMessages(session.messages);
             } else {
                 // If chat is empty, show the initial greeting message based on persona
-                // Note: We hardcode generic greeting initially, persona will take over next
                 const initialMessageText = storyEncyclopedia.language === 'id'
                   ? `Hai! Aku **${displayName}**. Siap bantu bikin cerita '${storyEncyclopedia.title}' jadi keren. Mau mulai dari mana?`
                   : `Hi! I'm **${displayName}**. Ready to make '${storyEncyclopedia.title}' awesome. Where should we start?`;
@@ -190,6 +189,13 @@ const ChatWindow: React.FC<ChatWindowProps> = ({ apiKey, storyEncyclopedia, onRe
         let fullText = '';
         for await (const chunk of stream) {
             const chunkText = chunk.text;
+            
+            // Safety Check in Stream
+            const finishReason = chunk.candidates?.[0]?.finishReason;
+            if (finishReason === 'SAFETY') {
+                throw new Error("SAFETY_BLOCK");
+            }
+
             if (chunkText) {
                 fullText += chunkText;
                 setMessages(prev =>
@@ -200,6 +206,11 @@ const ChatWindow: React.FC<ChatWindowProps> = ({ apiKey, storyEncyclopedia, onRe
             }
         }
         
+        // If nothing came back and no error threw, check if it was empty
+        if (!fullText) {
+             throw new Error("Empty response from AI. Possibly filtered.");
+        }
+
         const finalAiMessage: Message = {
             id: `ai-${Date.now()}`,
             author: MessageAuthor.AI,
@@ -210,10 +221,12 @@ const ChatWindow: React.FC<ChatWindowProps> = ({ apiKey, storyEncyclopedia, onRe
 
     } catch (error) {
         console.error("Error sending message:", error);
-         const errorAiMessage: Message = {
+        const niceError = getFriendlyErrorMessage(error);
+        
+        const errorAiMessage: Message = {
             id: `ai-error-${Date.now()}`,
             author: MessageAuthor.AI,
-            text: t('chat.errorMessage'),
+            text: `**Error:** ${niceError}`,
             timestamp: Date.now()
         };
         setMessages(prev => prev.map(msg => msg.id === aiMessagePlaceholder.id ? errorAiMessage : msg));

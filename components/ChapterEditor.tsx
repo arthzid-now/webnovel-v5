@@ -1,3 +1,4 @@
+
 import React, { useState, useEffect, useRef, useMemo } from 'react';
 import { marked } from 'marked';
 import { Chapter, StoryEncyclopedia, AnalysisResult, ChapterVersion } from '../types';
@@ -16,7 +17,7 @@ import EditorToolbar from './EditorToolbar';
 import ChapterAnalysisModal from './ChapterAnalysisModal';
 import AiPreviewModal from './AiPreviewModal';
 import ChapterHistoryModal from './ChapterHistoryModal';
-import { generateEditorAction, analyzeChapterContent } from '../services/geminiService';
+import { generateEditorAction, analyzeChapterContent, getFriendlyErrorMessage } from '../services/geminiService';
 
 interface ChapterEditorProps {
   chapter: Chapter;
@@ -105,11 +106,7 @@ const ChapterEditor: React.FC<ChapterEditorProps> = ({
     // Force Save on Unmount/Change
     return () => {
       if (saveTimeoutRef.current) clearTimeout(saveTimeoutRef.current);
-      // IMPORTANT: This ensures the latest data is saved when navigating away, 
-      // even if the 750ms timer hasn't fired yet.
-      // We check if refs differ from props to avoid unnecessary writes if already saved.
-      // Ideally onUpdate should be smart enough to dedup, but calling it here is safe.
-      if (chapterIdRef.current === chapter.id) { // Only save if unmounting the *same* chapter editor instance
+      if (chapterIdRef.current === chapter.id) { 
          onUpdate(chapterIdRef.current, titleRef.current, contentRef.current);
       }
     };
@@ -221,7 +218,7 @@ const ChapterEditor: React.FC<ChapterEditorProps> = ({
           }
       } catch (error) {
           console.error("AI Action Failed", error);
-          alert(error instanceof Error ? error.message : t('chat.errorMessage'));
+          alert(getFriendlyErrorMessage(error));
       } finally {
           setIsThinking(false);
       }
@@ -254,7 +251,7 @@ const ChapterEditor: React.FC<ChapterEditorProps> = ({
           }
       } catch (error) {
           console.error("Continue Failed", error);
-          alert(error instanceof Error ? error.message : t('chat.errorMessage'));
+          alert(getFriendlyErrorMessage(error));
       } finally {
           setIsThinking(false);
       }
@@ -276,7 +273,7 @@ const ChapterEditor: React.FC<ChapterEditorProps> = ({
           setAnalysisResult(result);
       } catch (error) {
            console.error("Analysis Failed", error);
-           alert(error instanceof Error ? error.message : t('chat.errorMessage'));
+           alert(getFriendlyErrorMessage(error));
       } finally {
           setIsThinking(false);
       }
@@ -348,20 +345,10 @@ const ChapterEditor: React.FC<ChapterEditorProps> = ({
 
   const parsedPreview = useMemo(() => {
       if (!isPreviewMode) return '';
-      
-      // 1. Normalize all line breaks to \n
-      // 2. Collapse multiple blank lines (>2) into a single blank line (\n\n)
-      // 3. Ensure every single \n becomes \n\n to create a paragraph in Markdown
       const normalized = content
-        .replace(/\r\n|\r/g, '\n') // Normalize to \n
-        .replace(/\n{3,}/g, '\n\n'); // Max 1 blank line between blocks
-        
-      // Replace single \n with \n\n ONLY if it's not already part of a \n\n sequence
-      // Actually, simplest way for Webnovel style: Double everything, then collapse 4+ to 2.
-      // But a cleaner regex is: Replace single \n that isn't surrounded by \n with \n\n
+        .replace(/\r\n|\r/g, '\n') 
+        .replace(/\n{3,}/g, '\n\n'); 
       const webnovelContent = normalized.replace(/([^\n])\n([^\n])/g, '$1\n\n$2');
-      
-      // breaks: true is kept for safety, gfm: true for standard md features
       return marked.parse(webnovelContent, { breaks: true, gfm: true });
   }, [content, isPreviewMode]);
 
@@ -539,6 +526,9 @@ const ChapterEditor: React.FC<ChapterEditorProps> = ({
             onChange={handleContentChange}
             onKeyDown={handleKeyDown}
             onSelect={handleSelect}
+            onMouseUp={handleSelect}
+            onKeyUp={handleSelect}
+            onTouchEnd={handleSelect}
             placeholder={language === 'id' ? 'Mulai tulis bab Anda di sini... (Mendukung Markdown)' : 'Start writing your chapter here... (Markdown supported)'}
             className="w-full h-full bg-slate-800 text-slate-200 placeholder-slate-500 p-4 sm:p-6 resize-none focus:outline-none text-base leading-relaxed font-mono"
             />

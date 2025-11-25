@@ -1,4 +1,3 @@
-
 import React, { useState, useMemo, useEffect } from 'react';
 import { StoryEncyclopedia, StoryArcAct, Character, Relationship, CustomField, LoreEntry, PlotPoint, Universe } from '../types';
 import { GENRES_EN, GENRES_ID, PROSE_STYLES_EN, PROSE_STYLES_ID, NARRATIVE_PERSPECTIVES_EN, NARRATIVE_PERSPECTIVES_ID, STORY_FORMATS, STRUCTURE_TEMPLATES } from '../constants';
@@ -149,6 +148,141 @@ const LoreListEditor: React.FC<{ listTitle: string; entries: LoreEntry[]; onLore
                     <button type="button" onClick={() => onRemove(index)} className="absolute top-2 right-2 p-1.5 text-slate-400 hover:text-rose-400" title={t('setup.lore.removeEntry', { title: listTitle })}><TrashIcon className="w-4 h-4" /></button>
                 </div>
             ))}
+            <button type="button" onClick={onAdd} className="w-full text-sm py-2 px-4 border-2 border-dashed border-slate-600 text-slate-400 rounded-lg hover:bg-slate-700 hover:border-slate-500 transition-colors flex items-center justify-center gap-2"><PlusIcon className="w-4 h-4" />{t('setup.lore.addEntry', { title: listTitle })}</button>
+        </div>
+    );
+};
+
+// --- VISUAL TIMELINE EDITOR ---
+const TimelineEditor: React.FC<{ listTitle: string; entries: LoreEntry[]; onLoreChange: (index: number, field: keyof LoreEntry, value: string) => void; onAdd: () => void; onRemove: (index: number) => void; }> = ({ listTitle, entries, onLoreChange, onAdd, onRemove }) => {
+    const { t } = useLanguage();
+    const [viewMode, setViewMode] = useState<'visual' | 'list'>('visual');
+
+    // Improved simple sorting logic
+    const sortedEntries = useMemo(() => {
+        if (viewMode === 'list') return entries.map((e, i) => ({ ...e, originalIndex: i }));
+        return entries
+            .map((e, i) => ({ ...e, originalIndex: i }))
+            .sort((a, b) => {
+                // Try to extract a year (number) from the start of the date string
+                const getYear = (d?: string) => {
+                    if (!d) return 999999; // No date goes to end
+                    const match = d.match(/^-?\d+/); // Matches "2000", "-500"
+                    return match ? parseInt(match[0], 10) : 999999;
+                };
+                const yearA = getYear(a.date);
+                const yearB = getYear(b.date);
+                if (yearA !== yearB) return yearA - yearB;
+                return 0;
+            });
+    }, [entries, viewMode]);
+
+    return (
+        <div className="space-y-4">
+            <div className="flex justify-between items-center mt-4 border-t border-slate-700 pt-4">
+                <h3 className="text-lg font-semibold text-slate-300">{listTitle}</h3>
+                <div className="flex bg-slate-700 rounded-lg p-1 text-xs">
+                    <button 
+                        type="button"
+                        onClick={() => setViewMode('visual')} 
+                        className={`px-3 py-1 rounded-md transition-all ${viewMode === 'visual' ? 'bg-indigo-600 text-white' : 'text-slate-400 hover:text-slate-200'}`}
+                    >
+                        Timeline
+                    </button>
+                    <button 
+                        type="button"
+                        onClick={() => setViewMode('list')} 
+                        className={`px-3 py-1 rounded-md transition-all ${viewMode === 'list' ? 'bg-indigo-600 text-white' : 'text-slate-400 hover:text-slate-200'}`}
+                    >
+                        List
+                    </button>
+                </div>
+            </div>
+
+            {viewMode === 'visual' && entries.length > 0 ? (
+                <div className="relative py-8 px-2">
+                    {/* The Spine */}
+                    <div className="absolute left-4 md:left-1/2 top-0 bottom-0 w-0.5 bg-gradient-to-b from-transparent via-indigo-500 to-transparent opacity-50"></div>
+                    
+                    <div className="space-y-8">
+                        {sortedEntries.map((entry, index) => (
+                            <div key={entry.id} className={`relative flex items-center ${index % 2 === 0 ? 'md:flex-row-reverse' : 'md:flex-row'} flex-row`}>
+                                {/* Node on the line */}
+                                <div className="absolute left-4 md:left-1/2 -translate-x-1/2 w-4 h-4 bg-slate-900 border-2 border-indigo-400 rounded-full z-10 shadow-[0_0_10px_rgba(99,102,241,0.5)]"></div>
+                                
+                                {/* Spacer for desktop alternating layout */}
+                                <div className="hidden md:block md:w-1/2"></div>
+                                
+                                {/* Content Card */}
+                                <div className={`w-full md:w-1/2 pl-10 md:pl-0 ${index % 2 === 0 ? 'md:pr-8 text-left' : 'md:pl-8 text-left'}`}>
+                                    <div className="bg-slate-800/40 border border-slate-600/50 backdrop-blur-sm p-4 rounded-lg hover:border-indigo-500/50 transition-all group relative">
+                                        <input 
+                                            type="text" 
+                                            placeholder="Year/Era (e.g., 2050)" 
+                                            value={entry.date || ''} 
+                                            onChange={(e) => onLoreChange(entry.originalIndex, 'date', e.target.value)} 
+                                            className="text-xs font-mono text-indigo-300 bg-transparent border-b border-transparent focus:border-indigo-500 focus:outline-none w-full mb-1"
+                                        />
+                                        <input 
+                                            type="text" 
+                                            value={entry.name} 
+                                            onChange={(e) => onLoreChange(entry.originalIndex, 'name', e.target.value)} 
+                                            placeholder={t('common.name')}
+                                            className="w-full bg-transparent font-bold text-slate-200 placeholder-slate-500 focus:outline-none text-sm mb-1"
+                                        />
+                                        <textarea 
+                                            value={entry.description} 
+                                            onChange={(e) => onLoreChange(entry.originalIndex, 'description', e.target.value)} 
+                                            placeholder={t('common.description')}
+                                            rows={2} 
+                                            className="w-full bg-transparent text-xs text-slate-400 placeholder-slate-600 focus:outline-none resize-none"
+                                        />
+                                        <button 
+                                            type="button" 
+                                            onClick={() => onRemove(entry.originalIndex)} 
+                                            className="absolute top-2 right-2 text-slate-600 hover:text-rose-400 opacity-0 group-hover:opacity-100 transition-opacity"
+                                        >
+                                            <TrashIcon className="w-3 h-3" />
+                                        </button>
+                                    </div>
+                                </div>
+                            </div>
+                        ))}
+                    </div>
+                </div>
+            ) : (
+                <div className="space-y-3">
+                    {entries?.map((entry, index) => (
+                        <div key={entry.id} className="p-3 bg-slate-700/50 rounded-md space-y-2 relative border-l-4 border-indigo-500">
+                            <div className="flex gap-2">
+                                <input 
+                                    type="text" 
+                                    placeholder="Year/Era" 
+                                    value={entry.date || ''} 
+                                    onChange={(e) => onLoreChange(index, 'date', e.target.value)} 
+                                    className="w-1/3 bg-slate-600 text-xs font-mono text-indigo-200 placeholder-slate-400 rounded-md p-2 border border-slate-500 focus:ring-2 focus:ring-indigo-500 focus:outline-none"
+                                />
+                                <input 
+                                    type="text" 
+                                    placeholder={t('common.name')} 
+                                    value={entry.name} 
+                                    onChange={(e) => onLoreChange(index, 'name', e.target.value)} 
+                                    className="w-2/3 bg-slate-600 font-bold text-slate-100 placeholder-slate-400 rounded-md p-2 border border-slate-500 focus:ring-2 focus:ring-indigo-500 focus:outline-none" 
+                                />
+                            </div>
+                            <textarea 
+                                placeholder={t('common.description')} 
+                                value={entry.description} 
+                                onChange={(e) => onLoreChange(index, 'description', e.target.value)} 
+                                rows={2} 
+                                className="w-full bg-slate-600 text-slate-200 placeholder-slate-400 rounded-md p-2 border border-slate-500 focus:ring-2 focus:ring-indigo-500 focus:outline-none" 
+                            />
+                            <button type="button" onClick={() => onRemove(index)} className="absolute top-2 right-2 p-1.5 text-slate-400 hover:text-rose-400"><TrashIcon className="w-4 h-4" /></button>
+                        </div>
+                    ))}
+                </div>
+            )}
+            
             <button type="button" onClick={onAdd} className="w-full text-sm py-2 px-4 border-2 border-dashed border-slate-600 text-slate-400 rounded-lg hover:bg-slate-700 hover:border-slate-500 transition-colors flex items-center justify-center gap-2"><PlusIcon className="w-4 h-4" />{t('setup.lore.addEntry', { title: listTitle })}</button>
         </div>
     );
@@ -418,7 +552,7 @@ const StoryEncyclopediaSetup: React.FC<StoryEncyclopediaSetupProps> = ({ apiKey,
                     </button>
                     <div className="text-center p-6 bg-slate-700 rounded-lg border border-slate-600 flex flex-col items-center justify-between">
                        <div> <GlobeIcon className="w-8 h-8 mb-2 text-slate-400 mx-auto" /> <h3 className="font-bold text-slate-100">{t('setup.universe.realWorld')}</h3> <p className="text-sm text-slate-400 mt-1">{t('setup.universe.realWorldDesc')}</p> </div>
-                       <div className="mt-4 space-y-3 w-full"> <label className="flex items-center justify-center text-xs text-slate-300 gap-2 cursor-pointer"> <input type="checkbox" checked={disguiseNames} onChange={(e) => setDisguiseNames(e.target.checked)} className="form-checkbox h-4 w-4 text-indigo-600 bg-slate-600 border-slate-500 rounded focus:ring-indigo-500"/> <span>{t('setup.universe.disguiseNames')}</span> </label> <button onClick={handleRealWorldSelect} className="w-full bg-indigo-600 text-white font-semibold py-2 px-4 rounded-md hover:bg-indigo-500 transition-colors">{t('common.confirm')}</button> </div>
+                       <div className="mt-4 space-y-3 w-full"> <label className="flex items-center justify-center text-xs text-slate-300 gap-2 cursor-pointer"> <input type="checkbox" checked={disguiseNames} onChange={() => setDisguiseNames(!disguiseNames)} className="form-checkbox h-4 w-4 text-indigo-600 bg-slate-600 border-slate-500 rounded focus:ring-indigo-500"/> <span>{t('setup.universe.disguiseNames')}</span> </label> <button onClick={handleRealWorldSelect} className="w-full bg-indigo-600 text-white font-semibold py-2 px-4 rounded-md hover:bg-indigo-500 transition-colors">{t('common.confirm')}</button> </div>
                     </div>
                      <div className="text-center p-6 bg-slate-700 rounded-lg border border-slate-600 flex flex-col items-center justify-center"> <DatabaseIcon className="w-8 h-8 mb-2 text-slate-400" /> <h3 className="font-bold text-slate-100">{t('setup.universe.fromLibrary')}</h3> <p className="text-sm text-slate-400 mt-1">{t('setup.universe.fromLibraryDesc')}</p> </div>
                 </div>
@@ -488,7 +622,7 @@ const StoryEncyclopediaSetup: React.FC<StoryEncyclopediaSetupProps> = ({ apiKey,
                         {activeWorldTab === 'geo' && ( <> <div className="flex justify-end"><GenerateButton onClick={() => handleGenerate('worldLore')} disabled={!isWorldLoreReadyForGen} isLoading={generatingSection === 'worldLore'} label={t('common.generateWithAi')}/></div> {showWorldBuilding && <FormField label={t('setup.world.worldBuilding')} name="worldBuilding" value={formData.worldBuilding || ''} onChange={handleChange} isTextArea onGenerate={() => handleGenerate('worldBuilding')} isGenerating={generatingSection === 'worldBuilding'} />} <LoreListEditor listTitle={t('setup.lore.locations')} entries={formData.locations} onLoreChange={(i, f, v) => handleLoreChange('locations', i, f, v)} onAdd={() => addLoreEntry('locations')} onRemove={(i) => removeLoreEntry('locations', i)}/> <LoreListEditor listTitle={t('setup.lore.factions')} entries={formData.factions} onLoreChange={(i, f, v) => handleLoreChange('factions', i, f, v)} onAdd={() => addLoreEntry('factions')} onRemove={(i) => removeLoreEntry('factions', i)}/> <LoreListEditor listTitle={t('setup.lore.general')} entries={formData.lore} onLoreChange={(i, f, v) => handleLoreChange('lore', i, f, v)} onAdd={() => addLoreEntry('lore')} onRemove={(i) => removeLoreEntry('lore', i)}/> </> )}
                         {activeWorldTab === 'nature' && ( <> <div className="flex justify-end"><GenerateButton onClick={() => handleGenerate('world_nature')} disabled={!isWorldLoreReadyForGen} isLoading={generatingSection === 'world_nature'} label={t('common.generateWithAi')}/></div> <LoreListEditor listTitle={t('setup.lore.races')} entries={formData.races} onLoreChange={(i, f, v) => handleLoreChange('races', i, f, v)} onAdd={() => addLoreEntry('races')} onRemove={(i) => removeLoreEntry('races', i)}/> <LoreListEditor listTitle={t('setup.lore.creatures')} entries={formData.creatures} onLoreChange={(i, f, v) => handleLoreChange('creatures', i, f, v)} onAdd={() => addLoreEntry('creatures')} onRemove={(i) => removeLoreEntry('creatures', i)}/> </> )}
                         {activeWorldTab === 'power' && ( <> <div className="flex justify-end"><GenerateButton onClick={() => handleGenerate('world_power')} disabled={!isWorldLoreReadyForGen} isLoading={generatingSection === 'world_power'} label={t('common.generateWithAi')}/></div> {showMagicSystem && <FormField label={t('setup.world.magicSystem')} name="magicSystem" value={formData.magicSystem || ''} onChange={handleChange} isTextArea onGenerate={() => handleGenerate('magicSystem')} isGenerating={generatingSection === 'magicSystem'} />} <LoreListEditor listTitle={t('setup.lore.powers')} entries={formData.powers} onLoreChange={(i, f, v) => handleLoreChange('powers', i, f, v)} onAdd={() => addLoreEntry('powers')} onRemove={(i) => removeLoreEntry('powers', i)}/> <LoreListEditor listTitle={t('setup.lore.items')} entries={formData.items} onLoreChange={(i, f, v) => handleLoreChange('items', i, f, v)} onAdd={() => addLoreEntry('items')} onRemove={(i) => removeLoreEntry('items', i)}/> <LoreListEditor listTitle={t('setup.lore.technology')} entries={formData.technology} onLoreChange={(i, f, v) => handleLoreChange('technology', i, f, v)} onAdd={() => addLoreEntry('technology')} onRemove={(i) => removeLoreEntry('technology', i)}/> </> )}
-                        {activeWorldTab === 'history' && ( <> <div className="flex justify-end"><GenerateButton onClick={() => handleGenerate('world_history')} disabled={!isWorldLoreReadyForGen} isLoading={generatingSection === 'world_history'} label={t('common.generateWithAi')}/></div> <LoreListEditor listTitle={t('setup.lore.history')} entries={formData.history} onLoreChange={(i, f, v) => handleLoreChange('history', i, f, v)} onAdd={() => addLoreEntry('history')} onRemove={(i) => removeLoreEntry('history', i)}/> <LoreListEditor listTitle={t('setup.lore.cultures')} entries={formData.cultures} onLoreChange={(i, f, v) => handleLoreChange('cultures', i, f, v)} onAdd={() => addLoreEntry('cultures')} onRemove={(i) => removeLoreEntry('cultures', i)}/> </> )}
+                        {activeWorldTab === 'history' && ( <> <div className="flex justify-end"><GenerateButton onClick={() => handleGenerate('world_history')} disabled={!isWorldLoreReadyForGen} isLoading={generatingSection === 'world_history'} label={t('common.generateWithAi')}/></div> <TimelineEditor listTitle={t('setup.lore.history')} entries={formData.history} onLoreChange={(i, f, v) => handleLoreChange('history', i, f, v)} onAdd={() => addLoreEntry('history')} onRemove={(i) => removeLoreEntry('history', i)} /> <LoreListEditor listTitle={t('setup.lore.cultures')} entries={formData.cultures} onLoreChange={(i, f, v) => handleLoreChange('cultures', i, f, v)} onAdd={() => addLoreEntry('cultures')} onRemove={(i) => removeLoreEntry('cultures', i)}/> </> )}
                     </div>
                 </div>
             )}
