@@ -1,4 +1,21 @@
 
+export enum ModelType {
+  FLASH = 'gemini-flash-latest',
+  PRO = 'gemini-3-pro-preview',
+}
+
+export interface Persona {
+    id: string;
+    defaultName: string;
+    role: string;
+    description: string;
+    color: string; // Tailwind color name (e.g., 'emerald', 'violet')
+    icon: string; // Icon key
+    defaultThinking: boolean;
+    systemInstructionEn: string;
+    systemInstructionId: string;
+}
+
 export enum MessageAuthor {
   USER = 'user',
   AI = 'ai',
@@ -8,31 +25,11 @@ export interface Message {
   id: string;
   author: MessageAuthor;
   text: string;
-  timestamp?: any; // For Firestore serverTimestamp
-}
-
-export enum ModelType {
-  FLASH = 'gemini-2.5-flash',
-  PRO = 'gemini-2.5-pro',
-}
-
-export interface PlotPoint {
-  id: string;
-  summary: string;
-}
-
-export interface StoryArcAct {
-  title: string;
-  description: string;
-  plotPoints: PlotPoint[];
-  // New Fields for Narrative Engine
-  startChapter?: string; // String to allow empty state in UI
-  endChapter?: string;   // String to allow empty state in UI
-  structureTemplate?: string;
+  timestamp: number;
 }
 
 export interface CustomField {
-  id:string;
+  id: string;
   label: string;
   value: string;
 }
@@ -55,10 +52,41 @@ export interface Character {
 
 export interface Relationship {
   id: string;
-  character1Id: string; // Changed from string name to ID
-  character2Id: string; // Changed from string name to ID
+  character1Id: string;
+  character2Id: string;
   type: string;
   description: string;
+}
+
+export interface PlotPoint {
+    id: string;
+    summary: string;
+}
+
+export interface StoryArcAct {
+    title: string;
+    description: string;
+    plotPoints: PlotPoint[];
+    startChapter: string;
+    endChapter: string;
+    structureTemplate?: string; // 'freestyle', 'heros_journey', etc.
+}
+
+export interface Chapter {
+  id: string;
+  title: string;
+  content: string;
+  type?: 'story' | 'group_header';
+}
+
+export interface ChapterVersion {
+    id?: number; // Auto-increment from Dexie
+    storyId: string;
+    chapterId: string;
+    title: string;
+    content: string;
+    timestamp: number;
+    label?: string;
 }
 
 export interface LoreEntry {
@@ -67,59 +95,14 @@ export interface LoreEntry {
     description: string;
 }
 
-export interface Chapter {
-  id: string;
-  title: string;
-  content: string;
-}
-
-export interface ChapterVersion {
-  id?: number; // Auto-increment
-  storyId: string;
-  chapterId: string;
-  title: string;
-  content: string;
-  timestamp: number;
-  label?: string;
-}
-
-// New separate type for reusable world-building
-export interface Universe {
-  id: string;
-  language: 'en' | 'id'; // Language of the content
-  name: string;
-  description: string;
-  isFavorite?: boolean;
-  updatedAt?: number; // For sorting
-  
-  // Geography & Politics
-  locations: LoreEntry[];
-  factions: LoreEntry[];
-  
-  // Nature & Biology
-  races: LoreEntry[];
-  creatures: LoreEntry[];
-
-  // Power & Assets
-  magicSystem?: string; // Summary
-  powers: LoreEntry[];  // Specific spells/skills
-  items: LoreEntry[];
-  technology: LoreEntry[];
-
-  // History & Culture
-  history: LoreEntry[];
-  cultures: LoreEntry[];
-  lore: LoreEntry[]; // General Lore (Misc)
-  
-  worldBuilding?: string; // Summary
-}
-
-
 export interface StoryEncyclopedia {
   id: string;
+  updatedAt?: number; // Timestamp for sorting/sync
   language: 'en' | 'id';
-  format: 'novel' | 'webnovel'; // New Format Toggle
+  format: 'novel' | 'webnovel'; // New field for structure type
   title: string;
+  universeId: string | null; // Link to Universe Library
+  universeName: string; // Snapshot name for display
   genres: string[];
   otherGenre: string;
   setting: string;
@@ -129,74 +112,88 @@ export interface StoryEncyclopedia {
   characters: Character[];
   relationships: Relationship[];
   storyArc: StoryArcAct[];
+  
+  // Tone & Style
   comedyLevel: string;
   romanceLevel: string;
   actionLevel: string;
   maturityLevel: string;
   proseStyle: string;
-  narrativePerspective: string; // New POV field
+  narrativePerspective: string;
   customProseStyleByExample?: string;
-  chapters: Chapter[];
-  updatedAt?: number; // For sorting
+  styleProfile?: string; // New Field: Extracted Style DNA
   
-  // --- Fields snapshotted from a Universe ---
-  universeId: string | null; // Link to the master Universe
-  universeName: string;      // Display name of the universe
-  
-  // Geography & Politics
+  // World Building (Expanded)
+  worldBuilding: string; // Summary
+  magicSystem: string;   // Summary
   locations: LoreEntry[];
   factions: LoreEntry[];
+  lore: LoreEntry[]; // General Lore
   
-  // Nature & Biology
+  // New Lore Categories
   races: LoreEntry[];
   creatures: LoreEntry[];
-
-  // Power & Assets
-  magicSystem?: string;
   powers: LoreEntry[];
   items: LoreEntry[];
   technology: LoreEntry[];
-
-  // History & Culture
   history: LoreEntry[];
   cultures: LoreEntry[];
-  lore: LoreEntry[]; // General Lore
-
-  worldBuilding?: string;
   
-  // For real-world templates
+  chapters: Chapter[];
+  
+  // Flags
   disguiseRealWorldNames?: boolean;
 }
 
-// --- Analysis Types ---
-export interface AnalysisResult {
-  newCharacters: Character[];
-  newLocations: LoreEntry[];
-  newPlotPoints: string[]; // Strings to be added to the Story Arc
-  summary: string; // Brief summary of the chapter
+export interface Universe {
+    id: string;
+    updatedAt?: number;
+    language: 'en' | 'id';
+    name: string;
+    description: string;
+    isFavorite?: boolean;
+    
+    // Shared Data
+    worldBuilding: string;
+    magicSystem: string;
+    locations: LoreEntry[];
+    factions: LoreEntry[];
+    lore: LoreEntry[];
+    races: LoreEntry[];
+    creatures: LoreEntry[];
+    powers: LoreEntry[];
+    items: LoreEntry[];
+    technology: LoreEntry[];
+    history: LoreEntry[];
+    cultures: LoreEntry[];
 }
 
-// --- Search Types ---
-export interface SearchOptions {
-  matchCase: boolean;
-  wholeWord: boolean;
-}
-
-export interface SearchResult {
-  chapterId: string;
-  chapterTitle: string;
-  matchCount: number;
-}
-
-// --- Types for Internationalization ---
 export type UILanguage = 'en' | 'id';
 
-export type Translations = {
-  [key: string]: string | Translations;
-};
+export interface Translations {
+  [key: string]: any;
+}
 
 export interface LanguageContextType {
   uiLang: UILanguage;
   setUiLang: (lang: UILanguage) => void;
   t: (key: string, options?: { [key: string]: string | number }) => string;
+}
+
+export interface SearchOptions {
+    matchCase: boolean;
+    wholeWord: boolean;
+}
+
+export interface SearchResult {
+    chapterId: string;
+    chapterTitle: string;
+    matchCount: number;
+}
+
+export interface AnalysisResult {
+    newCharacters: Character[];
+    newLocations: LoreEntry[];
+    newPlotPoints: string[];
+    summary: string;
 }

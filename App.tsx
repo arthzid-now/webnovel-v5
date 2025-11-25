@@ -1,3 +1,4 @@
+
 import React, { useState, useEffect, useCallback, useRef } from 'react';
 import ReactDOM from 'react-dom/client';
 import StoryEncyclopediaSetup from './components/StoryEncyclopediaSetup';
@@ -20,10 +21,6 @@ import { db } from './db';
 
 const API_KEY_STORAGE_KEY = 'google_ai_api_key';
 const BACKUP_THRESHOLD = 2000;
-
-// ... (Keep helper functions like createEmptyCharacter, migrateStoryData, migrateUniverseData, sanitizeForXhtml SAME as before)
-// For brevity in XML response, assume standard helper functions are preserved. 
-// I will re-include them to ensure file integrity.
 
 const createEmptyCharacter = (nameOrDesc: string = '', roles: string[] = []): Character => ({
   id: crypto.randomUUID(),
@@ -132,7 +129,10 @@ const migrateStoryData = (data: any): StoryEncyclopedia => {
     if (!parsed.cultures) parsed.cultures = [];
     
     if (!parsed.chapters) {
-        parsed.chapters = [{ id: crypto.randomUUID(), title: 'Chapter 1', content: '' }];
+        parsed.chapters = [{ id: crypto.randomUUID(), title: 'Chapter 1', content: '', type: 'story' }];
+    } else {
+        // Ensure type field exists for old chapters
+        parsed.chapters = parsed.chapters.map((c: any) => ({...c, type: c.type || 'story'}));
     }
 
     if (parsed.storyArc && Array.isArray(parsed.storyArc)) {
@@ -156,6 +156,10 @@ const migrateStoryData = (data: any): StoryEncyclopedia => {
 
     if (parsed.customProseStyleByExample === undefined) {
         parsed.customProseStyleByExample = '';
+    }
+    
+    if (parsed.styleProfile === undefined) {
+        parsed.styleProfile = '';
     }
 
     return parsed as StoryEncyclopedia;
@@ -194,7 +198,6 @@ const App: React.FC = () => {
   const [stories, setStories] = useState<StoryEncyclopedia[]>([]);
   const [universes, setUniverses] = useState<Universe[]>([]);
   
-  // NOTE: activeStoryId is now mainly for View Routing. Data is in StoryContext.
   const [activeStoryId, setActiveStoryId] = useState<string | null>(null);
   
   const [editingStoryId, setEditingStoryId] = useState<string | null>(null);
@@ -208,9 +211,8 @@ const App: React.FC = () => {
   const migrationRan = useRef<boolean>(false);
   
   const { t } = useLanguage();
-  const { loadStory, unloadStory, currentStory } = useStory(); // Use Context
+  const { loadStory, unloadStory, currentStory } = useStory();
 
-  // --- MIGRATION LOGIC (Same as before) ---
   const performMigration = async () => {
       if (migrationRan.current) return;
       migrationRan.current = true;
@@ -259,7 +261,6 @@ const App: React.FC = () => {
     if (storedKey) setApiKey(storedKey);
   }, []);
 
-  // Fetch lists for Dashboard
   const refreshStoriesList = async () => {
       try {
           const allStories = await db.stories.orderBy('updatedAt').reverse().toArray();
@@ -281,7 +282,6 @@ const App: React.FC = () => {
     initData();
   }, []);
 
-  // Check Backup (Using Context Data if active)
   useEffect(() => {
       const checkBackup = async () => {
         if (currentStory && view === 'studio') {
@@ -295,7 +295,6 @@ const App: React.FC = () => {
              } catch (e) {}
         }
       };
-      // Check every minute or on change
       const interval = setInterval(checkBackup, 60000);
       return () => clearInterval(interval);
   }, [currentStory, view, t]);
@@ -325,10 +324,11 @@ const App: React.FC = () => {
 
     if (window.confirm(t('dashboard.deleteStoryConfirm', { title: storyToDelete.title }))) {
        try {
-            await db.transaction('rw', db.stories, db.chats, db.backups, async () => {
+            await db.transaction('rw', db.stories, db.chats, db.backups, db.chapter_versions, async () => {
                 await db.stories.delete(storyId);
                 await db.chats.delete(storyId);
                 await db.backups.delete(storyId);
+                await db.chapter_versions.where('storyId').equals(storyId).delete();
             });
             refreshStoriesList();
             if (activeStoryId === storyId) {
@@ -341,7 +341,6 @@ const App: React.FC = () => {
     }
   };
 
-  // --- OPTIMIZED: Switch to Studio ---
   const handleSelectStory = async (storyId: string) => {
     setActiveStoryId(storyId);
     setIsLoading(true);
@@ -350,16 +349,13 @@ const App: React.FC = () => {
     setView('studio');
   };
 
-  // --- Setup Save ---
   const handleStorySave = async (storyData: StoryEncyclopedia) => {
      try {
         const storyToSave = { ...storyData, updatedAt: Date.now() };
         await db.stories.put(storyToSave);
         
-        // Refresh List
         await refreshStoriesList();
 
-        // If we just created it or are editing, load it into context
         await loadStory(storyToSave.id);
         setActiveStoryId(storyToSave.id);
         setEditingStoryId(null);
@@ -371,15 +367,14 @@ const App: React.FC = () => {
   };
   
   const handleGoToDashboard = () => {
-    unloadStory(); // Clear Context to free memory/prevent stale state
+    unloadStory(); 
     setActiveStoryId(null);
     setEditingStoryId(null);
     setEditingUniverseId(null);
-    refreshStoriesList(); // Ensure list is up to date
+    refreshStoriesList();
     setView('dashboard');
   };
 
-  // --- Universe Handlers ---
   const handleGoToUniverseHub = () => setView('universeHub');
   const handleCreateNewUniverse = () => { setEditingUniverseId(null); setView('universeSetup'); };
   const handleEditUniverse = (universeId: string) => { setEditingUniverseId(universeId); setView('universeSetup'); };
@@ -435,7 +430,6 @@ const App: React.FC = () => {
       refreshStoriesList();
   };
 
-  // --- Exports ---
   const downloadFile = (content: string, filename: string, mimeType: string) => {
       const blob = new Blob([content], { type: mimeType });
       const url = URL.createObjectURL(blob);
@@ -449,7 +443,6 @@ const App: React.FC = () => {
   };
 
   const handleExportStory = async (storyId: string, format: 'epub' | 'html' | 'txt' | 'json' | 'md' | 'pdf' = 'md') => {
-    // If exporting current story from Studio, use context. Otherwise find in list.
     let story: StoryEncyclopedia | undefined;
     if (currentStory && currentStory.id === storyId) {
         story = currentStory;
@@ -461,7 +454,7 @@ const App: React.FC = () => {
     const safeTitle = story.title.replace(/[^a-z0-9]/gi, '_').toLowerCase();
 
     if (format === 'json') {
-        await db.backups.put({ storyId, lastWordCount: 999999999 }); // Suppress backup prompt
+        await db.backups.put({ storyId, lastWordCount: 999999999 });
         setToastMessage(null);
         downloadFile(JSON.stringify(story, null, 2), `${safeTitle}_backup.json`, 'application/json');
         return;
@@ -470,21 +463,19 @@ const App: React.FC = () => {
     if (format === 'md') {
         const encData = { ...story };
         delete (encData as any).chapters;
-        const chaptersMd = story.chapters.map(c => `## ${c.title}\n\n${c.content}`).join('\n\n<!-- CHAPTER_BREAK -->\n\n');
+        const chaptersMd = story.chapters.filter(c => c.type !== 'group_header').map(c => `## ${c.title}\n\n${c.content}`).join('\n\n<!-- CHAPTER_BREAK -->\n\n');
         downloadFile(`<!-- ENCYCLOPEDIA_JSON_START -->\n${JSON.stringify(encData, null, 2)}\n<!-- ENCYCLOPEDIA_JSON_END -->\n\n${chaptersMd}`, `${safeTitle}.md`, 'text/markdown;charset=utf-8');
         return;
     }
 
     if (format === 'txt') {
-        const txt = story.chapters.map(c => `${c.title.toUpperCase()}\n\n${c.content.replace(/\*\*/g,'').replace(/^#+\s/gm, '')}`).join('\n\n' + '-'.repeat(20) + '\n\n');
+        const txt = story.chapters.filter(c => c.type !== 'group_header').map(c => `${c.title.toUpperCase()}\n\n${c.content.replace(/\*\*/g,'').replace(/^#+\s/gm, '')}`).join('\n\n' + '-'.repeat(20) + '\n\n');
         navigator.clipboard.writeText(txt).then(() => alert(t('export.copySuccess'))).catch(() => downloadFile(txt, `${safeTitle}.txt`, 'text/plain'));
         return;
     }
 
     if (format === 'html' || format === 'pdf' || format === 'epub') {
-        // Reuse logic from previous App.tsx for HTML generation, shortened here for brevity but logic persists.
-        // The implementation matches the previous one.
-         const chaptersHtml = story.chapters.map(chap => `
+         const chaptersHtml = story.chapters.filter(c => c.type !== 'group_header').map(chap => `
             <div class="chapter">
                 <h2>${chap.title}</h2>
                 ${marked.parse(chap.content)}
@@ -523,22 +514,21 @@ const App: React.FC = () => {
                 setTimeout(() => printWindow.print(), 500);
              } else { alert("Pop-up blocked"); }
         } else if (format === 'epub') {
-             // ... JSZip logic (Same as before) ...
              const zip = new JSZip();
              zip.file("mimetype", "application/epub+zip", { compression: "STORE" });
              zip.folder("META-INF")?.file("container.xml", `<?xml version="1.0"?><container version="1.0" xmlns="urn:oasis:names:tc:opendocument:xmlns:container"><rootfiles><rootfile full-path="OEBPS/content.opf" media-type="application/oebps-package+xml"/></rootfiles></container>`);
              const oebps = zip.folder("OEBPS");
+             const epubChapters = story.chapters.filter(c => c.type !== 'group_header');
              if(oebps) {
-                 story.chapters.forEach((chap, i) => {
+                 epubChapters.forEach((chap, i) => {
                      const xhtml = `<?xml version="1.0" encoding="utf-8"?><!DOCTYPE html PUBLIC "-//W3C//DTD XHTML 1.1//EN" "http://www.w3.org/TR/xhtml11/DTD/xhtml11.dtd"><html xmlns="http://www.w3.org/1999/xhtml"><head><title>${chap.title}</title></head><body><h2>${chap.title}</h2>${sanitizeForXhtml(marked.parse(chap.content) as string)}</body></html>`;
                      oebps.file(`chapter_${i}.xhtml`, xhtml);
                  });
-                 // ... OPF & NCX generation (Same as before) ...
-                 const manifestItems = story.chapters.map((_, i) => `<item id="chapter_${i}" href="chapter_${i}.xhtml" media-type="application/xhtml+xml"/>`).join('\n');
-                 const spineItems = story.chapters.map((_, i) => `<itemref idref="chapter_${i}"/>`).join('\n');
+                 const manifestItems = epubChapters.map((_, i) => `<item id="chapter_${i}" href="chapter_${i}.xhtml" media-type="application/xhtml+xml"/>`).join('\n');
+                 const spineItems = epubChapters.map((_, i) => `<itemref idref="chapter_${i}"/>`).join('\n');
                  const opf = `<?xml version="1.0" encoding="utf-8"?><package xmlns="http://www.idpf.org/2007/opf" unique-identifier="BookId" version="2.0"><metadata xmlns:dc="http://purl.org/dc/elements/1.1/" xmlns:opf="http://www.idpf.org/2007/opf"><dc:title>${story.title}</dc:title><dc:language>${story.language}</dc:language><dc:identifier id="BookId" opf:scheme="UUID">${story.id}</dc:identifier></metadata><manifest><item id="ncx" href="toc.ncx" media-type="application/x-dtbncx+xml"/>${manifestItems}</manifest><spine toc="ncx">${spineItems}</spine></package>`;
                  oebps.file("content.opf", opf);
-                 const navPoints = story.chapters.map((chap, i) => `<navPoint id="navPoint-${i+1}" playOrder="${i+1}"><navLabel><text>${chap.title}</text></navLabel><content src="chapter_${i}.xhtml"/></navPoint>`).join('\n');
+                 const navPoints = epubChapters.map((chap, i) => `<navPoint id="navPoint-${i+1}" playOrder="${i+1}"><navLabel><text>${chap.title}</text></navLabel><content src="chapter_${i}.xhtml"/></navPoint>`).join('\n');
                  const ncx = `<?xml version="1.0" encoding="UTF-8"?><!DOCTYPE ncx PUBLIC "-//NISO//DTD ncx 2005-1//EN" "http://www.daisy.org/z3986/2005/ncx-2005-1.dtd"><ncx xmlns="http://www.daisy.org/z3986/2005/ncx/" version="2005-1"><head><meta name="dtb:uid" content="${story.id}"/></head><docTitle><text>${story.title}</text></docTitle><navMap>${navPoints}</navMap></ncx>`;
                  oebps.file("toc.ncx", ncx);
              }
@@ -563,7 +553,7 @@ const App: React.FC = () => {
               const chapters = chaptersPart.split(/\n\s*<!-- CHAPTER_BREAK -->\s*\n/).map(part => {
                  const lines = part.trim().split('\n');
                  const title = lines.find(l => l.startsWith('## '))?.replace('## ', '').trim() || 'Untitled';
-                 return { id: crypto.randomUUID(), title, content: lines.slice(1).join('\n').trim() };
+                 return { id: crypto.randomUUID(), title, content: lines.slice(1).join('\n').trim(), type: 'story' as const };
               });
               const newStory = migrateStoryData({ ...encData, id: crypto.randomUUID(), chapters, updatedAt: Date.now() });
               await handleStorySave(newStory);
@@ -578,12 +568,9 @@ const App: React.FC = () => {
     if (type === 'universe') universeFileInputRef.current?.click();
   };
 
-  // --- Rendering ---
   const renderContent = () => {
     switch(view) {
         case 'studio':
-            // Removed props 'story' and 'onUpdateStory'. 
-            // WritingStudio now consumes StoryContext directly.
             return <WritingStudio 
                       apiKey={apiKey}
                       onGoToDashboard={handleGoToDashboard}

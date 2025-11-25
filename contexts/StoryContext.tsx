@@ -12,6 +12,7 @@ interface StoryContextType {
   updateStoryMetadata: (updates: Partial<StoryEncyclopedia>) => Promise<void>;
   updateChapter: (chapterId: string, title: string, content: string) => Promise<void>;
   addChapter: () => Promise<void>;
+  addSectionHeader: (title: string) => Promise<void>;
   deleteChapter: (chapterId: string) => Promise<void>;
   reorderChapters: (chapters: Chapter[]) => Promise<void>;
   saveStoryToDb: () => Promise<void>;
@@ -95,11 +96,32 @@ export const StoryProvider: React.FC<{ children: React.ReactNode }> = ({ childre
           const newChapter: Chapter = {
               id: newChapterId,
               title: prev.language === 'id' ? `Bab ${prev.chapters.length + 1}` : `Chapter ${prev.chapters.length + 1}`,
-              content: ''
+              content: '',
+              type: 'story'
           };
           const updated = { 
               ...prev, 
               chapters: [...prev.chapters, newChapter],
+              updatedAt: Date.now()
+          };
+          db.stories.put(updated).catch(console.error);
+          return updated;
+      });
+  }, []);
+
+  const addSectionHeader = useCallback(async (title: string) => {
+      let newId = crypto.randomUUID();
+      setCurrentStory(prev => {
+          if (!prev) return null;
+          const newHeader: Chapter = {
+              id: newId,
+              title: title,
+              content: '',
+              type: 'group_header'
+          };
+          const updated = {
+              ...prev,
+              chapters: [...prev.chapters, newHeader],
               updatedAt: Date.now()
           };
           db.stories.put(updated).catch(console.error);
@@ -158,6 +180,7 @@ export const StoryProvider: React.FC<{ children: React.ReactNode }> = ({ childre
       const results: SearchResult[] = [];
 
       currentStory.chapters.forEach(chapter => {
+          if (chapter.type === 'group_header') return; // Skip headers
           const matches = chapter.content.match(regex);
           if (matches && matches.length > 0) {
               results.push({
@@ -180,6 +203,7 @@ export const StoryProvider: React.FC<{ children: React.ReactNode }> = ({ childre
       
       let hasChanges = false;
       const newChapters = currentStory.chapters.map(chapter => {
+          if (chapter.type === 'group_header') return chapter; // Skip headers
           const matches = chapter.content.match(regex);
           if (matches && matches.length > 0) {
               totalMatches += matches.length;
@@ -238,6 +262,7 @@ export const StoryProvider: React.FC<{ children: React.ReactNode }> = ({ childre
     updateStoryMetadata, 
     updateChapter,
     addChapter,
+    addSectionHeader,
     deleteChapter,
     reorderChapters,
     saveStoryToDb,
@@ -255,6 +280,7 @@ export const StoryProvider: React.FC<{ children: React.ReactNode }> = ({ childre
     updateStoryMetadata, 
     updateChapter,
     addChapter,
+    addSectionHeader,
     deleteChapter,
     reorderChapters,
     saveStoryToDb,

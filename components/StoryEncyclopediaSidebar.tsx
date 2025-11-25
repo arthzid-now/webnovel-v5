@@ -1,3 +1,4 @@
+
 import React, { useMemo, useState, useEffect } from 'react';
 import { StoryEncyclopedia, Character, Relationship, Chapter, LoreEntry } from '../types';
 import { BookOpenIcon } from './icons/BookOpenIcon';
@@ -11,6 +12,7 @@ import { GripVerticalIcon } from './icons/GripVerticalIcon';
 import { SearchIcon } from './icons/SearchIcon';
 import { ChevronRightIcon } from './icons/ChevronRightIcon';
 import { useLanguage } from '../contexts/LanguageContext';
+import { useStory } from '../contexts/StoryContext';
 
 interface StoryEncyclopediaSidebarProps {
   storyEncyclopedia: StoryEncyclopedia;
@@ -35,27 +37,97 @@ interface CollapsibleSectionProps {
     noPadding?: boolean;
     count?: number;
     subHeader?: boolean;
+    // New props for editable/draggable header
+    onDelete?: () => void;
+    draggable?: boolean;
+    onDragStart?: (e: React.DragEvent) => void;
+    onDragOver?: (e: React.DragEvent) => void;
+    onDrop?: (e: React.DragEvent) => void;
+    isDragging?: boolean;
+    isDropTarget?: boolean;
+    headerId?: string; // Chapter ID if this is a volume header
+    onUpdateTitle?: (id: string, newTitle: string) => void;
 }
 
-const CollapsibleSection: React.FC<CollapsibleSectionProps> = ({ id, title, children, isOpen, onToggle, noPadding = false, count, subHeader = false }) => {
+const CollapsibleSection: React.FC<CollapsibleSectionProps> = ({ 
+    id, title, children, isOpen, onToggle, noPadding = false, count, subHeader = false, 
+    onDelete, draggable, onDragStart, onDragOver, onDrop, isDragging, isDropTarget, headerId, onUpdateTitle 
+}) => {
+    const [isEditing, setIsEditing] = useState(false);
+    const [tempTitle, setTempTitle] = useState(title);
+
+    const handleTitleSubmit = () => {
+        if (headerId && onUpdateTitle && tempTitle.trim() !== '') {
+            onUpdateTitle(headerId, tempTitle);
+        }
+        setIsEditing(false);
+    };
+
     return (
-        <div className="mb-1">
-            <button 
-                onClick={() => onToggle(id)} 
-                className={`w-full flex items-center justify-between p-2 rounded-md transition-colors group ${
+        <div 
+            className={`mb-1 rounded-md transition-all ${isDragging ? 'opacity-50' : ''} ${
+                // Visual Fix: If dropping onto a header, highlight the whole box instead of just a border
+                isDropTarget && headerId ? 'ring-2 ring-indigo-500 bg-indigo-900/20' : ''
+            }`}
+            draggable={draggable}
+            onDragStart={onDragStart}
+            onDragOver={onDragOver}
+            onDrop={onDrop}
+        >
+            <div className={`w-full flex items-center justify-between p-2 rounded-md transition-colors group ${
                     subHeader 
-                    ? 'hover:bg-slate-700/30 text-slate-400' 
+                    ? 'bg-slate-700/30 hover:bg-slate-700/50 text-slate-300' 
                     : 'bg-slate-900/30 hover:bg-slate-800 text-indigo-300'
                 }`}
             >
-                <div className="flex items-center gap-2">
-                    <ChevronRightIcon className={`w-4 h-4 transition-transform duration-200 ${isOpen ? 'rotate-90' : ''}`} />
-                    <span className={`font-bold uppercase tracking-wider ${subHeader ? 'text-xs' : 'text-xs'}`}>{title}</span>
+                <div className="flex items-center gap-2 flex-grow min-w-0">
+                    {draggable && (
+                        <div className="cursor-grab text-slate-600 hover:text-slate-400 flex-shrink-0">
+                            <GripVerticalIcon className="w-3 h-3" />
+                        </div>
+                    )}
+                    <button onClick={() => onToggle(id)} className="flex items-center gap-2 min-w-0 flex-grow text-left">
+                        <ChevronRightIcon className={`w-4 h-4 flex-shrink-0 transition-transform duration-200 ${isOpen ? 'rotate-90' : ''}`} />
+                        {isEditing ? (
+                            <input 
+                                type="text" 
+                                value={tempTitle}
+                                onChange={(e) => setTempTitle(e.target.value)}
+                                onBlur={handleTitleSubmit}
+                                onKeyDown={(e) => e.key === 'Enter' && handleTitleSubmit()}
+                                className="bg-slate-800 text-white text-xs font-bold uppercase px-1 rounded w-full border border-indigo-500 focus:outline-none"
+                                autoFocus
+                                onClick={(e) => e.stopPropagation()}
+                            />
+                        ) : (
+                            <span className={`font-bold uppercase tracking-wider truncate ${subHeader ? 'text-xs' : 'text-xs'}`}>{title}</span>
+                        )}
+                    </button>
                 </div>
-                {count !== undefined && (
-                    <span className="text-[10px] bg-slate-800 px-1.5 py-0.5 rounded text-slate-500 font-mono">{count}</span>
-                )}
-            </button>
+                <div className="flex items-center gap-2 flex-shrink-0">
+                    {count !== undefined && (
+                        <span className="text-[10px] bg-slate-800 px-1.5 py-0.5 rounded text-slate-500 font-mono">{count}</span>
+                    )}
+                    {headerId && (
+                        <>
+                            <button 
+                                onClick={() => { setTempTitle(title); setIsEditing(true); }} 
+                                className="p-1 text-slate-600 hover:text-indigo-400 opacity-0 group-hover:opacity-100 transition-opacity"
+                            >
+                                <PencilIcon className="w-3 h-3" />
+                            </button>
+                            {onDelete && (
+                                <button 
+                                    onClick={(e) => { e.stopPropagation(); if(confirm('Delete this volume header? Chapters inside will be merged into the previous section.')) onDelete(); }} 
+                                    className="p-1 text-slate-600 hover:text-rose-400 opacity-0 group-hover:opacity-100 transition-opacity"
+                                >
+                                    <TrashIcon className="w-3 h-3" />
+                                </button>
+                            )}
+                        </>
+                    )}
+                </div>
+            </div>
             
             {isOpen && (
                 <div className={`animate-in slide-in-from-top-2 duration-200 ${noPadding ? 'pt-1' : 'p-2 bg-slate-800/20 rounded-b-md'}`}>
@@ -174,6 +246,7 @@ const ChapterItem: React.FC<{
 const StoryEncyclopediaSidebar: React.FC<StoryEncyclopediaSidebarProps> = ({ storyEncyclopedia, onEdit, onGoToDashboard, activeChapterId, onSelectChapter, onAddChapter, onDeleteChapter, onExportStory, onReorderChapters, onOpenSearch }) => {
   const displayGenre = [...(storyEncyclopedia.genres || []), storyEncyclopedia.otherGenre].filter(Boolean).join(', ');
   const { t } = useLanguage();
+  const { addSectionHeader, updateChapter } = useStory();
   const [searchQuery, setSearchQuery] = useState('');
   const [draggedChapterId, setDraggedChapterId] = useState<string | null>(null);
   const [dropTargetId, setDropTargetId] = useState<string | null>(null);
@@ -221,7 +294,7 @@ const StoryEncyclopediaSidebar: React.FC<StoryEncyclopediaSidebarProps> = ({ sto
       if (!isSearching) return storyEncyclopedia.chapters;
       return storyEncyclopedia.chapters.filter(c => 
           c.title.toLowerCase().includes(searchQuery.toLowerCase()) || 
-          c.content.toLowerCase().includes(searchQuery.toLowerCase())
+          (c.type !== 'group_header' && c.content.toLowerCase().includes(searchQuery.toLowerCase()))
       );
   }, [storyEncyclopedia.chapters, searchQuery, isSearching]);
 
@@ -241,63 +314,113 @@ const StoryEncyclopediaSidebar: React.FC<StoryEncyclopediaSidebarProps> = ({ sto
       );
   };
 
-  // Group Chapters Logic
+  // --- GROUPING LOGIC FOR CHAPTERS ---
+  // Uses 'group_header' type chapters as dividers
   const groupedChapters = useMemo(() => {
     const chapters = filteredChapters || [];
-    const arcs = storyEncyclopedia.storyArc || [];
     
     if (isSearching) {
-        return [{ type: 'search', id: 'search_results', title: t('sidebar.chapters.title'), chapters }];
+        return [{ type: 'search', id: 'search_results', title: t('sidebar.chapters.title'), chapters: chapters.filter(c => c.type !== 'group_header') }];
     }
 
-    const grouped: { type: 'act' | 'other', id: string, title: string, chapters: Chapter[], range?: string }[] = [];
-    const assignedChapterIds = new Set<string>();
-    const originalChapterIds = storyEncyclopedia.chapters.map(c => c.id);
-
-    arcs.forEach((act, index) => {
-        if (act.startChapter && act.endChapter) {
-            const start = parseInt(act.startChapter, 10);
-            const end = parseInt(act.endChapter, 10);
-            if (!isNaN(start) && !isNaN(end) && start <= end) {
-                const actChapterIds = originalChapterIds.slice(Math.max(0, start - 1), end);
-                const actChapters = chapters.filter(c => actChapterIds.includes(c.id));
-                
-                if (actChapters.length > 0) {
-                    actChapters.forEach(c => assignedChapterIds.add(c.id));
-                    grouped.push({ 
-                        type: 'act', 
-                        id: `act_${index}`, // Unique ID for toggle
-                        title: act.title, 
-                        chapters: actChapters, 
-                        range: `Ch. ${start}-${end}` 
-                    });
-                }
+    const grouped: { type: 'group', id: string, title: string, chapters: Chapter[], headerId?: string }[] = [];
+    let currentGroup = { type: 'group', id: 'ungrouped', title: t('sidebar.chapters.title'), chapters: [] as Chapter[], headerId: undefined as string | undefined };
+    
+    chapters.forEach((c, index) => {
+        if (c.type === 'group_header') {
+            // If current group has items, push it. 
+            // Exception: if it's the initial 'ungrouped' and empty, we can overwrite/discard it to avoid empty top group if headers start immediately.
+            if (currentGroup.chapters.length > 0 || currentGroup.id !== 'ungrouped') {
+                grouped.push(currentGroup as any);
             }
+            
+            // Start new group
+            currentGroup = {
+                type: 'group',
+                id: c.id, // Use header ID for collapsible toggle
+                title: c.title,
+                chapters: [],
+                headerId: c.id
+            };
+        } else {
+            currentGroup.chapters.push(c);
         }
     });
-
-    const unassignedChapters = chapters.filter(c => !assignedChapterIds.has(c.id));
-    if (unassignedChapters.length > 0) {
-        grouped.push({ type: 'other', id: 'chapters_other', title: t('sidebar.chapters.title'), chapters: unassignedChapters });
+    
+    // Push the final group
+    if (currentGroup.chapters.length > 0 || currentGroup.id !== 'ungrouped') {
+        grouped.push(currentGroup as any);
     }
+
     return grouped;
-  }, [filteredChapters, storyEncyclopedia.chapters, storyEncyclopedia.storyArc, isSearching, t]);
+  }, [filteredChapters, isSearching, t]);
 
   const hasItems = (arr?: any[]) => arr && arr.length > 0;
 
-  // Drag handlers (Same as before)
-  const handleDragStart = (e: React.DragEvent, id: string) => { setDraggedChapterId(id); e.dataTransfer.effectAllowed = "move"; e.dataTransfer.setData("text/plain", id); };
-  const handleDragOver = (e: React.DragEvent, targetId: string) => { e.preventDefault(); if (draggedChapterId === targetId) return; setDropTargetId(targetId); e.dataTransfer.dropEffect = "move"; };
+  // Drag handlers
+  const handleDragStart = (e: React.DragEvent, id: string) => { 
+      e.stopPropagation(); // Prevent bubbling
+      setDraggedChapterId(id); 
+      e.dataTransfer.effectAllowed = "move"; 
+      e.dataTransfer.setData("text/plain", id); 
+  };
+
+  const handleDragOver = (e: React.DragEvent, targetId: string) => { 
+      e.preventDefault(); 
+      e.stopPropagation(); // Prevent bubbling
+      if (draggedChapterId === targetId) return; 
+      setDropTargetId(targetId); 
+      e.dataTransfer.dropEffect = "move"; 
+  };
+  
+  // --- FIX LOGIC BUG: TYPE-AWARE INSERTION ---
   const handleDrop = (e: React.DragEvent, targetId: string) => {
-    e.preventDefault(); setDropTargetId(null); setDraggedChapterId(null);
+    e.preventDefault(); 
+    e.stopPropagation(); // Prevent bubbling
+    setDropTargetId(null); 
+    setDraggedChapterId(null);
     if (!draggedChapterId || draggedChapterId === targetId) return;
+    
     const allChapters = [...storyEncyclopedia.chapters];
     const sourceIndex = allChapters.findIndex(c => c.id === draggedChapterId);
-    const targetIndex = allChapters.findIndex(c => c.id === targetId);
-    if (sourceIndex === -1 || targetIndex === -1) return;
+    if (sourceIndex === -1) return;
+    const sourceChapter = allChapters[sourceIndex];
+    const sourceIsHeader = sourceChapter.type === 'group_header';
+
+    let targetIndex = allChapters.findIndex(c => c.id === targetId);
+    if (targetIndex === -1) return;
+
+    const targetChapter = allChapters[targetIndex];
+    const targetIsHeader = targetChapter.type === 'group_header';
+
+    // 1. Remove from original position
     const [movedChapter] = allChapters.splice(sourceIndex, 1);
-    allChapters.splice(targetIndex, 0, movedChapter);
+
+    // 2. Adjust targetIndex because splice shifted array if source was before target
+    if (sourceIndex < targetIndex) {
+        targetIndex--;
+    }
+
+    // 3. Insert Logic
+    // CASE A: Dragging a CHAPTER onto a HEADER -> "Move Into Volume" (Insert After Header)
+    if (targetIsHeader && !sourceIsHeader) {
+        allChapters.splice(targetIndex + 1, 0, movedChapter);
+        if (!expandedSections[targetId]) {
+            toggleSection(targetId);
+        }
+    } 
+    // CASE B: Dragging HEADER onto HEADER -> "Reorder Volumes" (Insert Before Target Header)
+    // CASE C: Dragging CHAPTER onto CHAPTER -> "Reorder Chapters" (Insert Before Target Chapter)
+    // CASE D: Dragging HEADER onto CHAPTER -> "Split Volume" (Insert Before Target Chapter)
+    else {
+        allChapters.splice(targetIndex, 0, movedChapter);
+    }
+
     onReorderChapters(allChapters);
+  };
+
+  const handleAddVolume = async () => {
+      await addSectionHeader(t('sidebar.chapters.newVolume'));
   };
 
   return (
@@ -331,7 +454,7 @@ const StoryEncyclopediaSidebar: React.FC<StoryEncyclopediaSidebarProps> = ({ sto
 
       <div className="space-y-1 overflow-y-auto flex-grow pr-1 -mr-2 custom-scrollbar">
         
-        {/* --- CHAPTERS (Collapsible Hierarchical) --- */}
+        {/* --- CHAPTERS (Grouped by Volumes) --- */}
         <CollapsibleSection 
             id="chapters" 
             title={t('sidebar.chapters.title')} 
@@ -341,16 +464,26 @@ const StoryEncyclopediaSidebar: React.FC<StoryEncyclopediaSidebarProps> = ({ sto
         >
             {groupedChapters.map((group) => (
                 <div key={group.id} className="mb-1">
-                    {/* Act Header (Collapsible if it's an Act group) */}
-                    {group.type === 'act' ? (
+                    {/* Group Header (Collapsible if it's a volume/header group) */}
+                    {group.headerId ? (
                         <CollapsibleSection
                             id={group.id}
-                            title={`${group.title} ${group.range ? `(${group.range})` : ''}`}
+                            title={group.title}
                             isOpen={isSectionOpen(group.id)}
                             onToggle={toggleSection}
                             subHeader
                             noPadding
                             count={group.chapters.length}
+                            // Properties for editing/dragging the volume header itself
+                            headerId={group.headerId}
+                            onUpdateTitle={(id, title) => updateChapter(id, title, '')}
+                            onDelete={() => onDeleteChapter(group.headerId!)}
+                            draggable={!isSearching}
+                            onDragStart={(e) => handleDragStart(e, group.headerId!)}
+                            onDragOver={(e) => handleDragOver(e, group.headerId!)}
+                            onDrop={(e) => handleDrop(e, group.headerId!)}
+                            isDragging={draggedChapterId === group.headerId}
+                            isDropTarget={dropTargetId === group.headerId}
                         >
                             <div className="pl-2 space-y-0.5">
                                 {group.chapters.map(c => (
@@ -361,9 +494,8 @@ const StoryEncyclopediaSidebar: React.FC<StoryEncyclopediaSidebarProps> = ({ sto
                             </div>
                         </CollapsibleSection>
                     ) : (
-                        // Simple list for 'Search Results' or 'Other'
+                        // Simple list for Ungrouped chapters at the top
                         <div className="space-y-0.5">
-                            {group.type === 'other' && <h5 className="text-[10px] font-bold text-slate-500 uppercase px-2 py-1 mt-2">{group.title}</h5>}
                             {group.chapters.map(c => (
                                 <ChapterItem 
                                     key={c.id} chapter={c} isActive={activeChapterId === c.id} onSelect={() => onSelectChapter(c.id)} onDelete={() => onDeleteChapter(c.id)} canDelete={storyEncyclopedia.chapters.length > 1} t={t} draggable={!isSearching} onDragStart={(e) => handleDragStart(e, c.id)} onDragOver={(e) => handleDragOver(e, c.id)} onDrop={(e) => handleDrop(e, c.id)} isDragging={draggedChapterId === c.id} isDropTarget={dropTargetId === c.id}
@@ -373,10 +505,16 @@ const StoryEncyclopediaSidebar: React.FC<StoryEncyclopediaSidebarProps> = ({ sto
                     )}
                 </div>
             ))}
+            
             {!isSearching && (
-                <button onClick={onAddChapter} className="w-full flex items-center justify-center gap-2 text-xs py-2 px-4 mt-2 border border-dashed border-slate-600 text-slate-400 rounded-lg hover:bg-slate-700 hover:border-slate-500 transition-colors">
-                    <FilePlusIcon className="w-3 h-3" /> {t('sidebar.chapters.add')}
-                </button>
+                <div className="flex gap-2 mt-2">
+                    <button onClick={onAddChapter} className="flex-grow flex items-center justify-center gap-2 text-xs py-2 px-2 border border-dashed border-slate-600 text-slate-400 rounded-lg hover:bg-slate-700 hover:border-slate-500 transition-colors">
+                        <FilePlusIcon className="w-3 h-3" /> {t('sidebar.chapters.add')}
+                    </button>
+                    <button onClick={handleAddVolume} className="flex-grow flex items-center justify-center gap-2 text-xs py-2 px-2 border border-dashed border-slate-600 text-slate-400 rounded-lg hover:bg-slate-700 hover:border-slate-500 transition-colors" title={t('sidebar.chapters.addVolume')}>
+                        <BookOpenIcon className="w-3 h-3" /> {t('sidebar.chapters.addVolume')}
+                    </button>
+                </div>
             )}
         </CollapsibleSection>
 
@@ -493,8 +631,9 @@ function sidebarPropsAreEqual(prev: StoryEncyclopediaSidebarProps, next: StoryEn
     if (prevStory.chapters.length !== nextStory.chapters.length) return false;
     if (prevStory.characters.length !== nextStory.characters.length) return false;
     if (prevStory.locations.length !== nextStory.locations.length) return false;
-    const prevChapSig = prevStory.chapters.map(c => c.id + c.title).join('|');
-    const nextChapSig = nextStory.chapters.map(c => c.id + c.title).join('|');
+    // Deep check for chapter structure changes (headers added/removed/moved)
+    const prevChapSig = prevStory.chapters.map(c => c.id + c.title + (c.type || '')).join('|');
+    const nextChapSig = nextStory.chapters.map(c => c.id + c.title + (c.type || '')).join('|');
     if (prevChapSig !== nextChapSig) return false;
     const prevCharSig = prevStory.characters.map(c => c.id + c.name + c.roles.join(',')).join('|');
     const nextCharSig = nextStory.characters.map(c => c.id + c.name + c.roles.join(',')).join('|');

@@ -1,4 +1,3 @@
-
 import React, { useState, useEffect } from 'react';
 import { Universe, LoreEntry } from '../types';
 import { GlobeIcon } from './icons/GlobeIcon';
@@ -126,6 +125,13 @@ const UniverseSetup: React.FC<UniverseSetupProps> = ({ apiKey, onSave, initialDa
     onSave(formData);
   };
 
+  // FIX: Prevent implicit submission on Enter for input fields
+  const handleFormKeyDown = (e: React.KeyboardEvent) => {
+      if (e.key === 'Enter' && (e.target as HTMLElement).tagName === 'INPUT') {
+          e.preventDefault();
+      }
+  };
+
   return (
     <div className="w-full p-4">
       <div className="max-w-4xl mx-auto py-8">
@@ -134,7 +140,7 @@ const UniverseSetup: React.FC<UniverseSetupProps> = ({ apiKey, onSave, initialDa
           <p className="text-slate-400 mt-2">{isEditing ? t('universeSetup.subtitleEdit') : t('universeSetup.subtitleCreate')}</p>
         </div>
 
-        <form onSubmit={handleSubmit} className="space-y-6">
+        <form onSubmit={handleSubmit} onKeyDown={handleFormKeyDown} className="space-y-6">
           <div className="bg-slate-800 p-6 rounded-lg border border-slate-700 space-y-4">
             <div className="flex justify-between items-center">
                 <h3 className="text-xl font-bold text-indigo-400">{t('universeSetup.coreDetails')}</h3>

@@ -1,13 +1,20 @@
+
 import React, { useState, useRef, useEffect, useCallback } from 'react';
 import { Chat } from '@google/genai';
-import { Message, MessageAuthor, StoryEncyclopedia } from '../types';
+import { Message, MessageAuthor, StoryEncyclopedia, Persona } from '../types';
+import { DEFAULT_PERSONAS } from '../constants';
 import { createChatSession } from '../services/geminiService';
 import { MessageComponent } from './Message';
 import { SendIcon } from './icons/SendIcon';
 import { BrainCircuitIcon } from './icons/BrainCircuitIcon';
-import { TrashIcon } from './icons/TrashIcon'; // Import TrashIcon
+import { TrashIcon } from './icons/TrashIcon'; 
 import { useLanguage } from '../contexts/LanguageContext';
-import { db } from '../db'; // Import IndexedDB
+import { db } from '../db'; 
+import { PencilIcon } from './icons/PencilIcon';
+import { CheckIcon } from './icons/CheckIcon';
+import { CoffeeIcon } from './icons/CoffeeIcon';
+import { RobotIcon } from './icons/RobotIcon';
+import { GlassesIcon } from './icons/GlassesIcon';
 
 interface ChatWindowProps {
   apiKey: string | null;
@@ -23,18 +30,45 @@ const ChatWindow: React.FC<ChatWindowProps> = ({ apiKey, storyEncyclopedia, onRe
   const [isThinkingMode, setIsThinkingMode] = useState(false);
   const [isHistoryLoaded, setIsHistoryLoaded] = useState(false);
   
+  // Persona State
+  const [activePersonaId, setActivePersonaId] = useState<string>('bimo');
+  const [isRenaming, setIsRenaming] = useState(false);
+  const [tempName, setTempName] = useState('');
+  const [customPersonaNames, setCustomPersonaNames] = useState<Record<string, string>>({});
+
   const chatRef = useRef<Chat | null>(null);
   const chatContainerRef = useRef<HTMLDivElement>(null);
   
-  // Effect for setting up the chat session with Gemini
+  // Load Custom Names
   useEffect(() => {
-    if (apiKey) {
-      chatRef.current = createChatSession(apiKey, isThinkingMode, storyEncyclopedia);
-    } else {
-      chatRef.current = null;
-    }
-  }, [apiKey, isThinkingMode, storyEncyclopedia.id]); 
-  
+      try {
+          const storedNames = localStorage.getItem('persona_custom_names');
+          if (storedNames) {
+              setCustomPersonaNames(JSON.parse(storedNames));
+          }
+      } catch (e) {}
+  }, []);
+
+  // Auto-update Thinking Mode based on Persona Defaults
+  useEffect(() => {
+      const persona = DEFAULT_PERSONAS.find(p => p.id === activePersonaId);
+      if (persona) {
+          setIsThinkingMode(persona.defaultThinking);
+      }
+  }, [activePersonaId]);
+
+  const saveCustomName = () => {
+      if (tempName.trim()) {
+          const newNames = { ...customPersonaNames, [activePersonaId]: tempName.trim() };
+          setCustomPersonaNames(newNames);
+          localStorage.setItem('persona_custom_names', JSON.stringify(newNames));
+      }
+      setIsRenaming(false);
+  };
+
+  const activePersona = DEFAULT_PERSONAS.find(p => p.id === activePersonaId) || DEFAULT_PERSONAS[0];
+  const displayName = customPersonaNames[activePersona.id] || activePersona.defaultName;
+
   // Effect for loading messages from IndexedDB
   useEffect(() => {
     const loadChat = async () => {
@@ -43,10 +77,12 @@ const ChatWindow: React.FC<ChatWindowProps> = ({ apiKey, storyEncyclopedia, onRe
             if (session && session.messages.length > 0) {
                 setMessages(session.messages);
             } else {
-                // If chat is empty, show the initial greeting message
+                // If chat is empty, show the initial greeting message based on persona
+                // Note: We hardcode generic greeting initially, persona will take over next
                 const initialMessageText = storyEncyclopedia.language === 'id'
-                  ? `Oke, aku sudah memuat Ensiklopedia Cerita untuk **"${storyEncyclopedia.title}"**. Panggung sudah siap! Bagian mana dari dunia ini yang akan kita jelajahi pertama?`
-                  : `Okay, I've loaded the Story Encyclopedia for **"${storyEncyclopedia.title}"**. The stage is set! What part of this world should we explore first?`;
+                  ? `Hai! Aku **${displayName}**. Siap bantu bikin cerita '${storyEncyclopedia.title}' jadi keren. Mau mulai dari mana?`
+                  : `Hi! I'm **${displayName}**. Ready to make '${storyEncyclopedia.title}' awesome. Where should we start?`;
+                
                 setMessages([
                   {
                     id: 'initial-ai-message',
@@ -63,13 +99,20 @@ const ChatWindow: React.FC<ChatWindowProps> = ({ apiKey, storyEncyclopedia, onRe
         }
     };
     loadChat();
-  }, [storyEncyclopedia.id, storyEncyclopedia.language, storyEncyclopedia.title]);
+  }, [storyEncyclopedia.id, storyEncyclopedia.language, storyEncyclopedia.title, activePersona.id]); 
 
-  // Effect to save messages to IndexedDB whenever they change
+  // Effect for setting up the chat session with Gemini
   useEffect(() => {
-    // Wait for history to load first to avoid overwriting with empty array
+    if (apiKey && isHistoryLoaded) {
+      chatRef.current = createChatSession(apiKey, isThinkingMode, storyEncyclopedia, messages, activePersona);
+    } else {
+      chatRef.current = null;
+    }
+  }, [apiKey, isThinkingMode, storyEncyclopedia.id, isHistoryLoaded, messages.length > 0, activePersona]); 
+
+  // Effect to save messages to IndexedDB
+  useEffect(() => {
     if (isHistoryLoaded && messages.length > 0 && messages[0].id !== 'initial-ai-message') {
-        // Fire and forget save
         db.chats.put({ storyId: storyEncyclopedia.id, messages }).catch(err => {
             console.error("Error saving chat to DB:", err);
         });
@@ -91,15 +134,13 @@ const ChatWindow: React.FC<ChatWindowProps> = ({ apiKey, storyEncyclopedia, onRe
               console.error("Failed to clear chat db", e);
           }
 
-          // Re-initialize chat to clear backend history/context if possible (creates new instance)
           if (apiKey) {
-            chatRef.current = createChatSession(apiKey, isThinkingMode, storyEncyclopedia);
+            chatRef.current = createChatSession(apiKey, isThinkingMode, storyEncyclopedia, [], activePersona);
           }
           
-          // Restore initial greeting
           const initialMessageText = storyEncyclopedia.language === 'id'
-              ? `Oke, aku sudah memuat Ensiklopedia Cerita untuk **"${storyEncyclopedia.title}"**. Panggung sudah siap! Bagian mana dari dunia ini yang akan kita jelajahi pertama?`
-              : `Okay, I've loaded the Story Encyclopedia for **"${storyEncyclopedia.title}"**. The stage is set! What part of this world should we explore first?`;
+              ? `Chat dibersihkan. **${displayName}** siap mulai lembaran baru!`
+              : `Chat cleared. **${displayName}** is ready for a fresh start!`;
             setMessages([
               {
                 id: 'initial-ai-message',
@@ -120,7 +161,7 @@ const ChatWindow: React.FC<ChatWindowProps> = ({ apiKey, storyEncyclopedia, onRe
     }
 
     const userMessageText = userInput;
-    setUserInput(''); // Clear input immediately
+    setUserInput('');
 
     const userMessage: Message = {
         id: `user-${Date.now()}`,
@@ -141,7 +182,7 @@ const ChatWindow: React.FC<ChatWindowProps> = ({ apiKey, storyEncyclopedia, onRe
 
     try {
         if (!chatRef.current) {
-            chatRef.current = createChatSession(apiKey, isThinkingMode, storyEncyclopedia);
+            chatRef.current = createChatSession(apiKey, isThinkingMode, storyEncyclopedia, messages, activePersona);
         }
 
         const stream = await chatRef.current.sendMessageStream({ message: userMessageText });
@@ -179,37 +220,98 @@ const ChatWindow: React.FC<ChatWindowProps> = ({ apiKey, storyEncyclopedia, onRe
     } finally {
         setIsLoading(false);
     }
-  }, [userInput, isLoading, storyEncyclopedia, isThinkingMode, t, apiKey, onRequestApiKey]);
+  }, [userInput, isLoading, storyEncyclopedia, isThinkingMode, t, apiKey, onRequestApiKey, messages, activePersona]);
+
+  const getPersonaIcon = (iconType: string) => {
+      switch(iconType) {
+          case 'coffee': return <CoffeeIcon className="w-5 h-5"/>;
+          case 'robot': return <RobotIcon className="w-5 h-5"/>;
+          case 'glasses': return <GlassesIcon className="w-5 h-5"/>;
+          default: return <BrainCircuitIcon className="w-5 h-5"/>;
+      }
+  };
 
   return (
-    <div className="flex flex-col flex-grow h-full max-h-full bg-slate-800 rounded-lg shadow-2xl overflow-hidden border border-slate-700">
-      <div className="p-3 bg-slate-900/50 border-b border-slate-700 flex items-center justify-between">
-         <button 
-            onClick={handleClearChat}
-            className="p-2 text-slate-400 hover:text-rose-400 rounded-md transition-colors"
-            title="Clear Chat History"
-         >
-             <TrashIcon className="w-4 h-4"/>
-         </button>
+    <div className={`flex flex-col flex-grow h-full max-h-full bg-slate-800 rounded-lg shadow-2xl overflow-hidden border border-${activePersona.color}-500/30 transition-colors duration-500`}>
+      {/* Header Area */}
+      <div className={`p-3 bg-slate-900/50 border-b border-${activePersona.color}-500/30 flex flex-col gap-3`}>
+         
+         {/* Top Row: Persona Selector + Thinking Mode (Flex Wrap for Mobile) */}
+         <div className="flex flex-wrap items-center justify-between gap-2">
+             <div className="flex items-center gap-2 bg-slate-800 p-1 rounded-lg border border-slate-700">
+                 {DEFAULT_PERSONAS.map(persona => (
+                     <button
+                        key={persona.id}
+                        onClick={() => setActivePersonaId(persona.id)}
+                        className={`p-2 rounded-md transition-all ${activePersonaId === persona.id ? `bg-${persona.color}-500/20 text-${persona.color}-400 shadow-sm` : 'text-slate-500 hover:text-slate-300'}`}
+                        title={persona.role}
+                     >
+                         {getPersonaIcon(persona.icon)}
+                     </button>
+                 ))}
+             </div>
 
-         <div className="flex items-center gap-2" title={t('chat.thinkingModeTooltip')}>
-            <BrainCircuitIcon className={`w-5 h-5 transition-colors ${isThinkingMode ? 'text-indigo-400' : 'text-slate-400'}`} />
-            <label htmlFor="thinking-mode" className={`text-sm font-medium cursor-pointer transition-colors ${isThinkingMode ? 'text-slate-200' : 'text-slate-400'}`}>
-                {t('chat.thinkingMode')}
-            </label>
-            <div className="relative">
-                 <input
-                    id="thinking-mode"
-                    type="checkbox"
-                    checked={isThinkingMode}
-                    onChange={(e) => setIsThinkingMode(e.target.checked)}
-                    className="sr-only peer"
-                />
-                <div className="w-11 h-6 bg-slate-600 peer-focus:outline-none peer-focus:ring-2 peer-focus:ring-indigo-500 rounded-full peer peer-checked:after:translate-x-full peer-checked:after:border-white after:content-[''] after:absolute after:top-[2px] after:left-[2px] after:bg-white after:border-gray-300 after:border after:rounded-full after:h-5 after:w-5 after:transition-all peer-checked:bg-indigo-600"></div>
-            </div>
+             {/* Compact Thinking Mode Button */}
+             <button
+                onClick={() => setIsThinkingMode(!isThinkingMode)}
+                className={`flex items-center gap-2 px-3 py-1.5 rounded-full text-xs font-bold border transition-all ${
+                    isThinkingMode 
+                        ? 'bg-indigo-600 border-indigo-500 text-white shadow-lg shadow-indigo-500/20' 
+                        : 'bg-slate-800 border-slate-600 text-slate-400 hover:border-slate-500'
+                }`}
+                title={t('chat.thinkingModeTooltip')}
+             >
+                <BrainCircuitIcon className={`w-4 h-4 ${isThinkingMode ? 'animate-pulse' : ''}`} />
+                <span className="hidden sm:inline">{t('chat.thinkingMode')}</span>
+                <span className="sm:hidden">{isThinkingMode ? 'ON' : 'OFF'}</span>
+             </button>
+         </div>
+
+         {/* Active Persona Info */}
+         <div className="flex items-center justify-between">
+             <div className="flex items-center gap-3">
+                 <div className={`w-10 h-10 rounded-full flex items-center justify-center bg-${activePersona.color}-500/10 border border-${activePersona.color}-500/30`}>
+                     <div className={`text-${activePersona.color}-400`}>
+                        {getPersonaIcon(activePersona.icon)}
+                     </div>
+                 </div>
+                 <div>
+                     <div className="flex items-center gap-2">
+                         {isRenaming ? (
+                             <div className="flex items-center gap-1">
+                                 <input 
+                                    type="text" 
+                                    value={tempName} 
+                                    onChange={(e) => setTempName(e.target.value)}
+                                    className="bg-slate-700 text-slate-200 text-sm rounded px-1 py-0.5 w-24 sm:w-32 focus:outline-none focus:ring-1 focus:ring-indigo-500"
+                                    autoFocus
+                                    onKeyDown={(e) => e.key === 'Enter' && saveCustomName()}
+                                 />
+                                 <button onClick={saveCustomName} className="text-emerald-400 hover:text-emerald-300"><CheckIcon className="w-4 h-4"/></button>
+                             </div>
+                         ) : (
+                             <>
+                                <h3 className={`font-bold text-${activePersona.color}-200 truncate max-w-[150px] sm:max-w-none`}>{displayName}</h3>
+                                <button onClick={() => { setTempName(displayName); setIsRenaming(true); }} className="text-slate-500 hover:text-slate-300 opacity-0 group-hover:opacity-100 transition-opacity">
+                                    <PencilIcon className="w-3 h-3" />
+                                </button>
+                             </>
+                         )}
+                     </div>
+                     <p className="text-xs text-slate-400 truncate max-w-[200px] sm:max-w-none">{activePersona.role}</p>
+                 </div>
+             </div>
+             <button 
+                onClick={handleClearChat}
+                className="p-2 text-slate-500 hover:text-rose-400 rounded-md transition-colors"
+                title="Clear Chat History"
+             >
+                 <TrashIcon className="w-4 h-4"/>
+             </button>
          </div>
       </div>
-      <div ref={chatContainerRef} className="flex-grow p-4 md:p-6 space-y-6 overflow-y-auto">
+
+      <div ref={chatContainerRef} className="flex-grow p-4 md:p-6 space-y-6 overflow-y-auto custom-scrollbar bg-slate-800">
         {messages.map((msg) => (
           <MessageComponent key={msg.id} message={msg} isLoading={isLoading && msg.id.startsWith('ai-placeholder')} />
         ))}
@@ -225,15 +327,15 @@ const ChatWindow: React.FC<ChatWindowProps> = ({ apiKey, storyEncyclopedia, onRe
                 handleSendMessage();
               }
             }}
-            placeholder={t('chat.placeholder')}
-            className="w-full bg-slate-700 text-slate-200 placeholder-slate-400 rounded-lg p-3 pr-12 resize-none border border-slate-600 focus:ring-2 focus:ring-indigo-500 focus:outline-none transition duration-200"
+            placeholder={`${t('chat.placeholder')} (${displayName})...`}
+            className={`w-full bg-slate-700 text-slate-200 placeholder-slate-400 rounded-lg p-3 pr-12 resize-none border border-slate-600 focus:ring-2 focus:ring-${activePersona.color}-500 focus:outline-none transition duration-200`}
             rows={1}
             disabled={isLoading}
           />
           <button
             onClick={handleSendMessage}
             disabled={isLoading || !userInput.trim()}
-            className="absolute right-3 top-1/2 -translate-y-1/2 p-2 rounded-full text-white bg-indigo-600 hover:bg-indigo-500 disabled:bg-slate-600 disabled:cursor-not-allowed transition-colors"
+            className={`absolute right-3 top-1/2 -translate-y-1/2 p-2 rounded-full text-white bg-${activePersona.color}-600 hover:bg-${activePersona.color}-500 disabled:bg-slate-600 disabled:cursor-not-allowed transition-colors`}
           >
             <SendIcon className="w-5 h-5" />
           </button>

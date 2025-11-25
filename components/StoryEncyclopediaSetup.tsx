@@ -1,3 +1,4 @@
+
 import React, { useState, useMemo, useEffect } from 'react';
 import { StoryEncyclopedia, StoryArcAct, Character, Relationship, CustomField, LoreEntry, PlotPoint, Universe } from '../types';
 import { GENRES_EN, GENRES_ID, PROSE_STYLES_EN, PROSE_STYLES_ID, NARRATIVE_PERSPECTIVES_EN, NARRATIVE_PERSPECTIVES_ID, STORY_FORMATS, STRUCTURE_TEMPLATES } from '../constants';
@@ -29,8 +30,6 @@ interface StoryEncyclopediaSetupProps {
   onRequestApiKey: () => void;
 }
 
-// ... (keep helper functions createEmptyCharacter, etc.)
-// Re-declaring for completeness in XML block if file is replaced
 const createEmptyCharacter = (): Character => ({ id: crypto.randomUUID(), name: '', roles: [], age: '', gender: '', physicalDescription: '', voiceAndSpeechStyle: '', personalityTraits: '', habits: '', goal: '', principles: '', conflict: '', customFields: [], });
 const createEmptyRelationship = (): Relationship => ({ id: crypto.randomUUID(), character1Id: '', character2Id: '', type: '', description: '' });
 const createEmptyLoreEntry = (): LoreEntry => ({ id: crypto.randomUUID(), name: '', description: '' });
@@ -55,16 +54,14 @@ const createInitialFormData = (language: 'en' | 'id'): StoryEncyclopedia => ({
   proseStyle: PROSE_STYLES_EN[0].value,
   narrativePerspective: language === 'id' ? 'Orang Ketiga Terbatas ("Dia")' : 'Third Person Limited ("He/She")',
   customProseStyleByExample: '',
-  chapters: [{ id: crypto.randomUUID(), title: language === 'id' ? 'Bab 1' : 'Chapter 1', content: '' }],
+  styleProfile: '', // New Field
+  chapters: [{ id: crypto.randomUUID(), title: language === 'id' ? 'Bab 1' : 'Chapter 1', content: '', type: 'story' }],
   universeId: null,
   universeName: language === 'id' ? 'Dunia Kustom' : 'Custom World',
   locations: [], factions: [], lore: [], magicSystem: '', worldBuilding: '',
   races: [], creatures: [], powers: [], items: [], technology: [], history: [], cultures: [],
   disguiseRealWorldNames: false,
 });
-
-// ... (Keep reusable components: GenerateButton, SubGenerateButton, FormSection, FormField, CharacterForm, LoreListEditor, AutoBuildModal)
-// I will assume they are preserved or I must include them. I'll include them to be safe.
 
 const GenerateButton: React.FC<{onClick: () => void; disabled: boolean; isLoading: boolean; label?: string}> = ({ onClick, disabled, isLoading, label }) => {
     const { t } = useLanguage();
@@ -209,12 +206,10 @@ const StoryEncyclopediaSetup: React.FC<StoryEncyclopediaSetupProps> = ({ apiKey,
   const [styleExample, setStyleExample] = useState('');
   const [isGeneratingExample, setIsGeneratingExample] = useState(false);
   
-  // Auto-Architect State
   const [isAutoBuilding, setIsAutoBuilding] = useState(false);
   const [buildProgress, setBuildProgress] = useState<string>('');
   const [completedSteps, setCompletedSteps] = useState<Record<string, boolean>>({});
   
-  // DnD State
   const [draggedPlotPoint, setDraggedPlotPoint] = useState<{ actIndex: number; ppIndex: number } | null>(null);
   const [dropTargetPlotPoint, setDropTargetPlotPoint] = useState<{ actIndex: number; ppIndex: number } | null>(null);
 
@@ -244,7 +239,6 @@ const StoryEncyclopediaSetup: React.FC<StoryEncyclopediaSetupProps> = ({ apiKey,
     }
   }, [initialData, contentLanguage]);
 
-  // ... (isBasicInfoReady, isBasicInfoComplete, etc.)
   const isBasicInfoReady = useMemo(() => initialIdea.trim() !== '' && (formData.genres.length > 0 || formData.otherGenre.trim() !== ''), [initialIdea, formData.genres, formData.otherGenre]);
   const isBasicInfoComplete = useMemo(() => formData.title.trim() !== '' && (formData.genres.length > 0 || formData.otherGenre.trim() !== '') && formData.setting.trim() !== '', [formData]);
   const isCoreStoryComplete = useMemo(() => isBasicInfoComplete && formData.mainPlot.trim() !== '' && formData.characters.some(c => c.name.trim() !== ''), [isBasicInfoComplete, formData]);
@@ -257,8 +251,6 @@ const StoryEncyclopediaSetup: React.FC<StoryEncyclopediaSetupProps> = ({ apiKey,
       return isBasicInfoComplete;
   }, [formData.universeName, formData.setting, isBasicInfoComplete]);
 
-  // ... (mergeUnique, handleGenerate, handleAutoBuild, etc. omitted for brevity in snippet, assuming present)
-  // Re-include for completeness
   const mergeUnique = (existing: LoreEntry[], incoming: LoreEntry[]) => {
       const map = new Map();
       existing.forEach(item => map.set(item.name.toLowerCase().trim(), item));
@@ -278,7 +270,8 @@ const StoryEncyclopediaSetup: React.FC<StoryEncyclopediaSetupProps> = ({ apiKey,
     setGeneratingSection(section + (index !== undefined ? `_${index}` : ''));
     setError(null);
     try {
-      const result = await generateStoryEncyclopediaSection(apiKey, section, formData, contentLanguage, { idea: initialIdea, index });
+      const result = await generateStoryEncyclopediaSection(apiKey, section, formData, contentLanguage, { idea: initialIdea, index, style: formData.customProseStyleByExample });
+      
       if (section === 'character' && index !== undefined) setFormData(prev => { const newCharacters = [...prev.characters]; newCharacters[index] = { ...result, id: newCharacters[index].id }; return { ...prev, characters: newCharacters }; });
       else if (section === 'singleArcAct' && index !== undefined) setFormData(prev => { const newStoryArc = [...prev.storyArc]; newStoryArc[index] = result as StoryArcAct; return { ...prev, storyArc: newStoryArc }; });
       else if (section === 'relationships') setFormData(prev => ({ ...prev, relationships: [...prev.relationships, ...result.relationships] }));
@@ -366,7 +359,6 @@ const StoryEncyclopediaSetup: React.FC<StoryEncyclopediaSetupProps> = ({ apiKey,
   const addLoreEntry = (type: any) => setFormData(prev => ({ ...prev, [type]: [...(prev as any)[type], createEmptyLoreEntry()] }));
   const removeLoreEntry = (type: any, index: number) => setFormData(prev => ({ ...prev, [type]: (prev as any)[type].filter((_: any, i: number) => i !== index) }));
 
-  // --- DnD Handlers for Plot Points ---
   const handlePlotPointDragStart = (e: React.DragEvent, actIndex: number, ppIndex: number) => {
       setDraggedPlotPoint({ actIndex, ppIndex });
       e.dataTransfer.effectAllowed = "move";
@@ -376,7 +368,7 @@ const StoryEncyclopediaSetup: React.FC<StoryEncyclopediaSetupProps> = ({ apiKey,
   const handlePlotPointDragOver = (e: React.DragEvent, actIndex: number, ppIndex: number) => {
       e.preventDefault();
       if (!draggedPlotPoint || (draggedPlotPoint.actIndex === actIndex && draggedPlotPoint.ppIndex === ppIndex)) return;
-      if (draggedPlotPoint.actIndex !== actIndex) return; // Only allow sort within same act for now
+      if (draggedPlotPoint.actIndex !== actIndex) return; 
       
       setDropTargetPlotPoint({ actIndex, ppIndex });
       e.dataTransfer.dropEffect = "move";
@@ -402,15 +394,20 @@ const StoryEncyclopediaSetup: React.FC<StoryEncyclopediaSetupProps> = ({ apiKey,
   };
 
   const handleSubmit = (e: React.FormEvent) => { e.preventDefault(); onStoryCreate(formData); };
+  
+  const handleFormKeyDown = (e: React.KeyboardEvent) => {
+      if (e.key === 'Enter' && (e.target as HTMLElement).tagName === 'INPUT') {
+          e.preventDefault();
+      }
+  };
+
   const TABS = [{ id: 'basic', label: 'setup.tabs.basic' }, { id: 'world', label: 'setup.tabs.world' }, { id: 'characters', label: 'setup.tabs.characters' }, { id: 'arc', label: 'setup.tabs.arc' }, { id: 'tone', label: 'setup.tabs.tone' }];
 
   return (
     <div className="w-full p-4">
-      {/* ... (Keep AutoBuildModal and Universe Modal - logic unchanged) ... */}
       {isAutoBuilding && <AutoBuildModal progress={buildProgress} steps={completedSteps} onClose={() => setIsAutoBuilding(false)} error={error} />}
       {showUniverseModal && (
         <div className="fixed inset-0 bg-slate-900/80 backdrop-blur-sm z-50 flex items-center justify-center p-4">
-            {/* ... Modal content simplified for brevity, logic remains ... */}
             <div className="bg-slate-800 border border-slate-700 rounded-lg shadow-xl max-w-4xl w-full p-6 space-y-6 flex flex-col max-h-[90vh]">
                 <h2 className="text-2xl font-bold text-indigo-400 flex-shrink-0">{t('setup.universe.modalTitle')}</h2>
                 <div className="grid grid-cols-1 md:grid-cols-3 gap-6 flex-shrink-0">
@@ -443,7 +440,6 @@ const StoryEncyclopediaSetup: React.FC<StoryEncyclopediaSetupProps> = ({ apiKey,
         </div>
       )}
 
-      {/* --- MAIN FORM CONTENT --- */}
       <div className="max-w-4xl mx-auto py-8">
         <div className="text-center mb-8">
             <h2 className="text-3xl font-bold text-slate-100">{isEditing ? t('setup.titleEdit') : t('setup.titleCreate')}</h2>
@@ -452,7 +448,7 @@ const StoryEncyclopediaSetup: React.FC<StoryEncyclopediaSetupProps> = ({ apiKey,
         
         {error && !isAutoBuilding && <div className="bg-red-900/50 border border-red-800 text-red-200 p-3 rounded-md mb-6 text-center"><strong>{t('common.failed')}:</strong> {error}</div>}
 
-        <form onSubmit={handleSubmit} className="space-y-6">
+        <form onSubmit={handleSubmit} onKeyDown={handleFormKeyDown} className="space-y-6">
             {!isEditing && (
                 <div className="bg-slate-800 p-6 rounded-lg border border-slate-700 space-y-4">
                     <div className="flex justify-between items-center border-b border-slate-700 pb-4 mb-4">
@@ -556,14 +552,35 @@ const StoryEncyclopediaSetup: React.FC<StoryEncyclopediaSetupProps> = ({ apiKey,
                 <button type="button" onClick={handleAddAct} className="w-full py-2 px-4 border-2 border-dashed border-slate-600 text-slate-400 rounded-lg hover:bg-slate-700">{t('setup.arc.addAct')}</button> 
             </FormSection>}
             {activeTab === 'tone' && <FormSection title={t('setup.tabs.tone')} onGenerate={() => handleGenerate('tone')} generateDisabled={!isStoryArcComplete} isGenerating={generatingSection === 'tone'}> 
-                {/* ... Tone fields ... */}
                 <div><FormField label={t('setup.tone.comedy')} name="comedyLevel" value={formData.comedyLevel} onChange={handleChange} /><p className="text-xs text-slate-400 mt-1">{t('setup.tone.comedyDesc')}</p></div> 
                 <div><FormField label={t('setup.tone.romance')} name="romanceLevel" value={formData.romanceLevel} onChange={handleChange} /><p className="text-xs text-slate-400 mt-1">{t('setup.tone.romanceDesc')}</p></div> 
                 <div><FormField label={t('setup.tone.action')} name="actionLevel" value={formData.actionLevel} onChange={handleChange} /><p className="text-xs text-slate-400 mt-1">{t('setup.tone.actionDesc')}</p></div> 
                 {showMaturityLevel && (<div><FormField label={t('setup.tone.maturity')} name="maturityLevel" value={formData.maturityLevel} onChange={handleChange} /><p className="text-xs text-slate-400 mt-1">{t('setup.tone.maturityDesc')}</p></div>)} 
                 <div className="col-span-1 md:col-span-2"> <label htmlFor="narrativePerspective" className="block text-sm font-medium text-slate-300 mb-1">{t('setup.tone.pov')}</label> <select id="narrativePerspective" name="narrativePerspective" value={formData.narrativePerspective} onChange={handleChange} className="w-full bg-slate-700 text-slate-200 rounded-md p-2 border border-slate-600 focus:ring-2 focus:ring-indigo-500 focus:outline-none"> {NARRATIVE_PERSPECTIVES.map(pov => <option key={pov.value} value={pov.value}>{pov.value}</option>)} </select> <p className="text-xs text-slate-400 mt-1">{t('setup.tone.povDesc')}</p> </div>
                 <div className="col-span-1 md:col-span-2"> <label htmlFor="proseStyle" className="block text-sm font-medium text-slate-300 mb-1">{t('setup.tone.prose')}</label> <div className="flex items-center gap-2"> <select id="proseStyle" name="proseStyle" value={formData.proseStyle} onChange={handleChange} className="w-full bg-slate-700 text-slate-200 rounded-md p-2 border border-slate-600 focus:ring-2 focus:ring-indigo-500 focus:outline-none"> {PROSE_STYLES.map(style => <option key={style.value} value={style.value}>{style.value}</option>)} </select> <button type="button" onClick={handleGenerateStyleExample} disabled={isGeneratingExample} className="px-3 py-2 text-sm bg-slate-600 hover:bg-slate-500 rounded-md whitespace-nowrap disabled:opacity-50 flex items-center justify-center"> {isGeneratingExample ? <SpinnerIcon className="w-5 h-5"/> : t('setup.tone.showExample')} </button> </div> {styleExample && <p className="text-xs text-slate-400 mt-2 bg-slate-700/50 p-2 rounded-md border border-slate-600">"{styleExample}"</p>} </div>
-                <div className="col-span-1 md:col-span-2"> <label htmlFor="customProseStyleByExample" className="block text-sm font-medium text-slate-300 mb-1">{t('setup.tone.customStyleTitle')}</label> <textarea id="customProseStyleByExample" name="customProseStyleByExample" value={formData.customProseStyleByExample || ''} onChange={handleChange} rows={6} placeholder={t('setup.tone.customStylePlaceholder', { maxChars: MAX_CUSTOM_STYLE_CHARS })} className="w-full bg-slate-700 text-slate-200 placeholder-slate-400 rounded-md p-2 border border-slate-600 focus:ring-2 focus:ring-indigo-500 focus:outline-none transition duration-200" /> <div className="flex justify-between items-center text-xs text-slate-400 mt-1"> <p>{t('setup.tone.customStyleOverride')}</p> <span>{(formData.customProseStyleByExample || '').length} / {MAX_CUSTOM_STYLE_CHARS}</span> </div> </div>
+                
+                <div className="col-span-1 md:col-span-2 border-t border-slate-700 pt-4 mt-2"> 
+                    <label htmlFor="customProseStyleByExample" className="block text-sm font-medium text-slate-300 mb-1">{t('setup.tone.customStyleTitle')}</label> 
+                    <textarea id="customProseStyleByExample" name="customProseStyleByExample" value={formData.customProseStyleByExample || ''} onChange={handleChange} rows={6} placeholder={t('setup.tone.customStylePlaceholder', { maxChars: MAX_CUSTOM_STYLE_CHARS })} className="w-full bg-slate-700 text-slate-200 placeholder-slate-400 rounded-md p-2 border border-slate-600 focus:ring-2 focus:ring-indigo-500 focus:outline-none transition duration-200" /> 
+                    <div className="flex justify-between items-center text-xs text-slate-400 mt-1"> <p>{t('setup.tone.customStyleOverride')}</p> <span>{(formData.customProseStyleByExample || '').length} / {MAX_CUSTOM_STYLE_CHARS}</span> </div> 
+                    
+                    <div className="flex justify-end mt-2">
+                        <button 
+                            type="button" 
+                            onClick={() => handleGenerate('analyzeStyle')} 
+                            disabled={!formData.customProseStyleByExample || generatingSection === 'analyzeStyle'}
+                            className="flex items-center gap-2 px-3 py-1.5 bg-indigo-600 hover:bg-indigo-500 text-white rounded-md text-xs font-bold disabled:opacity-50 disabled:cursor-not-allowed transition-colors shadow-lg shadow-indigo-500/20"
+                        >
+                            {generatingSection === 'analyzeStyle' ? <SpinnerIcon className="w-3 h-3" /> : <SparklesIcon className="w-3 h-3" />}
+                            {t('setup.tone.analyzeStyle')}
+                        </button>
+                    </div>
+                </div>
+
+                <div className="col-span-1 md:col-span-2">
+                    <label htmlFor="styleProfile" className="block text-sm font-medium text-slate-300 mb-1">{t('setup.tone.styleProfileLabel')}</label>
+                    <textarea id="styleProfile" name="styleProfile" value={formData.styleProfile || ''} onChange={handleChange} rows={4} placeholder={t('setup.tone.styleProfilePlaceholder')} className="w-full bg-slate-900 text-indigo-100 placeholder-slate-500 rounded-md p-3 border border-indigo-900/50 focus:ring-2 focus:ring-indigo-500 focus:outline-none transition duration-200 font-mono text-xs" />
+                </div>
             </FormSection>}
             </div>
 

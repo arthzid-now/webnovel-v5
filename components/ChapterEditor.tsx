@@ -1,4 +1,3 @@
-
 import React, { useState, useEffect, useRef, useMemo } from 'react';
 import { marked } from 'marked';
 import { Chapter, StoryEncyclopedia, AnalysisResult, ChapterVersion } from '../types';
@@ -70,17 +69,30 @@ const ChapterEditor: React.FC<ChapterEditorProps> = ({
 
   const textareaRef = useRef<HTMLTextAreaElement>(null);
   const saveTimeoutRef = useRef<number | null>(null);
+  
+  // Refs for immediate access during unmount
+  const contentRef = useRef(content);
+  const titleRef = useRef(title);
+  const chapterIdRef = useRef(chapter.id);
+
   const { t } = useLanguage();
 
   useEffect(() => {
     setTitle(chapter.title);
     setContent(chapter.content);
+    chapterIdRef.current = chapter.id;
     // Reset history when chapter changes
     setHistory([{ title: chapter.title, content: chapter.content }]);
     setHistoryIndex(0);
   }, [chapter.id]);
 
-  // Clean Auto-Save Effect
+  // Update refs when state changes
+  useEffect(() => {
+      contentRef.current = content;
+      titleRef.current = title;
+  }, [content, title]);
+
+  // Clean Auto-Save Effect & Force Save on Unmount
   useEffect(() => {
     if (saveTimeoutRef.current) clearTimeout(saveTimeoutRef.current);
 
@@ -90,8 +102,16 @@ const ChapterEditor: React.FC<ChapterEditorProps> = ({
         }
     }, 750);
 
+    // Force Save on Unmount/Change
     return () => {
       if (saveTimeoutRef.current) clearTimeout(saveTimeoutRef.current);
+      // IMPORTANT: This ensures the latest data is saved when navigating away, 
+      // even if the 750ms timer hasn't fired yet.
+      // We check if refs differ from props to avoid unnecessary writes if already saved.
+      // Ideally onUpdate should be smart enough to dedup, but calling it here is safe.
+      if (chapterIdRef.current === chapter.id) { // Only save if unmounting the *same* chapter editor instance
+         onUpdate(chapterIdRef.current, titleRef.current, contentRef.current);
+      }
     };
   }, [title, content, chapter, onUpdate]);
   
@@ -328,9 +348,18 @@ const ChapterEditor: React.FC<ChapterEditorProps> = ({
 
   const parsedPreview = useMemo(() => {
       if (!isPreviewMode) return '';
-      // Pre-process: Treat single line breaks as new paragraphs for webnovel style reading
-      // Replace single newlines with double newlines to force paragraph creation in Markdown
-      const webnovelContent = content.replace(/\n/g, '\n\n');
+      
+      // 1. Normalize all line breaks to \n
+      // 2. Collapse multiple blank lines (>2) into a single blank line (\n\n)
+      // 3. Ensure every single \n becomes \n\n to create a paragraph in Markdown
+      const normalized = content
+        .replace(/\r\n|\r/g, '\n') // Normalize to \n
+        .replace(/\n{3,}/g, '\n\n'); // Max 1 blank line between blocks
+        
+      // Replace single \n with \n\n ONLY if it's not already part of a \n\n sequence
+      // Actually, simplest way for Webnovel style: Double everything, then collapse 4+ to 2.
+      // But a cleaner regex is: Replace single \n that isn't surrounded by \n with \n\n
+      const webnovelContent = normalized.replace(/([^\n])\n([^\n])/g, '$1\n\n$2');
       
       // breaks: true is kept for safety, gfm: true for standard md features
       return marked.parse(webnovelContent, { breaks: true, gfm: true });

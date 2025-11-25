@@ -1,14 +1,13 @@
-import { GoogleGenAI, Chat, Type, GenerateContentResponse } from "@google/genai";
-import { ModelType, StoryEncyclopedia, StoryArcAct, Character, Relationship, CustomField, LoreEntry, Universe, AnalysisResult } from '../types';
-import { SYSTEM_INSTRUCTION_EN, SYSTEM_INSTRUCTION_ID, MAX_THINKING_BUDGET, PROSE_STYLES_EN, PROSE_STYLES_ID, STRUCTURE_TEMPLATES } from '../constants';
+
+import { GoogleGenAI, Chat, Type, GenerateContentResponse, Content } from "@google/genai";
+import { ModelType, StoryEncyclopedia, StoryArcAct, Character, Relationship, CustomField, LoreEntry, Universe, AnalysisResult, Message, MessageAuthor, Persona } from '../types';
+import { SYSTEM_INSTRUCTION_EN, SYSTEM_INSTRUCTION_ID, MAX_THINKING_BUDGET, PROSE_STYLES_EN, PROSE_STYLES_ID, STRUCTURE_TEMPLATES, DEFAULT_PERSONAS } from '../constants';
 
 const initializeGenAI = (apiKey: string) => {
     return new GoogleGenAI({ apiKey });
 }
 
 // --- SAFETY SETTINGS (JAILBREAK / CREATIVE FREEDOM) ---
-// We disable all safety filters to ensure the AI doesn't block creative writing 
-// containing conflict, romance, or mature themes standard in webnovels.
 const SAFETY_SETTINGS = [
     { category: 'HARM_CATEGORY_HARASSMENT', threshold: 'BLOCK_NONE' },
     { category: 'HARM_CATEGORY_HATE_SPEECH', threshold: 'BLOCK_NONE' },
@@ -32,11 +31,9 @@ const generateWithRetry = async <T>(
         if (retries > 0 && (isQuotaError || isServerBusy)) {
             console.warn(`API Rate Limit or Busy (Status ${error.status || 'Unknown'}). Retrying in ${delay}ms...`);
             await new Promise(resolve => setTimeout(resolve, delay));
-            // Exponential backoff
             return generateWithRetry(fn, retries - 1, delay * 2); 
         }
         
-        // Enhance error message for user clarity
         if (isQuotaError) {
             throw new Error("Quota Exceeded (429). Your API key has hit its daily or minute limit. Please wait a while or check your billing.");
         }
@@ -92,7 +89,6 @@ const formatStoryEncyclopediaForPrompt = (storyEncyclopedia: StoryEncyclopedia):
     const charactersString = storyEncyclopedia.characters?.map(formatCharacterForPrompt).join('') || 'N/A';
     const relationshipsString = formatRelationshipsForPrompt(storyEncyclopedia.relationships, storyEncyclopedia.characters);
     
-    // --- UPDATED LORE INJECTION ---
     const locationsString = formatLoreForPrompt(storyEncyclopedia.locations, 'Locations');
     const factionsString = formatLoreForPrompt(storyEncyclopedia.factions, 'Factions');
     const racesString = formatLoreForPrompt(storyEncyclopedia.races, 'Races & Species');
@@ -106,10 +102,8 @@ const formatStoryEncyclopediaForPrompt = (storyEncyclopedia: StoryEncyclopedia):
     
     const universeNameString = `${storyEncyclopedia.universeName}${storyEncyclopedia.disguiseRealWorldNames ? (storyEncyclopedia.language === 'id' ? ' (nama disamarkan)' : ' (names disguised)') : ''}`;
 
-    // Full list of chapter titles for overview.
     const chapterTitlesString = storyEncyclopedia.chapters?.map(chap => `- ${chap.title}`).join('\n') || '(No chapters written yet)';
 
-    // Full content of the last 2 chapters for immediate context and style mimicry.
     const recentChapters = storyEncyclopedia.chapters?.slice(-2) || [];
     const recentChaptersContentString = recentChapters.length > 0
         ? recentChapters.map(chap => 
@@ -117,14 +111,24 @@ const formatStoryEncyclopediaForPrompt = (storyEncyclopedia: StoryEncyclopedia):
           ).join('\n\n---\n\n')
         : '(No recent chapters to display.)';
         
+    // --- STYLE DNA INJECTION ---
+    const styleProfile = storyEncyclopedia.styleProfile;
     const customStyle = storyEncyclopedia.customProseStyleByExample;
-    const customStyleString = customStyle && customStyle.trim() !== ''
-        ? `\n\n**CRITICAL: CUSTOM PROSE STYLE BY EXAMPLE**
-The user has provided a specific writing style to mimic. Your top priority for prose generation is to analyze and replicate this style in terms of sentence structure, vocabulary, pacing, and tone. This overrides the standard 'Prose' selection. Here is the sample:
+    
+    let styleInstruction = '';
+    if (styleProfile && styleProfile.trim() !== '') {
+        styleInstruction = `\n\n**CRITICAL: STYLE DNA & VOICE PROFILE**
+The user has defined a specific "Style DNA" for this story. You MUST adhere to these linguistic traits, sentence structures, and atmospheric instructions above all other style settings.
+---
+${styleProfile.trim()}
+---`;
+    } else if (customStyle && customStyle.trim() !== '') {
+        styleInstruction = `\n\n**CRITICAL: CUSTOM PROSE STYLE BY EXAMPLE**
+The user has provided a specific writing style to mimic. Analyze and replicate this style's pacing, tone, and vocabulary.
 ---
 ${customStyle.trim()}
----`
-        : '';
+---`;
+    }
         
     const formatInstruction = storyEncyclopedia.format === 'webnovel'
         ? "STORY FORMAT: Webnovel (Fast-paced, episodic, cliffhangers at chapter ends, lighter descriptions, high dialogue)."
@@ -182,7 +186,7 @@ ${recentChaptersContentString}
 - Action: ${storyEncyclopedia.actionLevel}/10
 ${storyEncyclopedia.maturityLevel && parseInt(storyEncyclopedia.maturityLevel, 10) > 1 ? `- Maturity: ${storyEncyclopedia.maturityLevel}/10` : ''}
 - Narrative Perspective (POV): ${storyEncyclopedia.narrativePerspective}
-- Prose: ${storyEncyclopedia.proseStyle}${customStyleString}
+- Prose: ${storyEncyclopedia.proseStyle}${styleInstruction}
 
 ${formatInstruction}
 
@@ -190,38 +194,61 @@ ${formatInstruction}
 
 Based on this context, assist the user in developing their story.
 - When asked to draft a chapter, you MUST adhere to the **Narrative Perspective (POV)**: "${storyEncyclopedia.narrativePerspective}". Do not switch POVs unless explicitly instructed.
-- Try to adhere to the target words per chapter and **mimic the style and continue the events from the most recent chapters provided. If a custom style sample is provided, prioritize mimicking that style above all else.**
+- Try to adhere to the target words per chapter and **mimic the style and continue the events from the most recent chapters provided.**
 - When asked about plot progression, consider the total number of chapters planned.
 `;
 }
 
-export const createChatSession = (apiKey: string, isThinkingMode: boolean, storyEncyclopedia: StoryEncyclopedia): Chat => {
+export const createChatSession = (
+    apiKey: string, 
+    isThinkingMode: boolean, 
+    storyEncyclopedia: StoryEncyclopedia,
+    previousHistory: Message[] = [],
+    activePersona?: Persona
+): Chat => {
     const ai = initializeGenAI(apiKey);
     
-    const systemInstruction = storyEncyclopedia.language === 'id' ? SYSTEM_INSTRUCTION_ID : SYSTEM_INSTRUCTION_EN;
-    const dynamicSystemInstruction = systemInstruction + formatStoryEncyclopediaForPrompt(storyEncyclopedia);
+    const isId = storyEncyclopedia.language === 'id';
+    let baseInstruction = isId ? SYSTEM_INSTRUCTION_ID : SYSTEM_INSTRUCTION_EN;
+    
+    if (activePersona) {
+        const personaInstruction = isId ? activePersona.systemInstructionId : activePersona.systemInstructionEn;
+        baseInstruction = `
+        ${personaInstruction}
+        
+        ---
+        GENERAL GUIDELINES:
+        ${baseInstruction}
+        `;
+    }
+
+    const dynamicSystemInstruction = baseInstruction + formatStoryEncyclopediaForPrompt(storyEncyclopedia);
     const model = isThinkingMode ? ModelType.PRO : ModelType.FLASH;
 
     const config: any = {
         systemInstruction: dynamicSystemInstruction,
-        safetySettings: SAFETY_SETTINGS, // Apply safety settings
+        safetySettings: SAFETY_SETTINGS,
     };
 
     if (model === ModelType.PRO && isThinkingMode) {
-        // Optimization: Don't max out budget for chat sessions to keep response times reasonable.
-        // 4096 is plenty for most chat interactions. 32k is overkill for "Hi" or "Draft a paragraph".
         config.thinkingConfig = { thinkingBudget: 4096 }; 
     }
+
+    const history: Content[] = previousHistory
+        .filter(msg => msg.id !== 'initial-ai-message' && !msg.id.startsWith('ai-placeholder'))
+        .map(msg => ({
+            role: msg.author === MessageAuthor.USER ? 'user' : 'model',
+            parts: [{ text: msg.text }]
+        }));
 
     const chat = ai.chats.create({
         model: model,
         config: config,
+        history: history,
     });
 
     return chat;
 };
-
-// --- Story Encyclopedia Generation Service ---
 
 const customFieldSchema = {
     type: Type.OBJECT,
@@ -291,7 +318,6 @@ const generationConfig: any = {
             const allGenres = [...(storyData.genres || []), storyData.otherGenre].filter(Boolean).join(', ');
             const isNovelFormat = storyData.format === 'novel';
 
-            // DYNAMIC DEFAULTS BASED ON FORMAT
             const chapterCountPrompt = isNovelFormat 
                 ? "between 20-50 (Traditional Novel)" 
                 : "between 100-300 (Webnovel)";
@@ -355,7 +381,6 @@ const generationConfig: any = {
             required: ["mainPlot", "characters"]
         }
     },
-    // --- UPDATED WORLD GENERATORS ---
     worldLore: { // Maps to Geography & General
         prompt: (context: string) => {
             return `Based on the story context provided below, generate a list of 2-3 important locations, 2-3 important factions/groups, and 2-3 general lore items. \n\n${context}`;
@@ -486,7 +511,6 @@ const generationConfig: any = {
              const existingPoints = actData.plotPoints?.length > 0;
              const range = actData.startChapter && actData.endChapter ? `covering chapters ${actData.startChapter} to ${actData.endChapter}` : '';
              
-             // Template Logic
              const templateId = actData.structureTemplate;
              const templateConfig = STRUCTURE_TEMPLATES.find(t => t.value === templateId);
              const templateInstruction = templateConfig && templateId !== 'freestyle' 
@@ -526,7 +550,6 @@ const generationConfig: any = {
             const format = storyData.format || 'webnovel';
             const isWebnovel = format === 'webnovel';
 
-            // POSITIVE MATHEMATICAL CONSTRAINTS (Forced Asymmetry)
             const targetPlotPoints = isWebnovel 
                 ? "Act 1: 3-5 pts, Act 2: 8-12 pts, Act 3: 5-8 pts, Act 4: 2-4 pts"
                 : "Act 1: 3-5 pts, Act 2: 6-10 pts, Act 3: 4-6 pts";
@@ -621,6 +644,37 @@ const generationConfig: any = {
             },
             required: ["example"]
         }
+    },
+    // --- STYLE DNA EXTRACTOR ---
+    analyzeStyle: {
+        prompt: (context: string, sampleText: string) => {
+            return `
+            **STYLE DNA ANALYZER**
+            
+            Analyze the following text sample provided by the user. This text serves as the "Style Reference" for a webnovel.
+            
+            **TEXT SAMPLE:**
+            "${sampleText}"
+            
+            **TASK:**
+            Extract the "Style DNA" or "Voice Profile" of this author. Focus on:
+            1. **Sentence Structure:** (e.g., Short/punchy vs Long/flowery, Staccato vs Lyrical).
+            2. **Vocabulary Level:** (e.g., Simple/modern vs Archaic/complex, Technical vs Casual).
+            3. **Tone & Atmosphere:** (e.g., Cynical, Whimsical, Dark, Hype-focused).
+            4. **Specific Quirks:** (e.g., Uses lots of onomatopoeia, ignores dialogue tags, emphasizes internal monologue).
+            
+            **OUTPUT:**
+            Return a concise but descriptive paragraph (3-5 sentences) that acts as a direct instruction to a Ghostwriter AI on how to mimic this exact style.
+            Start with: "MIMIC THIS STYLE:"
+            `;
+        },
+        schema: {
+            type: Type.OBJECT,
+            properties: {
+                styleProfile: { type: Type.STRING, description: "The extracted style instructions (Style DNA)." },
+            },
+            required: ["styleProfile"]
+        }
     }
 };
 
@@ -629,8 +683,6 @@ const handleJsonResponse = async (responsePromise: Promise<any>, section: string
         const response = await responsePromise;
         let jsonString = response.text ? response.text.trim() : '';
         
-        // --- IMPROVED JSON EXTRACTION ---
-        // Look for the first '{' and the last '}' to isolate the JSON object
         const jsonMatch = jsonString.match(/\{[\s\S]*\}/);
         if (jsonMatch) {
             jsonString = jsonMatch[0];
@@ -644,7 +696,6 @@ const handleJsonResponse = async (responsePromise: Promise<any>, section: string
 
         const generatedData = JSON.parse(jsonString);
 
-        // --- Post-processing and data sanitization ---
         const addIdsToLore = (loreArray?: any[]) => {
             if (!loreArray) return [];
             return loreArray.map((item: any) => ({ ...item, id: crypto.randomUUID() }));
@@ -682,7 +733,6 @@ const handleJsonResponse = async (responsePromise: Promise<any>, section: string
             generatedData.lore = addIdsToLore(generatedData.lore);
         }
         
-        // Handle new World Lore sections
         if (section === 'worldLore' || section === 'world_nature' || section === 'world_power' || section === 'world_history') {
              if(generatedData.locations) generatedData.locations = addIdsToLore(generatedData.locations);
              if(generatedData.factions) generatedData.factions = addIdsToLore(generatedData.factions);
@@ -757,6 +807,11 @@ export const generateStoryEncyclopediaSection = async (
         prompt = config.prompt(options.style, language);
     } else if (section.startsWith('character')) {
         prompt = config.prompt(context, { index: options?.index ?? 0 });
+    } else if (section === 'analyzeStyle') {
+        // For style analysis, we pass the sample text as options.style or assume it's in context (less reliable)
+        // Better to pass it explicitly
+        const sampleText = options?.style || (storyEncyclopedia as StoryEncyclopedia).customProseStyleByExample || '';
+        prompt = config.prompt(context, sampleText);
     }
     else {
         prompt = config.prompt(context);
@@ -764,14 +819,13 @@ export const generateStoryEncyclopediaSection = async (
 
     const finalPrompt = `${langInstruction}\n\n${prompt}`;
 
-    // Wrap the API call in the retry logic
     const responsePromise = generateWithRetry(() => ai.models.generateContent({
         model: 'gemini-2.5-flash',
         contents: finalPrompt,
         config: {
             responseMimeType: 'application/json',
             responseSchema: config.schema,
-            safetySettings: SAFETY_SETTINGS, // Apply safety settings
+            safetySettings: SAFETY_SETTINGS, 
         }
     }));
 
@@ -842,12 +896,11 @@ export const generateEditorAction = async (
         `;
     }
 
-    // Wrap editor action in retry logic
     const response = await generateWithRetry<GenerateContentResponse>(() => ai.models.generateContent({
         model: 'gemini-2.5-flash',
         contents: prompt,
         config: {
-            safetySettings: SAFETY_SETTINGS, // Apply safety settings
+            safetySettings: SAFETY_SETTINGS, 
         }
     }));
 
@@ -886,13 +939,12 @@ export const analyzeChapterContent = async (
     ${langInstruction}
     `;
 
-    // Wrap analysis in retry logic
     const responsePromise = generateWithRetry(() => ai.models.generateContent({
         model: 'gemini-2.5-flash',
         contents: prompt,
         config: {
             responseMimeType: 'application/json',
-            safetySettings: SAFETY_SETTINGS, // Apply safety settings
+            safetySettings: SAFETY_SETTINGS, 
             responseSchema: {
                 type: Type.OBJECT,
                 properties: {
