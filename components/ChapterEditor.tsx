@@ -327,7 +327,13 @@ const ChapterEditor: React.FC<ChapterEditorProps> = ({
   };
 
   const parsedPreview = useMemo(() => {
-      return isPreviewMode ? marked.parse(content) : '';
+      if (!isPreviewMode) return '';
+      // Pre-process: Treat single line breaks as new paragraphs for webnovel style reading
+      // Replace single newlines with double newlines to force paragraph creation in Markdown
+      const webnovelContent = content.replace(/\n/g, '\n\n');
+      
+      // breaks: true is kept for safety, gfm: true for standard md features
+      return marked.parse(webnovelContent, { breaks: true, gfm: true });
   }, [content, isPreviewMode]);
 
   return (
@@ -467,22 +473,33 @@ const ChapterEditor: React.FC<ChapterEditorProps> = ({
       {/* Editor Area */}
       <div className="flex-grow relative overflow-hidden">
         {isPreviewMode ? (
-             <div className="w-full h-full overflow-y-auto bg-slate-900/50 scrollbar-thin scrollbar-thumb-slate-600 scrollbar-track-transparent flex justify-center">
-                 <div className="max-w-3xl w-full min-h-full bg-slate-800 px-8 py-12 md:px-12 md:py-16 shadow-2xl border-x border-slate-700/50">
-                    <h1 className="text-3xl md:text-4xl font-bold text-center text-slate-200 mb-2 font-serif">{title}</h1>
-                    <div className="w-24 h-1 bg-indigo-500 mx-auto mb-12 rounded-full"></div>
+             <div className="w-full h-full overflow-y-auto bg-slate-950 scrollbar-thin scrollbar-thumb-slate-700 scrollbar-track-transparent flex justify-center py-8 md:py-12 pb-20">
+                 <div className="max-w-3xl w-full h-fit bg-slate-900 border border-slate-800 shadow-[0_0_50px_-12px_rgba(0,0,0,0.5)] px-8 py-12 md:px-16 md:py-20 relative">
+                    {/* Page Decoration */}
+                    <div className="absolute top-0 left-0 w-full h-2 bg-gradient-to-r from-indigo-900/20 via-indigo-500/20 to-indigo-900/20"></div>
+                    
+                    <h1 className="text-3xl md:text-5xl font-bold text-center text-slate-200 mb-4 font-serif tracking-tight">{title}</h1>
+                    
+                    <div className="flex items-center justify-center gap-4 mb-12 opacity-50">
+                        <div className="h-px w-12 bg-indigo-400"></div>
+                        <div className="w-2 h-2 rotate-45 bg-indigo-500"></div>
+                        <div className="h-px w-12 bg-indigo-400"></div>
+                    </div>
                     
                     <div 
-                        className="prose prose-invert prose-lg max-w-none font-serif leading-loose text-slate-300 
-                        prose-headings:font-serif prose-headings:text-indigo-200 
-                        prose-p:mb-6 prose-p:text-justify 
-                        prose-blockquote:border-l-4 prose-blockquote:border-indigo-500 prose-blockquote:bg-slate-700/30 prose-blockquote:py-2 prose-blockquote:px-4 prose-blockquote:rounded-r
-                        prose-hr:border-slate-600 prose-hr:my-12"
+                        className="prose prose-invert prose-lg md:prose-xl max-w-none font-serif text-slate-300 
+                        leading-loose tracking-wide
+                        text-justify hyphens-auto
+                        prose-headings:font-serif prose-headings:text-indigo-200 prose-headings:font-bold prose-headings:mt-12 prose-headings:mb-6
+                        prose-p:indent-0 prose-p:mb-8 prose-p:mt-0 prose-p:text-justify
+                        prose-blockquote:border-l-4 prose-blockquote:border-indigo-500/50 prose-blockquote:bg-slate-800/50 prose-blockquote:py-2 prose-blockquote:px-6 prose-blockquote:italic prose-blockquote:text-slate-400
+                        prose-hr:border-indigo-900/50 prose-hr:my-16 prose-hr:w-1/2 prose-hr:mx-auto
+                        prose-strong:text-indigo-200 prose-em:text-indigo-100/80"
                         dangerouslySetInnerHTML={{ __html: parsedPreview }}
                     />
                     
-                    <div className="mt-24 text-center text-slate-500 text-sm font-sans">
-                        ***
+                    <div className="mt-24 flex flex-col items-center justify-center text-slate-600 space-y-2">
+                        <div className="text-xl tracking-[0.5em]">***</div>
                     </div>
                  </div>
              </div>
