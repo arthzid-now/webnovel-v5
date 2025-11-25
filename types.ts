@@ -73,6 +73,16 @@ export interface Chapter {
   content: string;
 }
 
+export interface ChapterVersion {
+  id?: number; // Auto-increment
+  storyId: string;
+  chapterId: string;
+  title: string;
+  content: string;
+  timestamp: number;
+  label?: string;
+}
+
 // New separate type for reusable world-building
 export interface Universe {
   id: string;
@@ -80,6 +90,7 @@ export interface Universe {
   name: string;
   description: string;
   isFavorite?: boolean;
+  updatedAt?: number; // For sorting
   
   // Geography & Politics
   locations: LoreEntry[];
@@ -126,6 +137,7 @@ export interface StoryEncyclopedia {
   narrativePerspective: string; // New POV field
   customProseStyleByExample?: string;
   chapters: Chapter[];
+  updatedAt?: number; // For sorting
   
   // --- Fields snapshotted from a Universe ---
   universeId: string | null; // Link to the master Universe
@@ -162,6 +174,18 @@ export interface AnalysisResult {
   newLocations: LoreEntry[];
   newPlotPoints: string[]; // Strings to be added to the Story Arc
   summary: string; // Brief summary of the chapter
+}
+
+// --- Search Types ---
+export interface SearchOptions {
+  matchCase: boolean;
+  wholeWord: boolean;
+}
+
+export interface SearchResult {
+  chapterId: string;
+  chapterTitle: string;
+  matchCount: number;
 }
 
 // --- Types for Internationalization ---

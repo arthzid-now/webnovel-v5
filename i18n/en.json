@@ -1,3 +1,4 @@
+
 {
   "app": {
     "title": "Webnovel AI Studio"
@@ -208,7 +209,7 @@
     "universe": { "modalTitle": "Select a Universe for Your Story", "blankCanvas": "Blank Canvas", "blankCanvasDesc": "Build your world from scratch.", "realWorld": "Real World", "realWorldDesc": "Use the real world as a baseline.", "disguiseNames": "Disguise names", "fromLibrary": "From Library", "fromLibraryDesc": "Choose a world you already saved.", "noDataToSave": "No world data to save.", "enterNamePrompt": "Enter a name for this Universe:", "defaultDescription": "Universe for the story: {{title}}", "saveSuccess": "Universe \"{{name}}\" saved!", "saveToLibrary": "Save to Universe Library" } 
   },
   "studio": { "deleteLastError": "Cannot delete the last chapter. Every story must have at least one chapter.", "deleteConfirm": "Are you sure you want to permanently delete the chapter \"{{title}}\"? This action cannot be undone.", "noChapterSelected": "Select a chapter to start writing or add a new one.", "mobile": { "openEncyclopedia": "Open Encyclopedia", "closeEncyclopedia": "Close Encyclopedia", "openChat": "Open AI Chat", "closeChat": "Close AI Chat" }, "zenMode": { "toggleSidebar": "Toggle Sidebar", "toggleChat": "Toggle Chat" } },
-  "sidebar": { "backToDashboard": "Back to Dashboard", "dashboard": "Dashboard", "exportStory": "Export Story (.md)", "editEncyclopedia": "Edit Encyclopedia", "universe": "Universe", "chapters": { "title": "Chapters", "delete": "Delete Chapter", "add": "Add New Chapter" }, "basicInfo": "Basic Info", "genre": "Genre", "setting": "Setting", "corePlot": "Core Plot", "mainPlot": "Main Plot", "storyArc": "Story Arc", "characters": "Characters", "relationships": "Relationships", "worldAndLore": { "title": "World & Lore", "worldSummary": "World Summary", "magicSummary": "System/Magic Summary" }, "tone": { "title": "Tone (out of 10)", "comedy": "Comedy", "romance": "Romance", "action": "Action", "maturity": "Maturity", "pov": "POV" }, "proseStyle": { "title": "Prose Style", "style": "Style", "custom": "Custom Style", "customActive": "Active (Sample Provided)" }, "character": { "roles": "Roles", "age": "Age", "gender": "Gender", "physical": "Physical Description", "voice": "Voice & Speech Style", "traits": "Personality", "habits": "Habits", "goal": "Goal", "principles": "Principles", "conflict": "Conflict" } },
+  "sidebar": { "backToDashboard": "Back to Dashboard", "dashboard": "Dashboard", "exportStory": "Export Story (.md)", "editEncyclopedia": "Edit Encyclopedia", "searchStory": "Global Search & Replace", "universe": "Universe", "chapters": { "title": "Chapters", "delete": "Delete Chapter", "add": "Add New Chapter" }, "basicInfo": "Basic Info", "genre": "Genre", "setting": "Setting", "corePlot": "Core Plot", "mainPlot": "Main Plot", "storyArc": "Story Arc", "characters": "Characters", "relationships": "Relationships", "worldAndLore": { "title": "World & Lore", "worldSummary": "World Summary", "magicSummary": "System/Magic Summary" }, "tone": { "title": "Tone (out of 10)", "comedy": "Comedy", "romance": "Romance", "action": "Action", "maturity": "Maturity", "pov": "POV" }, "proseStyle": { "title": "Prose Style", "style": "Style", "custom": "Custom Style", "customActive": "Active (Sample Provided)" }, "character": { "roles": "Roles", "age": "Age", "gender": "Gender", "physical": "Physical Description", "voice": "Voice & Speech Style", "traits": "Personality", "habits": "Habits", "goal": "Goal", "principles": "Principles", "conflict": "Conflict" } },
   "chapterEditor": { 
     "statusEditing": "Editing...", "statusSaved": "Saved", "wordCount": "Word Count",
     "magicTools": "Magic Tools", "tools": "AI Tools", "rewrite": "Rewrite", "expand": "Expand", "fixGrammar": "Fix Grammar", "beatToProse": "Beat to Prose", "continue": "Continue Writing", "analyze": "Analyze Chapter", "analyzing": "Analyzing...", "selectTextHint": "Select text to use Magic Tools",
@@ -223,6 +224,33 @@
     "addition": "AI Generated Addition",
     "apply": "Apply Changes",
     "discard": "Discard"
+  },
+  "history": {
+    "tooltip": "Version History",
+    "saveSnapshot": "Save Snapshot",
+    "enterLabel": "Enter a label for this version (optional):",
+    "saved": "Snapshot saved.",
+    "title": "Chapter Version History",
+    "subtitle": "Review and restore previous versions of this chapter.",
+    "noVersions": "No history saved yet.",
+    "snapshot": "Manual Snapshot",
+    "restore": "Restore this Version",
+    "deleteConfirm": "Delete this version?",
+    "restoreConfirm": "Are you sure? Current content will be overwritten (a snapshot will be created automatically).",
+    "selectVersion": "Select a version to preview."
+  },
+  "searchReplace": {
+    "title": "Global Search & Replace",
+    "find": "Find what",
+    "replace": "Replace with",
+    "matchCase": "Match Case",
+    "wholeWord": "Whole Word",
+    "preview": "Preview",
+    "replaceAll": "Replace All",
+    "noMatches": "No matches found.",
+    "foundMatches": "Found {{total}} matches in {{chapters}} chapters.",
+    "replacedMatches": "Replaced {{total}} occurrences in {{chapters}} chapters.",
+    "resultsTitle": "Preview Results"
   },
   "analysis": {
     "title": "Chapter Analysis Results",

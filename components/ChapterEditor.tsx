@@ -1,7 +1,7 @@
 
 import React, { useState, useEffect, useRef, useMemo } from 'react';
 import { marked } from 'marked';
-import { Chapter, StoryEncyclopedia, AnalysisResult } from '../types';
+import { Chapter, StoryEncyclopedia, AnalysisResult, ChapterVersion } from '../types';
 import { CheckIcon } from './icons/CheckIcon';
 import { EyeIcon } from './icons/EyeIcon';
 import { PencilIcon } from './icons/PencilIcon';
@@ -9,10 +9,14 @@ import { BookOpenIcon } from './icons/BookOpenIcon';
 import { SparklesIcon } from './icons/SparklesIcon';
 import { UndoIcon } from './icons/UndoIcon';
 import { RedoIcon } from './icons/RedoIcon';
+import { HistoryIcon } from './icons/HistoryIcon';
+import { SaveIcon } from './icons/SaveIcon';
 import { useLanguage } from '../contexts/LanguageContext';
+import { useStory } from '../contexts/StoryContext';
 import EditorToolbar from './EditorToolbar';
 import ChapterAnalysisModal from './ChapterAnalysisModal';
 import AiPreviewModal from './AiPreviewModal';
+import ChapterHistoryModal from './ChapterHistoryModal';
 import { generateEditorAction, analyzeChapterContent } from '../services/geminiService';
 
 interface ChapterEditorProps {
@@ -42,12 +46,14 @@ const ChapterEditor: React.FC<ChapterEditorProps> = ({
     chapter, language, storyEncyclopedia, apiKey, onUpdate, onEncyclopediaUpdate,
     isLeftSidebarOpen, isRightSidebarOpen, onToggleLeftSidebar, onToggleRightSidebar
 }) => {
+  const { createSnapshot } = useStory();
   const [title, setTitle] = useState(chapter.title);
   const [content, setContent] = useState(chapter.content);
   const [isPreviewMode, setIsPreviewMode] = useState(false);
   const [isThinking, setIsThinking] = useState(false);
   const [hasSelection, setHasSelection] = useState(false);
   const [analysisResult, setAnalysisResult] = useState<AnalysisResult | null>(null);
+  const [isHistoryOpen, setIsHistoryOpen] = useState(false);
   
   // --- Custom History Stack ---
   const [history, setHistory] = useState<HistoryState[]>([{ title: chapter.title, content: chapter.content }]);
@@ -133,6 +139,9 @@ const ChapterEditor: React.FC<ChapterEditorProps> = ({
           } else if (e.key === 'y') {
               e.preventDefault();
               handleRedo();
+          } else if (e.key === 's') {
+              e.preventDefault();
+              handleSaveSnapshot();
           }
       }
   };
@@ -298,6 +307,25 @@ const ChapterEditor: React.FC<ChapterEditorProps> = ({
     }, 0);
   };
 
+  // --- Snapshot Handlers ---
+  const handleSaveSnapshot = async () => {
+      const label = prompt(t('history.enterLabel'));
+      if (label !== null) {
+          await createSnapshot(chapter.id, label || undefined);
+          alert(t('history.saved'));
+      }
+  };
+
+  const handleRestoreSnapshot = (version: ChapterVersion) => {
+      if (confirm(t('history.restoreConfirm'))) {
+          setTitle(version.title);
+          setContent(version.content);
+          addToHistory(version.title, version.content);
+          onUpdate(chapter.id, version.title, version.content); // Force save immediately
+          setIsHistoryOpen(false);
+      }
+  };
+
   const parsedPreview = useMemo(() => {
       return isPreviewMode ? marked.parse(content) : '';
   }, [content, isPreviewMode]);
@@ -322,6 +350,14 @@ const ChapterEditor: React.FC<ChapterEditorProps> = ({
           onDiscard={() => setPreviewData({ ...previewData, isOpen: false })}
       />
 
+      {isHistoryOpen && (
+          <ChapterHistoryModal 
+              chapterId={chapter.id}
+              onClose={() => setIsHistoryOpen(false)}
+              onRestore={handleRestoreSnapshot}
+          />
+      )}
+
       {/* Header */}
       <div className="p-4 border-b border-slate-700 bg-slate-900/50 flex items-center gap-4">
         {onToggleLeftSidebar && (
@@ -343,6 +379,25 @@ const ChapterEditor: React.FC<ChapterEditorProps> = ({
         />
         
         <div className="flex items-center gap-2">
+            {/* History Button */}
+            <div className="flex items-center bg-slate-700 rounded-md mr-2">
+                <button
+                    onClick={() => setIsHistoryOpen(true)}
+                    className="p-2 text-slate-300 hover:text-white transition-colors"
+                    title={t('history.tooltip')}
+                >
+                    <HistoryIcon className="w-4 h-4" />
+                </button>
+                <div className="w-px h-4 bg-slate-600"></div>
+                <button
+                    onClick={handleSaveSnapshot}
+                    className="p-2 text-slate-300 hover:text-white transition-colors"
+                    title={t('history.saveSnapshot')}
+                >
+                    <SaveIcon className="w-4 h-4" />
+                </button>
+            </div>
+
             {/* Undo/Redo Buttons */}
             <div className="flex items-center bg-slate-700 rounded-md mr-2">
                 <button 

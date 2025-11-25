@@ -1,4 +1,3 @@
-
 import React, { useState, useRef, useEffect, useCallback } from 'react';
 import { Chat } from '@google/genai';
 import { Message, MessageAuthor, StoryEncyclopedia } from '../types';
@@ -8,7 +7,7 @@ import { SendIcon } from './icons/SendIcon';
 import { BrainCircuitIcon } from './icons/BrainCircuitIcon';
 import { TrashIcon } from './icons/TrashIcon'; // Import TrashIcon
 import { useLanguage } from '../contexts/LanguageContext';
-
+import { db } from '../db'; // Import IndexedDB
 
 interface ChatWindowProps {
   apiKey: string | null;
@@ -22,57 +21,60 @@ const ChatWindow: React.FC<ChatWindowProps> = ({ apiKey, storyEncyclopedia, onRe
   const [userInput, setUserInput] = useState('');
   const [isLoading, setIsLoading] = useState(false);
   const [isThinkingMode, setIsThinkingMode] = useState(false);
+  const [isHistoryLoaded, setIsHistoryLoaded] = useState(false);
   
   const chatRef = useRef<Chat | null>(null);
   const chatContainerRef = useRef<HTMLDivElement>(null);
   
   // Effect for setting up the chat session with Gemini
-  // FIX: Only re-initialize when Story ID changes, API Key changes, or Thinking Mode changes.
-  // We do NOT want to reset the session every time the user types in the editor (which updates storyEncyclopedia content).
   useEffect(() => {
     if (apiKey) {
       chatRef.current = createChatSession(apiKey, isThinkingMode, storyEncyclopedia);
     } else {
       chatRef.current = null;
     }
-  }, [apiKey, isThinkingMode, storyEncyclopedia.id]); // Changed dependency from full object to ID
+  }, [apiKey, isThinkingMode, storyEncyclopedia.id]); 
   
-  // Effect for loading messages from localStorage
+  // Effect for loading messages from IndexedDB
   useEffect(() => {
-    try {
-        const storedMessages = localStorage.getItem(`webnovel_chat_${storyEncyclopedia.id}`);
-        if (storedMessages) {
-            setMessages(JSON.parse(storedMessages));
-        } else {
-            // If chat is empty, show the initial greeting message
-            const initialMessageText = storyEncyclopedia.language === 'id'
-              ? `Oke, aku sudah memuat Ensiklopedia Cerita untuk **"${storyEncyclopedia.title}"**. Panggung sudah siap! Bagian mana dari dunia ini yang akan kita jelajahi pertama?`
-              : `Okay, I've loaded the Story Encyclopedia for **"${storyEncyclopedia.title}"**. The stage is set! What part of this world should we explore first?`;
-            setMessages([
-              {
-                id: 'initial-ai-message',
-                author: MessageAuthor.AI,
-                text: initialMessageText,
-                timestamp: Date.now(),
-              },
-            ]);
+    const loadChat = async () => {
+        try {
+            const session = await db.chats.get(storyEncyclopedia.id);
+            if (session && session.messages.length > 0) {
+                setMessages(session.messages);
+            } else {
+                // If chat is empty, show the initial greeting message
+                const initialMessageText = storyEncyclopedia.language === 'id'
+                  ? `Oke, aku sudah memuat Ensiklopedia Cerita untuk **"${storyEncyclopedia.title}"**. Panggung sudah siap! Bagian mana dari dunia ini yang akan kita jelajahi pertama?`
+                  : `Okay, I've loaded the Story Encyclopedia for **"${storyEncyclopedia.title}"**. The stage is set! What part of this world should we explore first?`;
+                setMessages([
+                  {
+                    id: 'initial-ai-message',
+                    author: MessageAuthor.AI,
+                    text: initialMessageText,
+                    timestamp: Date.now(),
+                  },
+                ]);
+            }
+        } catch (error) {
+            console.error("Error loading messages from DB:", error);
+        } finally {
+            setIsHistoryLoaded(true);
         }
-    } catch (error) {
-        console.error("Error loading messages from localStorage:", error);
-    }
+    };
+    loadChat();
   }, [storyEncyclopedia.id, storyEncyclopedia.language, storyEncyclopedia.title]);
 
-  // Effect to save messages to localStorage whenever they change
+  // Effect to save messages to IndexedDB whenever they change
   useEffect(() => {
-    // Don't save the initial placeholder message.
-    if (messages.length > 0 && messages[0].id !== 'initial-ai-message') {
-        try {
-            localStorage.setItem(`webnovel_chat_${storyEncyclopedia.id}`, JSON.stringify(messages));
-        } catch (error) {
-            console.error("Error saving messages to localStorage:", error);
-        }
+    // Wait for history to load first to avoid overwriting with empty array
+    if (isHistoryLoaded && messages.length > 0 && messages[0].id !== 'initial-ai-message') {
+        // Fire and forget save
+        db.chats.put({ storyId: storyEncyclopedia.id, messages }).catch(err => {
+            console.error("Error saving chat to DB:", err);
+        });
     }
-  }, [messages, storyEncyclopedia.id]);
+  }, [messages, storyEncyclopedia.id, isHistoryLoaded]);
 
   useEffect(() => {
     if (chatContainerRef.current) {
@@ -80,10 +82,15 @@ const ChatWindow: React.FC<ChatWindowProps> = ({ apiKey, storyEncyclopedia, onRe
     }
   }, [messages]);
   
-  const handleClearChat = () => {
+  const handleClearChat = async () => {
       if(window.confirm("Are you sure you want to clear the chat history? This will reset the AI context.")) {
           setMessages([]);
-          localStorage.removeItem(`webnovel_chat_${storyEncyclopedia.id}`);
+          try {
+              await db.chats.delete(storyEncyclopedia.id);
+          } catch (e) {
+              console.error("Failed to clear chat db", e);
+          }
+
           // Re-initialize chat to clear backend history/context if possible (creates new instance)
           if (apiKey) {
             chatRef.current = createChatSession(apiKey, isThinkingMode, storyEncyclopedia);
