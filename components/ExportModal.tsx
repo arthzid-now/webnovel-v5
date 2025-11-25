@@ -1,4 +1,3 @@
-
 import React, { useEffect } from 'react';
 import { useLanguage } from '../contexts/LanguageContext';
 import { BookOpenIcon } from './icons/BookOpenIcon';
@@ -7,10 +6,11 @@ import { ClipboardIcon } from './icons/ClipboardIcon';
 import { DatabaseIcon } from './icons/DatabaseIcon';
 import { GlobeIcon } from './icons/GlobeIcon';
 import { XIcon } from './icons/XIcon';
+import { PdfIcon } from './icons/PdfIcon';
 
 interface ExportModalProps {
     onClose: () => void;
-    onExport: (format: 'epub' | 'html' | 'txt' | 'json' | 'md') => void;
+    onExport: (format: 'epub' | 'html' | 'txt' | 'json' | 'md' | 'pdf') => void;
 }
 
 const ExportOption: React.FC<{
@@ -51,7 +51,7 @@ const ExportModal: React.FC<ExportModalProps> = ({ onClose, onExport }) => {
 
     return (
         <div className="fixed inset-0 bg-slate-900/80 backdrop-blur-sm z-50 flex items-center justify-center p-4" onClick={onClose}>
-            <div className="bg-slate-800 border border-slate-700 rounded-lg shadow-2xl max-w-3xl w-full p-6 flex flex-col" onClick={e => e.stopPropagation()}>
+            <div className="bg-slate-800 border border-slate-700 rounded-lg shadow-2xl max-w-4xl w-full p-6 flex flex-col max-h-[90vh]" onClick={e => e.stopPropagation()}>
                 <div className="flex justify-between items-start mb-6">
                     <div>
                         <h2 className="text-2xl font-bold text-slate-100 flex items-center gap-3">
@@ -65,14 +65,21 @@ const ExportModal: React.FC<ExportModalProps> = ({ onClose, onExport }) => {
                     </button>
                 </div>
 
-                <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
+                <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4 overflow-y-auto pr-2">
+                    <ExportOption 
+                        icon={<PdfIcon className="w-5 h-5" />}
+                        title={t('export.pdf.title')}
+                        description={t('export.pdf.desc')}
+                        buttonLabel={t('export.pdf.button')}
+                        onClick={() => onExport('pdf')}
+                        primary
+                    />
                     <ExportOption 
                         icon={<BookOpenIcon className="w-5 h-5" />}
                         title={t('export.epub.title')}
                         description={t('export.epub.desc')}
                         buttonLabel={t('export.epub.button')}
                         onClick={() => onExport('epub')}
-                        primary
                     />
                     <ExportOption 
                         icon={<GlobeIcon className="w-5 h-5" />}

@@ -212,8 +212,6 @@
   "chapterEditor": { 
     "statusEditing": "Editing...", "statusSaved": "Saved", "wordCount": "Word Count",
     "magicTools": "Magic Tools", "tools": "AI Tools", "rewrite": "Rewrite", "expand": "Expand", "fixGrammar": "Fix Grammar", "beatToProse": "Beat to Prose", "continue": "Continue Writing", "analyze": "Analyze Chapter", "analyzing": "Analyzing...", "selectTextHint": "Select text to use Magic Tools",
-    "save": "Save Changes",
-    "saveUnsaved": "Unsaved Changes - Click to Save",
     "autoFormat": "Auto-Format Foreign Text"
   },
   "editor": {
@@ -250,6 +248,11 @@
   "export": {
     "title": "Export Story",
     "subtitle": "Choose a format to download your story.",
+    "pdf": {
+      "title": "PDF (Print/Digital)",
+      "desc": "Formatted document ready for printing or digital reading. Professional layout.",
+      "button": "Print / Save as PDF"
+    },
     "epub": {
       "title": "EPUB (E-Book)",
       "desc": "Standard ebook format. Best for reading on Kindle, Apple Books, or tablets.",

@@ -1,3 +1,4 @@
+
 import React, { useState, useEffect, useRef, useMemo } from 'react';
 import { marked } from 'marked';
 import { Chapter, StoryEncyclopedia, AnalysisResult } from '../types';
@@ -8,7 +9,6 @@ import { BookOpenIcon } from './icons/BookOpenIcon';
 import { SparklesIcon } from './icons/SparklesIcon';
 import { UndoIcon } from './icons/UndoIcon';
 import { RedoIcon } from './icons/RedoIcon';
-import { SaveIcon } from './icons/SaveIcon';
 import { useLanguage } from '../contexts/LanguageContext';
 import EditorToolbar from './EditorToolbar';
 import ChapterAnalysisModal from './ChapterAnalysisModal';
@@ -28,8 +28,6 @@ interface ChapterEditorProps {
   onToggleRightSidebar?: () => void;
 }
 
-type SaveStatus = 'idle' | 'editing' | 'saved';
-
 interface HistoryState {
     title: string;
     content: string;
@@ -46,7 +44,6 @@ const ChapterEditor: React.FC<ChapterEditorProps> = ({
 }) => {
   const [title, setTitle] = useState(chapter.title);
   const [content, setContent] = useState(chapter.content);
-  const [saveStatus, setSaveStatus] = useState<SaveStatus>('idle');
   const [isPreviewMode, setIsPreviewMode] = useState(false);
   const [isThinking, setIsThinking] = useState(false);
   const [hasSelection, setHasSelection] = useState(false);
@@ -67,52 +64,30 @@ const ChapterEditor: React.FC<ChapterEditorProps> = ({
 
   const textareaRef = useRef<HTMLTextAreaElement>(null);
   const saveTimeoutRef = useRef<number | null>(null);
-  const statusTimeoutRef = useRef<number | null>(null);
   const { t } = useLanguage();
 
   useEffect(() => {
     setTitle(chapter.title);
     setContent(chapter.content);
-    setSaveStatus('idle');
     // Reset history when chapter changes
     setHistory([{ title: chapter.title, content: chapter.content }]);
     setHistoryIndex(0);
   }, [chapter.id]);
 
+  // Clean Auto-Save Effect
   useEffect(() => {
     if (saveTimeoutRef.current) clearTimeout(saveTimeoutRef.current);
-    if (statusTimeoutRef.current) clearTimeout(statusTimeoutRef.current);
-
-    if (title !== chapter.title || content !== chapter.content) {
-        setSaveStatus('editing');
-    }
 
     saveTimeoutRef.current = window.setTimeout(() => {
         if (title !== chapter.title || content !== chapter.content) {
             onUpdate(chapter.id, title, content);
-            setSaveStatus('saved');
-            statusTimeoutRef.current = window.setTimeout(() => {
-                setSaveStatus('idle');
-            }, 2000);
         }
     }, 750);
 
     return () => {
       if (saveTimeoutRef.current) clearTimeout(saveTimeoutRef.current);
-      if (statusTimeoutRef.current) clearTimeout(statusTimeoutRef.current);
     };
   }, [title, content, chapter, onUpdate]);
-  
-  const handleManualSave = () => {
-      if (saveTimeoutRef.current) clearTimeout(saveTimeoutRef.current);
-      if (statusTimeoutRef.current) clearTimeout(statusTimeoutRef.current);
-      
-      onUpdate(chapter.id, title, content);
-      setSaveStatus('saved');
-      statusTimeoutRef.current = window.setTimeout(() => {
-          setSaveStatus('idle');
-      }, 2000);
-  };
   
   const wordCount = useMemo(() => {
     if (!content) return 0;
@@ -388,22 +363,6 @@ const ChapterEditor: React.FC<ChapterEditorProps> = ({
                     <RedoIcon className="w-4 h-4" />
                 </button>
             </div>
-            
-            {/* MANUAL SAVE BUTTON WITH DIRTY INDICATOR */}
-            <button
-                onClick={handleManualSave}
-                className={`p-2 rounded-md transition-all relative group ${
-                    saveStatus === 'editing' ? 'text-amber-400 hover:bg-amber-900/20' :
-                    saveStatus === 'saved' ? 'text-emerald-400 hover:bg-emerald-900/20' :
-                    'text-slate-400 hover:text-slate-200 hover:bg-slate-700'
-                }`}
-                title={saveStatus === 'editing' ? t('chapterEditor.saveUnsaved') : t('chapterEditor.save')}
-            >
-                <SaveIcon className="w-5 h-5" />
-                {saveStatus === 'editing' && (
-                    <span className="absolute top-1.5 right-1.5 w-2 h-2 bg-rose-500 rounded-full border border-slate-800 animate-pulse"></span>
-                )}
-            </button>
 
             <button
                 onClick={() => setIsPreviewMode(!isPreviewMode)}
@@ -453,10 +412,25 @@ const ChapterEditor: React.FC<ChapterEditorProps> = ({
       {/* Editor Area */}
       <div className="flex-grow relative overflow-hidden">
         {isPreviewMode ? (
-             <div 
-                className="w-full h-full p-6 sm:p-8 overflow-y-auto prose prose-invert prose-lg max-w-none bg-slate-800"
-                dangerouslySetInnerHTML={{ __html: parsedPreview }}
-             />
+             <div className="w-full h-full overflow-y-auto bg-slate-900/50 scrollbar-thin scrollbar-thumb-slate-600 scrollbar-track-transparent flex justify-center">
+                 <div className="max-w-3xl w-full min-h-full bg-slate-800 px-8 py-12 md:px-12 md:py-16 shadow-2xl border-x border-slate-700/50">
+                    <h1 className="text-3xl md:text-4xl font-bold text-center text-slate-200 mb-2 font-serif">{title}</h1>
+                    <div className="w-24 h-1 bg-indigo-500 mx-auto mb-12 rounded-full"></div>
+                    
+                    <div 
+                        className="prose prose-invert prose-lg max-w-none font-serif leading-loose text-slate-300 
+                        prose-headings:font-serif prose-headings:text-indigo-200 
+                        prose-p:mb-6 prose-p:text-justify 
+                        prose-blockquote:border-l-4 prose-blockquote:border-indigo-500 prose-blockquote:bg-slate-700/30 prose-blockquote:py-2 prose-blockquote:px-4 prose-blockquote:rounded-r
+                        prose-hr:border-slate-600 prose-hr:my-12"
+                        dangerouslySetInnerHTML={{ __html: parsedPreview }}
+                    />
+                    
+                    <div className="mt-24 text-center text-slate-500 text-sm font-sans">
+                        ***
+                    </div>
+                 </div>
+             </div>
         ) : (
             <textarea
             ref={textareaRef}
@@ -473,7 +447,6 @@ const ChapterEditor: React.FC<ChapterEditorProps> = ({
       {/* Footer */}
       <div className="flex-shrink-0 p-2 px-4 border-t border-slate-700 bg-slate-900/50 text-xs text-slate-400 flex justify-between items-center">
         <span className="font-medium">{t('chapterEditor.wordCount')}: {wordCount}</span>
-        {/* Removed text status in favor of header button indicator */}
       </div>
     </div>
   );

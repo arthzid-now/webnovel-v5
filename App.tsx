@@ -1,4 +1,3 @@
-
 import React, { useState, useEffect, useCallback, useRef } from 'react';
 import ReactDOM from 'react-dom/client';
 import StoryEncyclopediaSetup from './components/StoryEncyclopediaSetup';
@@ -479,7 +478,7 @@ const App: React.FC = () => {
   };
 
   // --- EXPORT HANDLER (Updated for Multiple Formats) ---
-  const handleExportStory = async (storyId: string, format: 'epub' | 'html' | 'txt' | 'json' | 'md' = 'md') => {
+  const handleExportStory = async (storyId: string, format: 'epub' | 'html' | 'txt' | 'json' | 'md' | 'pdf' = 'md') => {
     const story = stories.find(s => s.id === storyId);
     if (!story) return alert(t('dashboard.exportNotFound'));
     
@@ -561,6 +560,63 @@ const App: React.FC = () => {
             </html>
         `;
         downloadFile(fullHtml, `${safeTitle}.html`, 'text/html;charset=utf-8');
+        return;
+    }
+
+    // --- PDF EXPORT (VIA PRINT) ---
+    if (format === 'pdf') {
+        const chaptersHtml = story.chapters.map(chap => `
+            <div class="chapter">
+                <h2>${chap.title}</h2>
+                ${marked.parse(chap.content)}
+            </div>
+        `).join('');
+
+        const fullHtml = `
+            <!DOCTYPE html>
+            <html>
+            <head>
+                <title>${story.title}</title>
+                <style>
+                    @media print {
+                        @page { margin: 2cm; size: A4; }
+                        body { font-family: 'Times New Roman', serif; font-size: 12pt; line-height: 1.5; color: black; background: white; }
+                        h1 { text-align: center; padding-top: 30%; page-break-before: always; font-size: 24pt; }
+                        h2 { text-align: center; page-break-before: always; margin-top: 0; padding-top: 2cm; font-size: 18pt; }
+                        p { text-align: justify; text-indent: 1.5em; margin-bottom: 0; margin-top: 0; }
+                        p:first-of-type { text-indent: 0; }
+                        .meta { text-align: center; margin-top: 2cm; }
+                    }
+                    /* Screen preview styles */
+                    body { font-family: serif; max-width: 800px; margin: 0 auto; padding: 20px; line-height: 1.6; color: #333; }
+                    h1, h2 { text-align: center; }
+                </style>
+            </head>
+            <body>
+                <h1>${story.title}</h1>
+                <div class="meta">
+                    <p>By ${t('common.name')}</p>
+                    <p>${story.genres.join(', ')}</p>
+                </div>
+                ${chaptersHtml}
+            </body>
+            </html>
+        `;
+
+        const printWindow = window.open('', '_blank');
+        if (printWindow) {
+            printWindow.document.write(fullHtml);
+            printWindow.document.close();
+            printWindow.focus();
+            // Give time for images/styles to load before printing
+            setTimeout(() => {
+                printWindow.print();
+                // Optional: printWindow.close(); 
+                // Keeping it open is often safer for user to see what happened if print dialog is cancelled
+            }, 500);
+        } else {
+            alert("Pop-up blocked. Please allow pop-ups to print to PDF.");
+        }
         return;
     }
 
