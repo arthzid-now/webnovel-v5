@@ -1,4 +1,3 @@
-
 import React, { useState, useRef, useEffect } from 'react';
 import { useLanguage } from '../contexts/LanguageContext';
 import { SparklesIcon } from './icons/SparklesIcon';
@@ -6,7 +5,7 @@ import { BrainCircuitIcon } from './icons/BrainCircuitIcon';
 import { SpinnerIcon } from './icons/SpinnerIcon';
 
 interface EditorToolbarProps {
-    onAction: (action: 'rewrite' | 'expand' | 'fixGrammar' | 'beatToProse') => void;
+    onAction: (action: 'rewrite' | 'expand' | 'fixGrammar' | 'beatToProse' | 'autoFormat') => void;
     onContinue: () => void;
     onAnalyze: () => void;
     isThinking: boolean;
@@ -24,6 +23,7 @@ const EditorToolbar: React.FC<EditorToolbarProps> = ({ onAction, onContinue, onA
         { id: 'expand', label: t('chapterEditor.expand') },
         { id: 'fixGrammar', label: t('chapterEditor.fixGrammar') },
         { id: 'beatToProse', label: t('chapterEditor.beatToProse') },
+        { id: 'autoFormat', label: t('chapterEditor.autoFormat') },
     ];
 
     const toggleMenu = () => {

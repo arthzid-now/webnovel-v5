@@ -1,4 +1,3 @@
-
 import { GoogleGenAI, Chat, Type, GenerateContentResponse } from "@google/genai";
 import { ModelType, StoryEncyclopedia, StoryArcAct, Character, Relationship, CustomField, LoreEntry, Universe, AnalysisResult } from '../types';
 import { SYSTEM_INSTRUCTION_EN, SYSTEM_INSTRUCTION_ID, MAX_THINKING_BUDGET, PROSE_STYLES_EN, PROSE_STYLES_ID, STRUCTURE_TEMPLATES } from '../constants';
@@ -784,7 +783,7 @@ export const generateStoryEncyclopediaSection = async (
 
 export const generateEditorAction = async (
     apiKey: string,
-    action: 'rewrite' | 'expand' | 'fixGrammar' | 'beatToProse' | 'continue',
+    action: 'rewrite' | 'expand' | 'fixGrammar' | 'beatToProse' | 'continue' | 'autoFormat',
     text: string,
     context: { precedingText: string; followingText: string; storyContext: StoryEncyclopedia }
 ): Promise<string> => {
@@ -818,6 +817,13 @@ export const generateEditorAction = async (
             case 'fixGrammar': instruction = 'Fix all grammar, spelling, and punctuation errors in the selected text. Do not change the style.'; break;
             case 'expand': instruction = 'Expand the selected text with more sensory details, internal monologue, and descriptive language. Make it more immersive.'; break;
             case 'beatToProse': instruction = 'Convert the selected bullet points or rough outline into full, high-quality novel prose. Add dialogue and action.'; break;
+            case 'autoFormat': instruction = `
+                Analyze the selected text.
+                Identify any phrases or sentences that are in a foreign language relative to the story's main language (${language === 'id' ? 'Indonesian' : 'English'}).
+                Wrap only these foreign phrases in markdown italics (*...*).
+                Leave names, proper nouns, and the main language text untouched.
+                Return the full text with the formatting applied.
+            `; break;
         }
 
         prompt = `
