@@ -79,9 +79,11 @@ const App: React.FC = () => {
 
     const handleLogin = async () => {
         try {
+            if (!auth) throw new Error("Firebase Auth not initialized. Check console/env vars.");
             await signInWithPopup(auth, googleProvider);
-        } catch (error) {
+        } catch (error: any) {
             console.error("Login Failed:", error);
+            alert(`Login Failed: ${error.message}`);
         }
     };
 
