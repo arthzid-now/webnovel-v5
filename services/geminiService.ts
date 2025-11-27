@@ -1,14 +1,14 @@
 
 import { GoogleGenAI, Chat, Type, GenerateContentResponse, Content } from "@google/genai";
-import { ModelType, StoryEncyclopedia, StoryArcAct, Character, Relationship, CustomField, LoreEntry, Universe, AnalysisResult, Message, MessageAuthor, Persona } from '../types';
-import { SYSTEM_INSTRUCTION_EN, SYSTEM_INSTRUCTION_ID, MAX_THINKING_BUDGET, PROSE_STYLES_EN, PROSE_STYLES_ID, STRUCTURE_TEMPLATES, DEFAULT_PERSONAS } from '../constants';
+import { ModelType, StoryEncyclopedia, StoryArcAct, Character, Relationship, CustomField, LoreEntry, Universe, AnalysisResult, Message, MessageAuthor, Persona } from '../types.ts';
+import { SYSTEM_INSTRUCTION_EN, SYSTEM_INSTRUCTION_ID, MAX_THINKING_BUDGET, PROSE_STYLES_EN, PROSE_STYLES_ID, STRUCTURE_TEMPLATES, DEFAULT_PERSONAS } from '../constants.ts';
 
 const initializeGenAI = (apiKey: string) => {
     return new GoogleGenAI({ apiKey });
 }
 
 // --- SAFETY SETTINGS (JAILBREAK / CREATIVE FREEDOM) ---
-const SAFETY_SETTINGS = [
+const SAFETY_SETTINGS: any[] = [
     { category: 'HARM_CATEGORY_HARASSMENT', threshold: 'BLOCK_NONE' },
     { category: 'HARM_CATEGORY_HATE_SPEECH', threshold: 'BLOCK_NONE' },
     { category: 'HARM_CATEGORY_SEXUALLY_EXPLICIT', threshold: 'BLOCK_NONE' },
@@ -19,7 +19,7 @@ const SAFETY_SETTINGS = [
 // --- ERROR HANDLING UTILITY ---
 export const getFriendlyErrorMessage = (error: any): string => {
     const msg = (error.message || error.toString()).toLowerCase();
-    
+
     if (msg.includes('429') || msg.includes('resource_exhausted') || msg.includes('quota')) {
         return "🚧 API Quota Exceeded (429). Kunci API Anda mencapai batas harian atau per menit. Tunggu sebentar.";
     }
@@ -35,13 +35,13 @@ export const getFriendlyErrorMessage = (error: any): string => {
     if (msg.includes('api key') || msg.includes('403')) {
         return "🔑 Invalid API Key. Cek kembali API Key Anda.";
     }
-    
+
     return `🤖 AI Error: ${error.message || "Unknown error occurred."}`;
 };
 
 const generateWithRetry = async <T>(
-    fn: () => Promise<T>, 
-    retries: number = 3, 
+    fn: () => Promise<T>,
+    retries: number = 3,
     delay: number = 2000
 ): Promise<T> => {
     try {
@@ -53,9 +53,9 @@ const generateWithRetry = async <T>(
         if (retries > 0 && (isQuotaError || isServerBusy)) {
             console.warn(`API Rate Limit or Busy (Status ${error.status || 'Unknown'}). Retrying in ${delay}ms...`);
             await new Promise(resolve => setTimeout(resolve, delay));
-            return generateWithRetry(fn, retries - 1, delay * 2); 
+            return generateWithRetry(fn, retries - 1, delay * 2);
         }
-        
+
         throw error;
     }
 };
@@ -64,12 +64,12 @@ const generateWithRetry = async <T>(
 const validateResponse = (response: any) => {
     if (!response || !response.candidates || response.candidates.length === 0) {
         if (response.promptFeedback?.blockReason) {
-             throw new Error(`Request Blocked: ${response.promptFeedback.blockReason}. The AI refused the prompt.`);
+            throw new Error(`Request Blocked: ${response.promptFeedback.blockReason}. The AI refused the prompt.`);
         }
         // If absolutely nothing comes back, it's often a silent safety block in newer models
-        return; 
+        return;
     }
-    
+
     const candidate = response.candidates[0];
     // Check finish reason specifically
     if (candidate.finishReason === 'SAFETY') {
@@ -78,10 +78,10 @@ const validateResponse = (response: any) => {
     if (candidate.finishReason === 'RECITATION') {
         throw new Error("RECITATION_BLOCK: Copyright infringement detected.");
     }
-    
+
     // If no text but also no specific error, warn but don't crash (could be function call, though we don't use them yet)
     if (!candidate.content?.parts?.[0]?.text && candidate.finishReason !== 'STOP' && candidate.finishReason !== 'MAX_TOKENS') {
-         // console.warn(`Generation Stopped: ${candidate.finishReason}`);
+        // console.warn(`Generation Stopped: ${candidate.finishReason}`);
     }
 };
 
@@ -101,7 +101,7 @@ const formatCharacterForPrompt = (character: Character): string => {
 - Goal: ${character.goal || 'N/A'}
 - Principles: ${character.principles || 'N/A'}
 - Core Conflict: ${character.conflict || 'N/A'}` +
-(customFieldsString ? `\n- Custom Details:\n${customFieldsString}` : '');
+        (customFieldsString ? `\n- Custom Details:\n${customFieldsString}` : '');
 };
 
 
@@ -129,10 +129,10 @@ const formatStoryEncyclopediaForPrompt = (storyEncyclopedia: StoryEncyclopedia):
         const template = act.structureTemplate && act.structureTemplate !== 'freestyle' ? ` [Structure: ${act.structureTemplate}]` : '';
         return `- Act ${index + 1}: ${act.title}${range}${template}: ${act.description}` + (plotPoints ? `\n${plotPoints}` : '');
     }).join('\n');
-    
+
     const charactersString = storyEncyclopedia.characters?.map(formatCharacterForPrompt).join('') || 'N/A';
     const relationshipsString = formatRelationshipsForPrompt(storyEncyclopedia.relationships, storyEncyclopedia.characters);
-    
+
     const locationsString = formatLoreForPrompt(storyEncyclopedia.locations, 'Locations');
     const factionsString = formatLoreForPrompt(storyEncyclopedia.factions, 'Factions');
     const racesString = formatLoreForPrompt(storyEncyclopedia.races, 'Races & Species');
@@ -143,22 +143,22 @@ const formatStoryEncyclopediaForPrompt = (storyEncyclopedia: StoryEncyclopedia):
     const historyString = formatLoreForPrompt(storyEncyclopedia.history, 'History & Timeline');
     const culturesString = formatLoreForPrompt(storyEncyclopedia.cultures, 'Culture & Traditions');
     const loreString = formatLoreForPrompt(storyEncyclopedia.lore, 'General Lore');
-    
+
     const universeNameString = `${storyEncyclopedia.universeName}${storyEncyclopedia.disguiseRealWorldNames ? (storyEncyclopedia.language === 'id' ? ' (nama disamarkan)' : ' (names disguised)') : ''}`;
 
     const chapterTitlesString = storyEncyclopedia.chapters?.map(chap => `- ${chap.title}`).join('\n') || '(No chapters written yet)';
 
     const recentChapters = storyEncyclopedia.chapters?.slice(-2) || [];
     const recentChaptersContentString = recentChapters.length > 0
-        ? recentChapters.map(chap => 
+        ? recentChapters.map(chap =>
             `**${chap.title}**\n${chap.content || '(No content written for this chapter yet.)'}`
-          ).join('\n\n---\n\n')
+        ).join('\n\n---\n\n')
         : '(No recent chapters to display.)';
-        
+
     // --- STYLE DNA INJECTION ---
     const styleProfile = storyEncyclopedia.styleProfile;
     const customStyle = storyEncyclopedia.customProseStyleByExample;
-    
+
     let styleInstruction = '';
     if (styleProfile && styleProfile.trim() !== '') {
         styleInstruction = `\n\n**CRITICAL: STYLE DNA & VOICE PROFILE**
@@ -173,7 +173,7 @@ The user has provided a specific writing style to mimic. Analyze and replicate t
 ${customStyle.trim()}
 ---`;
     }
-        
+
     const formatInstruction = storyEncyclopedia.format === 'webnovel'
         ? "STORY FORMAT: Webnovel (Fast-paced, episodic, cliffhangers at chapter ends, lighter descriptions, high dialogue)."
         : "STORY FORMAT: Traditional Novel (Slower burn, immersive descriptions, structured pacing, longer chapters).";
@@ -244,17 +244,17 @@ Based on this context, assist the user in developing their story.
 }
 
 export const createChatSession = (
-    apiKey: string, 
-    isThinkingMode: boolean, 
+    apiKey: string,
+    isThinkingMode: boolean,
     storyEncyclopedia: StoryEncyclopedia,
     previousHistory: Message[] = [],
     activePersona?: Persona
 ): Chat => {
     const ai = initializeGenAI(apiKey);
-    
+
     const isId = storyEncyclopedia.language === 'id';
     let baseInstruction = isId ? SYSTEM_INSTRUCTION_ID : SYSTEM_INSTRUCTION_EN;
-    
+
     if (activePersona) {
         const personaInstruction = isId ? activePersona.systemInstructionId : activePersona.systemInstructionEn;
         baseInstruction = `
@@ -275,7 +275,7 @@ export const createChatSession = (
     };
 
     if (model === ModelType.PRO && isThinkingMode) {
-        config.thinkingConfig = { thinkingBudget: 4096 }; 
+        config.thinkingConfig = { thinkingBudget: 4096 };
     }
 
     const history: Content[] = previousHistory
@@ -363,13 +363,13 @@ const generationConfig: any = {
             const allGenres = [...(storyData.genres || []), storyData.otherGenre].filter(Boolean).join(', ');
             const isNovelFormat = storyData.format === 'novel';
 
-            const chapterCountPrompt = isNovelFormat 
-                ? "between 20-50 (Traditional Novel)" 
+            const chapterCountPrompt = isNovelFormat
+                ? "between 20-50 (Traditional Novel)"
                 : "between 100-300 (Webnovel)";
             const wordCountPrompt = isNovelFormat
                 ? "between 3000-5000"
                 : "between 1500-2000";
-            
+
             let instruction = `Based on the user's core idea: "${options.idea}" and their chosen genres: "${allGenres}", generate the basic info for a ${storyData.format || 'webnovel'}.\n`;
             const existingInfo = [
                 storyData.title && `Title: "${storyData.title}"`,
@@ -402,7 +402,7 @@ const generationConfig: any = {
             let instruction = `Based on the story context: \n\n${context}\n\n`;
 
             if (existingPlot || existingChars > 0) {
-                 instruction += `The user has already provided some core elements. Your task is to COMPLETE and EXPAND upon them. \n- If 'mainPlot' is present, refine it. \n- If characters exist, either complete their profiles or add new ones to reach a total of 3-4 diverse characters. \n- Generate 1-2 important locations and factions. \n- If relevant to the genre, also generate brief 'worldBuilding' and 'magicSystem' descriptions. Do not replace existing valid information, build upon it.`;
+                instruction += `The user has already provided some core elements. Your task is to COMPLETE and EXPAND upon them. \n- If 'mainPlot' is present, refine it. \n- If characters exist, either complete their profiles or add new ones to reach a total of 3-4 diverse characters. \n- Generate 1-2 important locations and factions. \n- If relevant to the genre, also generate brief 'worldBuilding' and 'magicSystem' descriptions. Do not replace existing valid information, build upon it.`;
             } else {
                 instruction += `Generate all core story elements. This includes:\n1. A compelling main plot summary (3-5 sentences).\n2. A list of 3-4 diverse and detailed main characters. For each character, assign logical roles and provide a full profile.\n3. A list of 1-2 important locations and factions.\n4. If relevant to the genre, generate brief 'worldBuilding' and 'magicSystem' descriptions.`;
             }
@@ -426,7 +426,7 @@ const generationConfig: any = {
             required: ["mainPlot", "characters"]
         }
     },
-    worldLore: { 
+    worldLore: {
         prompt: (context: string) => {
             return `Based on the story context provided below, generate a list of 2-3 important locations, 2-3 important factions/groups, and 2-3 general lore items. \n\n${context}`;
         },
@@ -440,7 +440,7 @@ const generationConfig: any = {
             required: ["locations", "factions", "lore"]
         }
     },
-    world_nature: { 
+    world_nature: {
         prompt: (context: string) => {
             return `Based on the story context provided below, generate:\n1. A list of 2-3 unique races or species inhabiting the world (e.g., Elves, Cyborgs, Cultivator Clans).\n2. A list of 2-3 unique creatures, monsters, or bestiary entries.\n\n${context}`;
         },
@@ -453,7 +453,7 @@ const generationConfig: any = {
             required: ["races", "creatures"]
         }
     },
-    world_power: { 
+    world_power: {
         prompt: (context: string) => {
             return `Based on the story context provided below, generate:\n1. A list of 2-3 specific powers, spells, or cultivation techniques.\n2. A list of 2-3 significant items, artifacts, or equipment.\n3. A list of 1-2 technological elements (if applicable, otherwise leave empty).\n\n${context}`;
         },
@@ -467,7 +467,7 @@ const generationConfig: any = {
             required: ["powers", "items"]
         }
     },
-    world_history: { 
+    world_history: {
         prompt: (context: string) => {
             return `Based on the story context provided below, generate:\n1. A list of 3-5 historical events or timelines that shaped the current world. IMPORTANT: You MUST include a 'date' or 'era' for each historical event (e.g. 'Year 500', 'Age of Fire', '2000 BC').\n2. A list of 2-3 cultural traditions, festivals, religions, or social norms.\n\n${context}`;
         },
@@ -495,7 +495,7 @@ const generationConfig: any = {
         prompt: (context: string, options: { index: number }) => {
             const storyData = JSON.parse(context) as StoryEncyclopedia;
             const characterData = storyData.characters[options.index];
-            
+
             const formatPartialCharacter = (char: Character) => {
                 if (!char) return "The user has not provided any details for this character.";
                 const details = Object.entries(char)
@@ -505,7 +505,7 @@ const generationConfig: any = {
 
                 return details ? `The user has provided these starting details for the character:\n${details}\n\nYour task is to COMPLETE the rest of the profile, elaborating on the provided details and filling in any missing fields to create a cohesive and compelling character.` : `The user has not provided any specific details for this new character. Generate a full profile from scratch that fits the story.`;
             };
-            
+
             const partialDataString = formatPartialCharacter(characterData);
 
             return `Based on the full story context provided below, generate a compelling and unique character profile.\n\n${partialDataString}\n\nEnsure ALL fields are filled out in your response: name, roles, age, gender, physicalDescription, voiceAndSpeechStyle, personalityTraits, habits, goal, principles, and conflict.\n\nFull Story Context:\n${context}`;
@@ -534,7 +534,7 @@ const generationConfig: any = {
             }
             return `Based on the story context provided below, describe the key world-building details in 2-3 sentences. This is for genres like Fantasy, Sci-Fi, etc.\n\n${context}`;
         },
-        schema: { type: Type.OBJECT, properties: { worldBuilding: { type: Type.STRING, description: "Key aspects of the world building."} }, required: ["worldBuilding"] }
+        schema: { type: Type.OBJECT, properties: { worldBuilding: { type: Type.STRING, description: "Key aspects of the world building." } }, required: ["worldBuilding"] }
     },
     magicSystem: {
         prompt: (context: string) => {
@@ -549,32 +549,32 @@ const generationConfig: any = {
     },
     singleArcAct: {
         prompt: (context: string, index: number, total: number) => {
-             const storyData = JSON.parse(context) as StoryEncyclopedia;
-             const actData = storyData.storyArc[index];
-             const existingTitle = actData.title.trim();
-             const existingDesc = actData.description.trim();
-             const existingPoints = actData.plotPoints?.length > 0;
-             const range = actData.startChapter && actData.endChapter ? `covering chapters ${actData.startChapter} to ${actData.endChapter}` : '';
-             
-             const templateId = actData.structureTemplate;
-             const templateConfig = STRUCTURE_TEMPLATES.find(t => t.value === templateId);
-             const templateInstruction = templateConfig && templateId !== 'freestyle' 
+            const storyData = JSON.parse(context) as StoryEncyclopedia;
+            const actData = storyData.storyArc[index];
+            const existingTitle = actData.title.trim();
+            const existingDesc = actData.description.trim();
+            const existingPoints = actData.plotPoints?.length > 0;
+            const range = actData.startChapter && actData.endChapter ? `covering chapters ${actData.startChapter} to ${actData.endChapter}` : '';
+
+            const templateId = actData.structureTemplate;
+            const templateConfig = STRUCTURE_TEMPLATES.find(t => t.value === templateId);
+            const templateInstruction = templateConfig && templateId !== 'freestyle'
                 ? `\n**CRITICAL STRUCTURE INSTRUCTION:** You MUST structure this act according to the "${templateConfig.label}" template. ${templateConfig.promptInstruction}`
                 : '';
 
-             let instruction = `Based on the story context provided below, generate details for Act ${index + 1} of a ${total}-act story structure${range ? `, ${range}` : ''}.${templateInstruction}\n`;
-             
-             if (existingTitle || existingDesc || existingPoints) {
-                 instruction += `The user has provided the following: \n`;
-                 if(existingTitle) instruction += `- Title: ${existingTitle}\n`;
-                 if(existingDesc) instruction += `- Description: ${existingDesc}\n`;
-                 if(existingPoints) instruction += `- Plot Points: ${actData.plotPoints.map(p => p.summary).join(', ')}\n`;
-                 instruction += `Your task is to COMPLETE this act. Fill in any missing fields (title, description, 2-3 plot points) and enhance the existing details to be more compelling.`;
-             } else {
-                 instruction += `Generate a title, a 1-2 sentence description, and 2-3 key plot points for this act.`;
-             }
-             instruction += `\n\nFull Context:\n${context}`;
-             return instruction;
+            let instruction = `Based on the story context provided below, generate details for Act ${index + 1} of a ${total}-act story structure${range ? `, ${range}` : ''}.${templateInstruction}\n`;
+
+            if (existingTitle || existingDesc || existingPoints) {
+                instruction += `The user has provided the following: \n`;
+                if (existingTitle) instruction += `- Title: ${existingTitle}\n`;
+                if (existingDesc) instruction += `- Description: ${existingDesc}\n`;
+                if (existingPoints) instruction += `- Plot Points: ${actData.plotPoints.map(p => p.summary).join(', ')}\n`;
+                instruction += `Your task is to COMPLETE this act. Fill in any missing fields (title, description, 2-3 plot points) and enhance the existing details to be more compelling.`;
+            } else {
+                instruction += `Generate a title, a 1-2 sentence description, and 2-3 key plot points for this act.`;
+            }
+            instruction += `\n\nFull Context:\n${context}`;
+            return instruction;
         },
         schema: {
             type: Type.OBJECT,
@@ -597,7 +597,7 @@ const generationConfig: any = {
             if (existingActs) {
                 return `Based on the following story context: \n\n${context}\n\nThe user has already started outlining the story arc. Your task is to COMPLETE the 4-act structure. For each act, if it's already started, enhance it. If it's empty, generate a title, a 1-2 sentence description, and key plot points that logically follow the previous act and build towards the main plot's conclusion.`;
             }
-            
+
             return `Based on the story context provided below, generate a detailed 4-act story arc (Kishōtenketsu or Standard 4-Act).
             - Act 1: Introduction & Inciting Incident (Approx 15% of story)
             - Act 2: Rising Action & Complications (Approx 35% of story)
@@ -679,15 +679,15 @@ const generationConfig: any = {
 // --- MAIN GENERATION FUNCTIONS ---
 
 export const generateStoryEncyclopediaSection = async (
-    apiKey: string, 
-    section: string, 
+    apiKey: string,
+    section: string,
     currentContext: any,
     language: 'en' | 'id',
     options: any = {}
 ): Promise<any> => {
     const ai = initializeGenAI(apiKey);
-    const model = ModelType.FLASH; 
-    
+    const model = ModelType.FLASH;
+
     // For specific sections that need more brain power, use Pro
     const usePro = ['core', 'arc', 'tone', 'analyzeStyle'].includes(section);
     const selectedModel = usePro ? ModelType.PRO : ModelType.FLASH;
@@ -697,8 +697,8 @@ export const generateStoryEncyclopediaSection = async (
 
     const contextString = JSON.stringify(currentContext, null, 2);
     const prompt = config.prompt(contextString, options);
-    
-    const systemInstruction = language === 'id' ? 
+
+    const systemInstruction = language === 'id' ?
         "Anda adalah asisten penulis kreatif ahli. Tugas Anda adalah menghasilkan struktur JSON yang valid untuk ensiklopedia cerita berdasarkan permintaan pengguna. JANGAN gunakan markdown di luar string JSON. Hanya kembalikan JSON mentah." :
         "You are an expert creative writing assistant. Your task is to generate valid JSON structures for story encyclopedias based on user requests. DO NOT use markdown outside of the JSON string. Return raw JSON only.";
 
@@ -713,9 +713,9 @@ export const generateStoryEncyclopediaSection = async (
                 safetySettings: SAFETY_SETTINGS,
             }
         });
-        
+
         validateResponse(response);
-        
+
         if (!response.text) throw new Error("No response generated.");
         return JSON.parse(response.text);
     });
@@ -729,7 +729,7 @@ export const generateEditorAction = async (
 ): Promise<string> => {
     const ai = initializeGenAI(apiKey);
     const isId = context.storyContext.language === 'id';
-    
+
     let prompt = '';
     const styleContext = context.storyContext.styleProfile ? `\nSTYLE DNA TO MIMIC:\n${context.storyContext.styleProfile}` : '';
 
@@ -782,7 +782,7 @@ export const analyzeChapterContent = async (
     storyContext: StoryEncyclopedia
 ): Promise<AnalysisResult> => {
     const ai = initializeGenAI(apiKey);
-    
+
     const prompt = `
     Analyze the following chapter text. Identify any NEW elements that are not currently in the Story Encyclopedia context provided below.
     
@@ -820,7 +820,7 @@ export const analyzeChapterContent = async (
                 safetySettings: SAFETY_SETTINGS
             }
         });
-        
+
         validateResponse(response);
         if (!response.text) throw new Error("No analysis generated");
         return JSON.parse(response.text);

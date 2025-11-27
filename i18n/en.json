@@ -1,7 +1,6 @@
-
 {
   "app": {
-    "title": "Webnovel AI Studio"
+    "title": "Inkvora"
   },
   "common": {
     "name": "Name",
@@ -198,26 +197,127 @@
       "template": "Structure Template",
       "templateDesc": "Defines the narrative beats for this act."
     },
-    "tone": { 
-      "comedy": "Comedy (1-10)", "comedyDesc": "Controls frequency of jokes.", 
-      "romance": "Romance (1-10)", "romanceDesc": "Determines focus on relationships.", 
-      "action": "Action (1-10)", "actionDesc": "Dictates amount of combat.", 
-      "maturity": "Maturity (1-10)", "maturityDesc": "Controls adult themes.", 
-      "pov": "Narrative Perspective (POV)", "povDesc": "Controls whose eyes the story is told through.",
-      "prose": "Prose Style", "showExample": "Show Example", "customStyleTitle": "Custom Prose Style by Example", "customStylePlaceholder": "Paste a text sample (up to {{maxChars}} characters, ~1000 words) here...", "customStyleOverride": "Note: Providing a sample will override the dropdown selection above.",
+    "tone": {
+      "comedy": "Comedy (1-10)",
+      "comedyDesc": "Controls frequency of jokes.",
+      "romance": "Romance (1-10)",
+      "romanceDesc": "Determines focus on relationships.",
+      "action": "Action (1-10)",
+      "actionDesc": "Dictates amount of combat.",
+      "maturity": "Maturity (1-10)",
+      "maturityDesc": "Controls adult themes.",
+      "pov": "Narrative Perspective (POV)",
+      "povDesc": "Controls whose eyes the story is told through.",
+      "prose": "Prose Style",
+      "showExample": "Show Example",
+      "customStyleTitle": "Custom Prose Style by Example",
+      "customStylePlaceholder": "Paste a text sample (up to {{maxChars}} characters, ~1000 words) here...",
+      "customStyleOverride": "Note: Providing a sample will override the dropdown selection above.",
       "analyzeStyle": "Analyze Style DNA",
       "styleProfileLabel": "Style Profile (DNA)",
       "styleProfilePlaceholder": "The AI analysis of your writing style will appear here. You can also edit this manually to guide the ghostwriter."
-    }, 
-    "universe": { "modalTitle": "Select a Universe for Your Story", "blankCanvas": "Blank Canvas", "blankCanvasDesc": "Build your world from scratch.", "realWorld": "Real World", "realWorldDesc": "Use the real world as a baseline.", "disguiseNames": "Disguise names", "fromLibrary": "From Library", "fromLibraryDesc": "Choose a world you already saved.", "noDataToSave": "No world data to save.", "enterNamePrompt": "Enter a name for this Universe:", "defaultDescription": "Universe for the story: {{title}}", "saveSuccess": "Universe \"{{name}}\" saved!", "saveToLibrary": "Save to Universe Library" } 
+    },
+    "universe": {
+      "modalTitle": "Select a Universe for Your Story",
+      "blankCanvas": "Blank Canvas",
+      "blankCanvasDesc": "Build your world from scratch.",
+      "realWorld": "Real World",
+      "realWorldDesc": "Use the real world as a baseline.",
+      "disguiseNames": "Disguise names",
+      "fromLibrary": "From Library",
+      "fromLibraryDesc": "Choose a world you already saved.",
+      "noDataToSave": "No world data to save.",
+      "enterNamePrompt": "Enter a name for this Universe:",
+      "defaultDescription": "Universe for the story: {{title}}",
+      "saveSuccess": "Universe \"{{name}}\" saved!",
+      "saveToLibrary": "Save to Universe Library"
+    }
   },
-  "studio": { "deleteLastError": "Cannot delete the last chapter. Every story must have at least one chapter.", "deleteConfirm": "Are you sure you want to permanently delete the chapter \"{{title}}\"? This action cannot be undone.", "noChapterSelected": "Select a chapter to start writing or add a new one.", "mobile": { "openEncyclopedia": "Open Encyclopedia", "closeEncyclopedia": "Close Encyclopedia", "openChat": "Open AI Chat", "closeChat": "Close AI Chat" }, "zenMode": { "toggleSidebar": "Toggle Sidebar", "toggleChat": "Toggle Chat" } },
-  "sidebar": { "backToDashboard": "Back to Dashboard", "dashboard": "Dashboard", "exportStory": "Export Story (.md)", "editEncyclopedia": "Edit Encyclopedia", "universe": "Universe", "searchStory": "Global Search & Replace", "searchPlaceholder": "Search chapters...",
-    "chapters": { "title": "Chapters", "delete": "Delete Chapter", "add": "Add New Chapter", "addVolume": "Add Volume / Arc", "newVolume": "New Volume" }, 
-    "basicInfo": "Basic Info", "genre": "Genre", "setting": "Setting", "corePlot": "Core Plot", "mainPlot": "Main Plot", "storyArc": "Story Arc", "characters": "Characters", "relationships": "Relationships", "worldAndLore": { "title": "World & Lore", "worldSummary": "World Summary", "magicSummary": "System/Magic Summary" }, "tone": { "title": "Tone (out of 10)", "comedy": "Comedy", "romance": "Romance", "action": "Action", "maturity": "Maturity", "pov": "POV" }, "proseStyle": { "title": "Prose Style", "style": "Style", "custom": "Custom Style", "customActive": "Active (Sample Provided)" }, "character": { "roles": "Roles", "age": "Age", "gender": "Gender", "physical": "Physical Description", "voice": "Voice & Speech Style", "traits": "Personality", "habits": "Habits", "goal": "Goal", "principles": "Principles", "conflict": "Conflict" } },
-  "chapterEditor": { 
-    "statusEditing": "Editing...", "statusSaved": "Saved", "wordCount": "Word Count",
-    "magicTools": "Magic Tools", "tools": "AI Tools", "rewrite": "Rewrite", "expand": "Expand", "fixGrammar": "Fix Grammar", "beatToProse": "Beat to Prose", "continue": "Continue Writing", "analyze": "Analyze Chapter", "analyzing": "Analyzing...", "selectTextHint": "Select text to use Magic Tools", "autoFormat": "Auto-Format Foreign Text"
+  "studio": {
+    "deleteLastError": "Cannot delete the last chapter. Every story must have at least one chapter.",
+    "deleteConfirm": "Are you sure you want to permanently delete the chapter \"{{title}}\"? This action cannot be undone.",
+    "noChapterSelected": "Select a chapter to start writing or add a new one.",
+    "mobile": {
+      "openEncyclopedia": "Open Encyclopedia",
+      "closeEncyclopedia": "Close Encyclopedia",
+      "openChat": "Open AI Chat",
+      "closeChat": "Close AI Chat"
+    },
+    "zenMode": {
+      "toggleSidebar": "Toggle Sidebar",
+      "toggleChat": "Toggle Chat"
+    }
+  },
+  "sidebar": {
+    "backToDashboard": "Back to Dashboard",
+    "dashboard": "Dashboard",
+    "exportStory": "Export Story (.md)",
+    "editEncyclopedia": "Edit Encyclopedia",
+    "universe": "Universe",
+    "searchStory": "Global Search & Replace",
+    "searchPlaceholder": "Search chapters...",
+    "chapters": {
+      "title": "Chapters",
+      "delete": "Delete Chapter",
+      "add": "Add New Chapter",
+      "addVolume": "Add Volume / Arc",
+      "newVolume": "New Volume"
+    },
+    "basicInfo": "Basic Info",
+    "genre": "Genre",
+    "setting": "Setting",
+    "corePlot": "Core Plot",
+    "mainPlot": "Main Plot",
+    "storyArc": "Story Arc",
+    "characters": "Characters",
+    "relationships": "Relationships",
+    "worldAndLore": {
+      "title": "World & Lore",
+      "worldSummary": "World Summary",
+      "magicSummary": "System/Magic Summary"
+    },
+    "tone": {
+      "title": "Tone (out of 10)",
+      "comedy": "Comedy",
+      "romance": "Romance",
+      "action": "Action",
+      "maturity": "Maturity",
+      "pov": "POV"
+    },
+    "proseStyle": {
+      "title": "Prose Style",
+      "style": "Style",
+      "custom": "Custom Style",
+      "customActive": "Active (Sample Provided)"
+    },
+    "character": {
+      "roles": "Roles",
+      "age": "Age",
+      "gender": "Gender",
+      "physical": "Physical Description",
+      "voice": "Voice & Speech Style",
+      "traits": "Personality",
+      "habits": "Habits",
+      "goal": "Goal",
+      "principles": "Principles",
+      "conflict": "Conflict"
+    }
+  },
+  "chapterEditor": {
+    "statusEditing": "Editing...",
+    "statusSaved": "Saved",
+    "wordCount": "Word Count",
+    "magicTools": "Magic Tools",
+    "tools": "AI Tools",
+    "rewrite": "Rewrite",
+    "expand": "Expand",
+    "fixGrammar": "Fix Grammar",
+    "beatToProse": "Beat to Prose",
+    "continue": "Continue Writing",
+    "analyze": "Analyze Chapter",
+    "analyzing": "Analyzing...",
+    "selectTextHint": "Select text to use Magic Tools",
+    "autoFormat": "Auto-Format Foreign Text"
   },
   "editor": {
     "undo": "Undo",
@@ -304,7 +404,12 @@
     },
     "copySuccess": "Story copied to clipboard!"
   },
-  "chat": { "errorMessage": "Sorry, I encountered an error. Please try again.", "thinkingMode": "Thinking Mode", "thinkingModeTooltip": "Enable for more complex and creative tasks using the Pro model.", "placeholder": "Let's build your story..." },
+  "chat": {
+    "errorMessage": "Sorry, I encountered an error. Please try again.",
+    "thinkingMode": "Thinking Mode",
+    "thinkingModeTooltip": "Enable for more complex and creative tasks using the Pro model.",
+    "placeholder": "Let's build your story..."
+  },
   "toast": {
     "backupReminder": "Don't forget to back up your work!",
     "backupAction": "Back Up Now"

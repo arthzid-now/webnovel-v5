@@ -4,29 +4,29 @@ import { UILanguage, Translations, LanguageContextType } from '../types';
 
 // Hardcoded translations to bypass module resolution issues.
 const enTranslations: Translations = {
-  "app": { "title": "Webnovel AI Studio" },
+  "app": { "title": "Inkvora" },
   "common": { "name": "Name", "description": "Description...", "summary": "Summary...", "generating": "Generating...", "generateWithAi": "Generate with AI", "confirm": "Confirm", "cancel": "Cancel", "failed": "Failed", "language": "Language", "save": "Save", "close": "Close", "download": "Download" },
   "apiKeyModal": { "title": "Enter Your Google AI API Key", "instruction": "To use this application, you need to provide your own Google AI API key. Your key is stored securely in your browser and is never sent to our servers.", "getApiKey": "Get your API key from Google AI Studio", "placeholder": "Enter your API key here", "saveButton": "Save and Start Writing" },
   "dashboard": { "title": "Your Dashboard", "subtitle": "Select a project or manage your universes.", "universeHub": "Universe Hub", "universeHubTooltip": "Manage your writing universes", "startNewStory": "Start New Story", "storyLibrary": "Story Library", "emptyLibraryTitle": "Your library is empty", "emptyLibrarySubtitle": "Time to write your first chapter!", "importStory": "Import Story from File", "importStoryTooltip": "Import story from .md file", "noGenres": "No genres", "noPlot": "No main plot defined.", "openStudio": "Open Studio", "editStory": "Edit Encyclopedia", "exportStory": "Export Manager", "deleteStory": "Delete Story", "deleteStoryConfirm": "Are you sure you want to permanently delete \"{{title}}\"?", "exportNotFound": "Story not found for export.", "importErrorFormat": "Invalid format: Could not find story encyclopedia data.", "importSuccess": "Story \"{{title}}\" imported successfully!", "importError": "Import failed", "changeApiKey": "Change API Key" },
   "universeHub": { "title": "Universe Hub", "subtitle": "Manage your reusable worlds and settings.", "backToDashboard": "Back to Dashboard", "createNew": "Create New Universe", "emptyTitle": "Your cosmos is awaiting creation", "emptySubtitle": "Create your first universe to reuse across multiple stories.", "import": "Import Universe from File", "importTooltip": "Import universe from .json file", "noDescription": "No description provided.", "edit": "Edit Universe", "export": "Export Universe", "delete": "Delete Universe", "deleteConfirm": "Are you sure you want to permanently delete the universe \"{{name}}\"? This cannot be undone.", "exportNotFound": "Universe not found for export.", "importErrorFormat": "Invalid universe file format.", "importSuccess": "Universe \"{{name}}\" imported successfully!", "importError": "Import failed" },
   "universeSetup": { "titleEdit": "Edit Universe", "titleCreate": "Create New Universe", "subtitleEdit": "Refine the details of your world.", "subtitleCreate": "Build a reusable world for your stories.", "coreDetails": "Core Details", "name": "Universe Name", "namePlaceholder": "e.g., The Ashen Empires", "descriptionPlaceholder": "A brief, one-sentence summary of this universe.", "worldAndLore": "World & Lore", "worldBuildingSummary": "World Building (Summary)", "magicSystemSummary": "System/Magic Rules (Summary)", "locations": "Locations", "factions": "Factions", "generalLore": "General Lore", "removeEntry": "Remove {{listTitle}} Entry", "addEntry": "Add {{listTitle}} Entry", "nameRequired": "Universe name is required.", "saveButton": "Save Universe", "createButton": "Create Universe" },
   "world": {
-      "subTabs": {
-        "geo": "Geography & Politics",
-        "nature": "Nature & Biology",
-        "power": "Power & Assets",
-        "history": "History & Culture"
-      }
+    "subTabs": {
+      "geo": "Geography & Politics",
+      "nature": "Nature & Biology",
+      "power": "Power & Assets",
+      "history": "History & Culture"
+    }
   },
-  "setup": { 
-    "titleEdit": "Edit Story Encyclopedia", 
-    "titleCreate": "Create a New Story", 
-    "subtitleEdit": "Refine the details of your world.", 
-    "subtitleCreate": "Start with a core idea, then let AI help you build the world.", 
-    "clearSection": "Clear this section", 
-    "submitDisabledTooltip": "Please fill out all sections", 
-    "submitButtonEdit": "Save Changes", 
-    "submitButtonCreate": "Create Story", 
+  "setup": {
+    "titleEdit": "Edit Story Encyclopedia",
+    "titleCreate": "Create a New Story",
+    "subtitleEdit": "Refine the details of your world.",
+    "subtitleCreate": "Start with a core idea, then let AI help you build the world.",
+    "clearSection": "Clear this section",
+    "submitDisabledTooltip": "Please fill out all sections",
+    "submitButtonEdit": "Save Changes",
+    "submitButtonCreate": "Create Story",
     "autoBuild": {
       "button": "Auto-Architect Story",
       "buttonDesc": "One-click generation of the entire story bible.",
@@ -62,13 +62,13 @@ const enTranslations: Translations = {
       "totalChapters": "Total Chapters",
       "wordsPerChapter": "Words Per Chapter"
     },
-    "world": { 
-      "worldBuilding": "World Building (Summary)", 
-      "magicSystem": "System/Magic (Summary)" 
-    }, 
-    "lore": { 
-      "locations": "Locations", 
-      "factions": "Factions", 
+    "world": {
+      "worldBuilding": "World Building (Summary)",
+      "magicSystem": "System/Magic (Summary)"
+    },
+    "lore": {
+      "locations": "Locations",
+      "factions": "Factions",
       "races": "Races / Species",
       "creatures": "Bestiary / Creatures",
       "powers": "Spells / Skills / Abilities",
@@ -78,8 +78,8 @@ const enTranslations: Translations = {
       "cultures": "Culture & Traditions",
       "general": "General Lore",
       "addEntry": "Add {{title}} Entry",
-      "removeEntry": "Remove {{title}} Entry" 
-    }, 
+      "removeEntry": "Remove {{title}} Entry"
+    },
     "characters": {
       "mainPlot": "Main Plot",
       "characters": "Characters",
@@ -125,21 +125,23 @@ const enTranslations: Translations = {
       "template": "Structure Template",
       "templateDesc": "Defines the narrative beats for this act."
     },
-    "tone": { 
-      "comedy": "Comedy (1-10)", "comedyDesc": "Controls frequency of jokes.", 
-      "romance": "Romance (1-10)", "romanceDesc": "Determines focus on relationships.", 
-      "action": "Action (1-10)", "actionDesc": "Dictates amount of combat.", 
-      "maturity": "Maturity (1-10)", "maturityDesc": "Controls adult themes.", 
+    "tone": {
+      "comedy": "Comedy (1-10)", "comedyDesc": "Controls frequency of jokes.",
+      "romance": "Romance (1-10)", "romanceDesc": "Determines focus on relationships.",
+      "action": "Action (1-10)", "actionDesc": "Dictates amount of combat.",
+      "maturity": "Maturity (1-10)", "maturityDesc": "Controls adult themes.",
       "pov": "Narrative Perspective (POV)", "povDesc": "Controls whose eyes the story is told through.",
-      "prose": "Prose Style", "showExample": "Show Example", "customStyleTitle": "Custom Prose Style by Example", "customStylePlaceholder": "Paste a text sample (up to {{maxChars}} characters, ~1000 words) here...", "customStyleOverride": "Note: Providing a sample will override the dropdown selection above." 
-    }, 
-    "universe": { "modalTitle": "Select a Universe for Your Story", "blankCanvas": "Blank Canvas", "blankCanvasDesc": "Build your world from scratch.", "realWorld": "Real World", "realWorldDesc": "Use the real world as a baseline.", "disguiseNames": "Disguise names", "fromLibrary": "From Library", "fromLibraryDesc": "Choose a world you already saved.", "noDataToSave": "No world data to save.", "enterNamePrompt": "Enter a name for this Universe:", "defaultDescription": "Universe for the story: {{title}}", "saveSuccess": "Universe \"{{name}}\" saved!", "saveToLibrary": "Save to Universe Library" } 
+      "prose": "Prose Style", "showExample": "Show Example", "customStyleTitle": "Custom Prose Style by Example", "customStylePlaceholder": "Paste a text sample (up to {{maxChars}} characters, ~1000 words) here...", "customStyleOverride": "Note: Providing a sample will override the dropdown selection above."
+    },
+    "universe": { "modalTitle": "Select a Universe for Your Story", "blankCanvas": "Blank Canvas", "blankCanvasDesc": "Build your world from scratch.", "realWorld": "Real World", "realWorldDesc": "Use the real world as a baseline.", "disguiseNames": "Disguise names", "fromLibrary": "From Library", "fromLibraryDesc": "Choose a world you already saved.", "noDataToSave": "No world data to save.", "enterNamePrompt": "Enter a name for this Universe:", "defaultDescription": "Universe for the story: {{title}}", "saveSuccess": "Universe \"{{name}}\" saved!", "saveToLibrary": "Save to Universe Library" }
   },
   "studio": { "deleteLastError": "Cannot delete the last chapter. Every story must have at least one chapter.", "deleteConfirm": "Are you sure you want to permanently delete the chapter \"{{title}}\"? This action cannot be undone.", "noChapterSelected": "Select a chapter to start writing or add a new one.", "mobile": { "openEncyclopedia": "Open Encyclopedia", "closeEncyclopedia": "Close Encyclopedia", "openChat": "Open AI Chat", "closeChat": "Close AI Chat" }, "zenMode": { "toggleSidebar": "Toggle Sidebar", "toggleChat": "Toggle Chat" } },
-  "sidebar": { "backToDashboard": "Back to Dashboard", "dashboard": "Dashboard", "exportStory": "Export Story (.md)", "editEncyclopedia": "Edit Encyclopedia", "universe": "Universe", "searchStory": "Global Search & Replace", "searchPlaceholder": "Search chapters...",
-    "chapters": { "title": "Chapters", "delete": "Delete Chapter", "add": "Add New Chapter", "addVolume": "Add Volume / Arc", "newVolume": "New Volume" }, 
-    "basicInfo": "Basic Info", "genre": "Genre", "setting": "Setting", "corePlot": "Core Plot", "mainPlot": "Main Plot", "storyArc": "Story Arc", "characters": "Characters", "relationships": "Relationships", "worldAndLore": { "title": "World & Lore", "worldSummary": "World Summary", "magicSummary": "System/Magic Summary" }, "tone": { "title": "Tone (out of 10)", "comedy": "Comedy", "romance": "Romance", "action": "Action", "maturity": "Maturity", "pov": "POV" }, "proseStyle": { "title": "Prose Style", "style": "Style", "custom": "Custom Style", "customActive": "Active (Sample Provided)" }, "character": { "roles": "Roles", "age": "Age", "gender": "Gender", "physical": "Physical Description", "voice": "Voice & Speech Style", "traits": "Personality", "habits": "Habits", "goal": "Goal", "principles": "Principles", "conflict": "Conflict" } },
-  "chapterEditor": { 
+  "sidebar": {
+    "backToDashboard": "Back to Dashboard", "dashboard": "Dashboard", "exportStory": "Export Story (.md)", "editEncyclopedia": "Edit Encyclopedia", "universe": "Universe", "searchStory": "Global Search & Replace", "searchPlaceholder": "Search chapters...",
+    "chapters": { "title": "Chapters", "delete": "Delete Chapter", "add": "Add New Chapter", "addVolume": "Add Volume / Arc", "newVolume": "New Volume" },
+    "basicInfo": "Basic Info", "genre": "Genre", "setting": "Setting", "corePlot": "Core Plot", "mainPlot": "Main Plot", "storyArc": "Story Arc", "characters": "Characters", "relationships": "Relationships", "worldAndLore": { "title": "World & Lore", "worldSummary": "World Summary", "magicSummary": "System/Magic Summary" }, "tone": { "title": "Tone (out of 10)", "comedy": "Comedy", "romance": "Romance", "action": "Action", "maturity": "Maturity", "pov": "POV" }, "proseStyle": { "title": "Prose Style", "style": "Style", "custom": "Custom Style", "customActive": "Active (Sample Provided)" }, "character": { "roles": "Roles", "age": "Age", "gender": "Gender", "physical": "Physical Description", "voice": "Voice & Speech Style", "traits": "Personality", "habits": "Habits", "goal": "Goal", "principles": "Principles", "conflict": "Conflict" }
+  },
+  "chapterEditor": {
     "statusEditing": "Editing...", "statusSaved": "Saved", "wordCount": "Word Count",
     "magicTools": "Magic Tools", "tools": "AI Tools", "rewrite": "Rewrite", "expand": "Expand", "fixGrammar": "Fix Grammar", "beatToProse": "Beat to Prose", "continue": "Continue Writing", "analyze": "Analyze Chapter", "analyzing": "Analyzing...", "selectTextHint": "Select text to use Magic Tools", "autoFormat": "Auto-Format Foreign Text"
   },
@@ -236,29 +238,29 @@ const enTranslations: Translations = {
 };
 
 const idTranslations: Translations = {
-  "app": { "title": "Studio AI Webnovel" },
+  "app": { "title": "Inkvora" },
   "common": { "name": "Nama", "description": "Deskripsi...", "summary": "Ringkasan...", "generating": "Menghasilkan...", "generateWithAi": "Buat dengan AI", "confirm": "Konfirmasi", "cancel": "Batal", "failed": "Gagal", "language": "Bahasa", "save": "Simpan", "close": "Tutup", "download": "Unduh" },
   "apiKeyModal": { "title": "Masukkan Kunci API Google AI Anda", "instruction": "Untuk menggunakan aplikasi ini, Anda perlu menyediakan kunci API Google AI Anda sendiri. Kunci Anda disimpan dengan aman di browser Anda dan tidak pernah dikirim ke server kami.", "getApiKey": "Dapatkan kunci API Anda dari Google AI Studio", "placeholder": "Masukkan kunci API Anda di sini", "saveButton": "Simpan dan Mulai Menulis" },
   "dashboard": { "title": "Dasbor Anda", "subtitle": "Pilih sebuah proyek atau kelola semesta Anda.", "universeHub": "Pusat Semesta", "universeHubTooltip": "Kelola semesta tulisan Anda", "startNewStory": "Mulai Cerita Baru", "storyLibrary": "Perpustakaan Cerita", "emptyLibraryTitle": "Perpustakaan Anda kosong", "emptyLibrarySubtitle": "Saatnya menulis bab pertama Anda!", "importStory": "Impor Cerita dari File", "importStoryTooltip": "Impor cerita dari file .md", "noGenres": "Tanpa genre", "noPlot": "Tidak ada plot utama yang ditentukan.", "openStudio": "Buka Studio", "editStory": "Edit Ensiklopedia", "exportStory": "Manajer Ekspor", "deleteStory": "Hapus Cerita", "deleteStoryConfirm": "Anda yakin ingin menghapus \"{{title}}\" secara permanen?", "exportNotFound": "Cerita tidak ditemukan untuk diekspor.", "importErrorFormat": "Format tidak valid: Tidak dapat menemukan data ensiklopedia cerita.", "importSuccess": "Cerita \"{{title}}\" berhasil diimpor!", "importError": "Impor gagal", "changeApiKey": "Ganti Kunci API" },
   "universeHub": { "title": "Pusat Semesta", "subtitle": "Kelola dunia dan latar yang dapat digunakan kembali.", "backToDashboard": "Kembali ke Dasbor", "createNew": "Buat Semesta Baru", "emptyTitle": "Kosmos Anda menanti ciptaan", "emptySubtitle": "Buat semesta pertama Anda untuk digunakan kembali di berbagai cerita.", "import": "Impor Semesta dari File", "importTooltip": "Impor semesta dari file .json", "noDescription": "Tidak ada deskripsi yang diberikan.", "edit": "Edit Semesta", "export": "Ekspor Semesta", "delete": "Hapus Semesta", "deleteConfirm": "Anda yakin ingin menghapus semesta \"{{name}}\" secara permanen? Tindakan ini tidak dapat diurungkan.", "exportNotFound": "Semesta tidak ditemukan untuk diekspor.", "importErrorFormat": "Format file semesta tidak valid.", "importSuccess": "Semesta \"{{name}}\" berhasil diimpor!", "importError": "Impor gagal" },
   "universeSetup": { "titleEdit": "Edit Semesta", "titleCreate": "Buat Semesta Baru", "subtitleEdit": "Sempurnakan detail dunia Anda.", "subtitleCreate": "Bangun dunia yang dapat digunakan kembali untuk cerita Anda.", "coreDetails": "Detail Inti", "name": "Nama Semesta", "namePlaceholder": "contoh: Kekaisaran Kelabu", "descriptionPlaceholder": "Ringkasan singkat satu kalimat tentang semesta ini.", "worldAndLore": "Dunia & Lore", "worldBuildingSummary": "Pembangunan Dunia (Ringkasan)", "magicSystemSummary": "Aturan Sistem/Sihir (Ringkasan)", "locations": "Lokasi", "factions": "Faksi", "generalLore": "Lore Umum", "removeEntry": "Hapus Entri {{listTitle}}", "addEntry": "Tambah Entri {{listTitle}}", "nameRequired": "Nama semesta harus diisi.", "saveButton": "Simpan Semesta", "createButton": "Buat Semesta" },
   "world": {
-      "subTabs": {
-        "geo": "Geografi & Politik",
-        "nature": "Alam & Biologi",
-        "power": "Kekuatan & Aset",
-        "history": "Sejarah & Budaya"
-      }
+    "subTabs": {
+      "geo": "Geografi & Politik",
+      "nature": "Alam & Biologi",
+      "power": "Kekuatan & Aset",
+      "history": "Sejarah & Budaya"
+    }
   },
-  "setup": { 
-    "titleEdit": "Edit Ensiklopedia Cerita", 
-    "titleCreate": "Buat Cerita Baru", 
-    "subtitleEdit": "Sempurnakan detail dunia Anda.", 
-    "subtitleCreate": "Mulai dengan ide inti, lalu biarkan AI membantu Anda membangun dunia.", 
-    "clearSection": "Bersihkan bagian ini", 
-    "submitDisabledTooltip": "Harap isi semua bagian", 
-    "submitButtonEdit": "Simpan Perubahan", 
-    "submitButtonCreate": "Buat Cerita", 
+  "setup": {
+    "titleEdit": "Edit Ensiklopedia Cerita",
+    "titleCreate": "Buat Cerita Baru",
+    "subtitleEdit": "Sempurnakan detail dunia Anda.",
+    "subtitleCreate": "Mulai dengan ide inti, lalu biarkan AI membantu Anda membangun dunia.",
+    "clearSection": "Bersihkan bagian ini",
+    "submitDisabledTooltip": "Harap isi semua bagian",
+    "submitButtonEdit": "Simpan Perubahan",
+    "submitButtonCreate": "Buat Cerita",
     "autoBuild": {
       "button": "Auto-Arsitek Cerita",
       "buttonDesc": "Hasilkan seluruh ensiklopedia cerita dengan satu klik.",
@@ -294,13 +296,13 @@ const idTranslations: Translations = {
       "totalChapters": "Total Bab",
       "wordsPerChapter": "Kata per Bab"
     },
-    "world": { 
-      "worldBuilding": "Pembangunan Dunia (Ringkasan)", 
-      "magicSystem": "Sistem/Sihir (Ringkasan)" 
-    }, 
-    "lore": { 
-      "locations": "Lokasi", 
-      "factions": "Faksi", 
+    "world": {
+      "worldBuilding": "Pembangunan Dunia (Ringkasan)",
+      "magicSystem": "Sistem/Sihir (Ringkasan)"
+    },
+    "lore": {
+      "locations": "Lokasi",
+      "factions": "Faksi",
       "races": "Ras / Spesies",
       "creatures": "Bestiary / Makhluk",
       "powers": "Mantra / Skill / Kemampuan",
@@ -310,25 +312,27 @@ const idTranslations: Translations = {
       "cultures": "Budaya & Tradisi",
       "general": "Lore Umum",
       "addEntry": "Tambah Entri {{title}}",
-      "removeEntry": "Hapus Entri {{title}}" 
-    }, 
-    "characters": { "mainPlot": "Plot Utama", "characters": "Karakter", "relationships": "Hubungan", "add": "Tambah Karakter", "addRelationship": "Tambah Hubungan", "generateRelationships": "Buat Hubungan", "relationshipsNeed2": "Perlu min. 2 karakter", "character1": "Karakter 1", "character2": "Karakter 2", "relationshipType": "Jenis Hubungan", "newCharacter": "Karakter Baru", "generateThis": "Buat Karakter Ini", "delete": "Hapus Karakter", "name": "Nama", "roles": "Peran", "rolesPlaceholder": "Tambah peran (e.g., Rival) lalu tekan Enter", "age": "Usia", "gender": "Gender", "physical": "Deskripsi Fisik", "voice": "Suara & Gaya Bicara", "traits": "Sifat", "habits": "Kebiasaan", "goal": "Tujuan", "principles": "Prinsip", "conflict": "Konflik" }, 
-    "arc": { "act": "Babak", "actTitlePlaceholder": "Judul Babak", "actDescPlaceholder": "Deskripsi babak...", "generateAct": "Buat Babak {{index}}", "plotPoints": "Poin Plot", "addPoint": "Tambah Poin", "addAct": "Tambah Babak", "chapters": "Bab", "start": "Awal", "end": "Akhir", "template": "Templat Struktur", "templateDesc": "Mendefinisikan irama naratif untuk babak ini." }, 
-    "tone": { 
-      "comedy": "Komedi (1-10)", "comedyDesc": "Mengontrol frekuensi lelucon.", 
-      "romance": "Romansa (1-10)", "romanceDesc": "Menentukan fokus pada hubungan.", 
-      "action": "Aksi (1-10)", "actionDesc": "Menentukan jumlah pertempuran.", 
-      "maturity": "Dewasa (1-10)", "maturityDesc": "Mengontrol tema dewasa.", 
+      "removeEntry": "Hapus Entri {{title}}"
+    },
+    "characters": { "mainPlot": "Plot Utama", "characters": "Karakter", "relationships": "Hubungan", "add": "Tambah Karakter", "addRelationship": "Tambah Hubungan", "generateRelationships": "Buat Hubungan", "relationshipsNeed2": "Perlu min. 2 karakter", "character1": "Karakter 1", "character2": "Karakter 2", "relationshipType": "Jenis Hubungan", "newCharacter": "Karakter Baru", "generateThis": "Buat Karakter Ini", "delete": "Hapus Karakter", "name": "Nama", "roles": "Peran", "rolesPlaceholder": "Tambah peran (e.g., Rival) lalu tekan Enter", "age": "Usia", "gender": "Gender", "physical": "Deskripsi Fisik", "voice": "Suara & Gaya Bicara", "traits": "Sifat", "habits": "Kebiasaan", "goal": "Tujuan", "principles": "Prinsip", "conflict": "Konflik" },
+    "arc": { "act": "Babak", "actTitlePlaceholder": "Judul Babak", "actDescPlaceholder": "Deskripsi babak...", "generateAct": "Buat Babak {{index}}", "plotPoints": "Poin Plot", "addPoint": "Tambah Poin", "addAct": "Tambah Babak", "chapters": "Bab", "start": "Awal", "end": "Akhir", "template": "Templat Struktur", "templateDesc": "Mendefinisikan irama naratif untuk babak ini." },
+    "tone": {
+      "comedy": "Komedi (1-10)", "comedyDesc": "Mengontrol frekuensi lelucon.",
+      "romance": "Romansa (1-10)", "romanceDesc": "Menentukan fokus pada hubungan.",
+      "action": "Aksi (1-10)", "actionDesc": "Menentukan jumlah pertempuran.",
+      "maturity": "Dewasa (1-10)", "maturityDesc": "Mengontrol tema dewasa.",
       "pov": "Sudut Pandang (POV)", "povDesc": "Mengontrol dari mata siapa cerita dikisahkan.",
-      "prose": "Gaya Prosa", "showExample": "Lihat Contoh", "customStyleTitle": "Gaya Prosa Kustom dengan Contoh", "customStylePlaceholder": "Tempel contoh teks (hingga {{maxChars}} karakter, ~1000 kata) di sini...", "customStyleOverride": "Catatan: Memberikan contoh akan mengesampingkan pilihan di atas." 
-    }, 
-    "universe": { "modalTitle": "Pilih Semesta untuk Cerita Anda", "blankCanvas": "Kanvas Kosong", "blankCanvasDesc": "Bangun dunia Anda dari awal.", "realWorld": "Dunia Nyata", "realWorldDesc": "Gunakan dunia nyata sebagai dasar.", "disguiseNames": "Samarkan nama", "fromLibrary": "Dari Pustaka", "fromLibraryDesc": "Pilih dunia yang sudah Anda simpan.", "noDataToSave": "Tidak ada data dunia untuk disimpan.", "enterNamePrompt": "Masukkan nama untuk Semesta ini:", "defaultDescription": "Semesta untuk cerita: {{title}}", "saveSuccess": "Semesta \"{{name}}\" berhasil disimpan!", "saveToLibrary": "Simpan ke Pustaka Semesta" } 
+      "prose": "Gaya Prosa", "showExample": "Lihat Contoh", "customStyleTitle": "Gaya Prosa Kustom dengan Contoh", "customStylePlaceholder": "Tempel contoh teks (hingga {{maxChars}} karakter, ~1000 kata) di sini...", "customStyleOverride": "Catatan: Memberikan contoh akan mengesampingkan pilihan di atas."
+    },
+    "universe": { "modalTitle": "Pilih Semesta untuk Cerita Anda", "blankCanvas": "Kanvas Kosong", "blankCanvasDesc": "Bangun dunia Anda dari awal.", "realWorld": "Dunia Nyata", "realWorldDesc": "Gunakan dunia nyata sebagai dasar.", "disguiseNames": "Samarkan nama", "fromLibrary": "Dari Pustaka", "fromLibraryDesc": "Pilih dunia yang sudah Anda simpan.", "noDataToSave": "Tidak ada data dunia untuk disimpan.", "enterNamePrompt": "Masukkan nama untuk Semesta ini:", "defaultDescription": "Semesta untuk cerita: {{title}}", "saveSuccess": "Semesta \"{{name}}\" berhasil disimpan!", "saveToLibrary": "Simpan ke Pustaka Semesta" }
   },
   "studio": { "deleteLastError": "Tidak dapat menghapus bab terakhir. Setiap cerita harus memiliki setidaknya satu bab.", "deleteConfirm": "Anda yakin ingin menghapus bab \"{{title}}\" secara permanen? Tindakan ini tidak dapat diurungkan.", "noChapterSelected": "Pilih bab untuk mulai menulis atau tambahkan bab baru.", "mobile": { "openEncyclopedia": "Buka Ensiklopedia", "closeEncyclopedia": "Tutup Ensiklopedia", "openChat": "Buka Obrolan AI", "closeChat": "Tutup Obrolan AI" }, "zenMode": { "toggleSidebar": "Buka/Tutup Sidebar", "toggleChat": "Buka/Tutup Chat" } },
-  "sidebar": { "backToDashboard": "Kembali ke Dasbor", "dashboard": "Dasbor", "exportStory": "Ekspor Cerita (.md)", "editEncyclopedia": "Edit Ensiklopedia", "universe": "Semesta", "searchStory": "Cari & Ganti Global", "searchPlaceholder": "Cari bab...",
-    "chapters": { "title": "Bab", "delete": "Hapus Bab", "add": "Tambah Bab Baru", "addVolume": "Tambah Volume / Babak", "newVolume": "Volume Baru" }, 
-    "basicInfo": "Info Dasar", "genre": "Genre", "setting": "Latar", "corePlot": "Plot Inti", "mainPlot": "Plot Utama", "storyArc": "Alur Cerita", "characters": "Karakter", "relationships": "Hubungan", "worldAndLore": { "title": "Dunia & Lore", "worldSummary": "Ringkasan Dunia", "magicSummary": "Ringkasan Sistem/Sihir" }, "tone": { "title": "Nada (dari 10)", "comedy": "Komedi", "romance": "Romansa", "action": "Aksi", "maturity": "Dewasa", "pov": "Sudut Pandang (POV)" }, "proseStyle": { "title": "Gaya Prosa", "style": "Gaya", "custom": "Gaya Kustom", "customActive": "Aktif (Contoh Disediakan)" }, "character": { "roles": "Peran", "age": "Usia", "gender": "Gender", "physical": "Deskripsi Fisik", "voice": "Suara & Gaya Bicara", "traits": "Sifat", "habits": "Kebiasaan", "goal": "Tujuan", "principles": "Prinsip", "conflict": "Konflik" } },
-  "chapterEditor": { 
+  "sidebar": {
+    "backToDashboard": "Kembali ke Dasbor", "dashboard": "Dasbor", "exportStory": "Ekspor Cerita (.md)", "editEncyclopedia": "Edit Ensiklopedia", "universe": "Semesta", "searchStory": "Cari & Ganti Global", "searchPlaceholder": "Cari bab...",
+    "chapters": { "title": "Bab", "delete": "Hapus Bab", "add": "Tambah Bab Baru", "addVolume": "Tambah Volume / Babak", "newVolume": "Volume Baru" },
+    "basicInfo": "Info Dasar", "genre": "Genre", "setting": "Latar", "corePlot": "Plot Inti", "mainPlot": "Plot Utama", "storyArc": "Alur Cerita", "characters": "Karakter", "relationships": "Hubungan", "worldAndLore": { "title": "Dunia & Lore", "worldSummary": "Ringkasan Dunia", "magicSummary": "Ringkasan Sistem/Sihir" }, "tone": { "title": "Nada (dari 10)", "comedy": "Komedi", "romance": "Romansa", "action": "Aksi", "maturity": "Dewasa", "pov": "Sudut Pandang (POV)" }, "proseStyle": { "title": "Gaya Prosa", "style": "Gaya", "custom": "Gaya Kustom", "customActive": "Aktif (Contoh Disediakan)" }, "character": { "roles": "Peran", "age": "Usia", "gender": "Gender", "physical": "Deskripsi Fisik", "voice": "Suara & Gaya Bicara", "traits": "Sifat", "habits": "Kebiasaan", "goal": "Tujuan", "principles": "Prinsip", "conflict": "Konflik" }
+  },
+  "chapterEditor": {
     "statusEditing": "Menyunting...", "statusSaved": "Tersimpan", "wordCount": "Jumlah Kata",
     "magicTools": "Alat Ajaib", "tools": "Alat AI", "rewrite": "Tulis Ulang", "expand": "Perluas", "fixGrammar": "Perbaiki Tata Bahasa", "beatToProse": "Poin ke Prosa", "continue": "Lanjut Menulis", "analyze": "Analisa Bab", "analyzing": "Menganalisa...", "selectTextHint": "Pilih teks untuk menggunakan Alat Ajaib", "autoFormat": "Format Teks Asing Otomatis"
   },
@@ -451,22 +455,22 @@ export const LanguageProvider: React.FC<{ children: React.ReactNode }> = ({ chil
       console.error("Could not save UI language to localStorage", error);
     }
   }, [uiLang]);
-  
+
   const setUiLang = (lang: UILanguage) => {
-      setUiLangState(lang);
+    setUiLangState(lang);
   };
 
   const t = useCallback((key: string, options?: { [key: string]: string | number }): string => {
     const keys = key.split('.');
     let result: any = translations[uiLang];
-    
+
     for (const k of keys) {
       result = result?.[k];
       if (result === undefined) {
         // Fallback to English if translation is missing
         result = translations['en'];
         for (const fk of keys) {
-            result = result?.[fk];
+          result = result?.[fk];
         }
         if (result === undefined) return key; // Return key if not found in English either
       }

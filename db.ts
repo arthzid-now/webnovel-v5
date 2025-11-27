@@ -1,5 +1,5 @@
 import Dexie, { Table } from 'dexie';
-import { StoryEncyclopedia, Universe, Message, ChapterVersion } from './types';
+import { StoryEncyclopedia, Universe, Message, ChapterVersion } from './types.ts';
 
 // Define types for Chat Session and Backups distinct from the main types
 export interface ChatSession {
