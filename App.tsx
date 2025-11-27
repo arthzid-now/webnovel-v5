@@ -1,6 +1,4 @@
-
-import React, { useState, useEffect, useCallback, useRef } from 'react';
-import ReactDOM from 'react-dom/client';
+import React, { useState, useEffect, useRef } from 'react';
 const StoryEncyclopediaSetup = React.lazy(() => import('./components/StoryEncyclopediaSetup'));
 const Dashboard = React.lazy(() => import('./components/Dashboard'));
 const WritingStudio = React.lazy(() => import('./components/WritingStudio'));
@@ -10,36 +8,30 @@ import ApiKeyModal from './components/ApiKeyModal';
 import NotificationToast from './components/NotificationToast';
 import { SparklesIcon } from './components/icons/SparklesIcon';
 import { SpinnerIcon } from './components/icons/SpinnerIcon';
-import { StoryEncyclopedia, Character, Chapter, Universe } from './types';
+import { StoryEncyclopedia, Universe } from './types';
 import { useLanguage } from './contexts/LanguageContext';
-import { useStory } from './contexts/StoryContext'; // Import useStory
+import { useStory } from './contexts/StoryContext';
 import LanguageToggle from './components/LanguageToggle';
 import { KeyIcon } from './components/icons/KeyIcon';
-import { marked } from 'marked';
-import JSZip from 'jszip';
 import { db } from './db';
 
-import { createEmptyCharacter } from './utils';
 import { migrateStoryData, migrateUniverseData } from './services/migrationService';
 import { handleExportStory, downloadFile } from './services/exportService';
-import { GoogleOAuthProvider, CredentialResponse } from '@react-oauth/google';
-import { jwtDecode } from 'jwt-decode';
+import { syncService } from './services/syncService';
 import { LoginButton } from './components/auth/LoginButton';
 import { UserProfile } from './components/auth/UserProfile';
 
+import { auth, googleProvider } from './firebase';
+import { signInWithPopup, signOut, onAuthStateChanged } from 'firebase/auth';
+
 const API_KEY_STORAGE_KEY = 'google_ai_api_key';
 const BACKUP_THRESHOLD = 2000;
-const GOOGLE_CLIENT_ID = import.meta.env.VITE_GOOGLE_CLIENT_ID || 'PLACEHOLDER_CLIENT_ID';
 
 interface User {
     name: string;
     email: string;
     picture: string;
 }
-
-
-
-
 
 type View = 'dashboard' | 'setup' | 'studio' | 'universeHub' | 'universeSetup';
 
@@ -64,6 +56,58 @@ const App: React.FC = () => {
 
     const { t } = useLanguage();
     const { loadStory, unloadStory, currentStory } = useStory();
+
+    // Firebase Auth Listener
+    useEffect(() => {
+        if (!auth) {
+            console.error("Auth not initialized");
+            return;
+        }
+        const unsubscribe = onAuthStateChanged(auth, (currentUser) => {
+            if (currentUser) {
+                setUser({
+                    name: currentUser.displayName || 'User',
+                    email: currentUser.email || '',
+                    picture: currentUser.photoURL || ''
+                });
+            } else {
+                setUser(null);
+            }
+        });
+        return () => unsubscribe();
+    }, []);
+
+    const handleLogin = async () => {
+        try {
+            await signInWithPopup(auth, googleProvider);
+        } catch (error) {
+            console.error("Login Failed:", error);
+        }
+    };
+
+    const handleLogout = async () => {
+        try {
+            await signOut(auth);
+            setUser(null);
+            // Optional: Clear local data on logout? 
+            // For now, let's keep it to allow offline access, 
+            // but maybe warn user if they are on public device.
+        } catch (error) {
+            console.error("Logout Failed:", error);
+        }
+    };
+
+    // Sync on user change (login)
+    useEffect(() => {
+        if (user && auth?.currentUser?.uid) {
+            const uid = auth.currentUser.uid;
+            syncService.syncUserData(uid).then(() => {
+                refreshStoriesList();
+                setToastMessage("Cloud Sync Complete");
+                setTimeout(() => setToastMessage(null), 3000);
+            });
+        }
+    }, [user]);
 
     const performMigration = async () => {
         if (migrationRan.current) return;
@@ -282,8 +326,6 @@ const App: React.FC = () => {
         refreshStoriesList();
     };
 
-
-
     const onExportStory = (storyId: string, format: 'epub' | 'html' | 'txt' | 'json' | 'md' | 'pdf' = 'md') => {
         handleExportStory(storyId, currentStory, t, setToastMessage, format);
     };
@@ -315,25 +357,6 @@ const App: React.FC = () => {
     const handleTriggerImport = (type: 'story' | 'universe') => {
         if (type === 'story') storyFileInputRef.current?.click();
         if (type === 'universe') universeFileInputRef.current?.click();
-    };
-
-    const handleLoginSuccess = (credentialResponse: CredentialResponse) => {
-        if (credentialResponse.credential) {
-            try {
-                const decoded: any = jwtDecode(credentialResponse.credential);
-                setUser({
-                    name: decoded.name,
-                    email: decoded.email,
-                    picture: decoded.picture
-                });
-            } catch (error) {
-                console.error("Login Failed:", error);
-            }
-        }
-    };
-
-    const handleLogout = () => {
-        setUser(null);
     };
 
     const renderContent = () => {
@@ -407,58 +430,67 @@ const App: React.FC = () => {
     }
 
     return (
-        <GoogleOAuthProvider clientId={GOOGLE_CLIENT_ID}>
-            <div className="min-h-screen bg-slate-900 text-white flex flex-col font-sans">
-                {showApiKeyModal && <ApiKeyModal onSave={handleSaveApiKey} onClose={() => setShowApiKeyModal(false)} />}
-                {toastMessage && activeStoryId && view === 'studio' && (
-                    <NotificationToast
-                        message={toastMessage}
-                        actionLabel={t('toast.backupAction')}
-                        onAction={() => onExportStory(activeStoryId, 'json')}
-                        onClose={() => setToastMessage(null)}
-                    />
-                )}
+        <div className="min-h-screen bg-slate-900 text-white flex flex-col font-sans">
+            {showApiKeyModal && <ApiKeyModal onSave={handleSaveApiKey} onClose={() => setShowApiKeyModal(false)} />}
+            {toastMessage && activeStoryId && view === 'studio' && (
+                <NotificationToast
+                    message={toastMessage}
+                    actionLabel={t('toast.backupAction')}
+                    onAction={() => onExportStory(activeStoryId, 'json')}
+                    onClose={() => setToastMessage(null)}
+                />
+            )}
 
-                <header className="bg-slate-800/50 backdrop-blur-sm border-b border-slate-700 p-4 sticky top-0 z-20">
-                    <div className="container mx-auto flex items-center justify-between">
-                        <button onClick={handleGoToDashboard} className="flex items-center gap-3">
-                            <SparklesIcon className="w-8 h-8 text-indigo-400" />
-                            <h1 className="text-xl font-bold text-slate-200">
-                                {t('app.title')}
-                            </h1>
-                        </button>
-                        <div className="flex items-center gap-4">
-                            {apiKey && (
-                                <button
-                                    onClick={handleChangeApiKey}
-                                    className="p-2 rounded-full text-slate-400 hover:bg-slate-700 hover:text-indigo-400 transition-colors"
-                                    title={t('dashboard.changeApiKey')}
-                                >
-                                    <KeyIcon className="w-5 h-5" />
-                                </button>
-                            )}
-                            <LanguageToggle />
-                            {user ? (
-                                <UserProfile user={user} onLogout={handleLogout} />
-                            ) : (
-                                <LoginButton onSuccess={handleLoginSuccess} onError={() => console.log('Login Failed')} />
-                            )}
-                        </div>
+            <header className="bg-slate-800/50 backdrop-blur-sm border-b border-slate-700 p-4 sticky top-0 z-20">
+                <div className="container mx-auto flex items-center justify-between">
+                    <button onClick={handleGoToDashboard} className="flex items-center gap-3">
+                        <SparklesIcon className="w-8 h-8 text-indigo-400" />
+                        <h1 className="text-xl font-bold text-slate-200">
+                            {t('app.title')}
+                        </h1>
+                    </button>
+                    <div className="flex items-center gap-4">
+                        {apiKey && (
+                            <button
+                                onClick={handleChangeApiKey}
+                                className="p-2 rounded-full text-slate-400 hover:bg-slate-700 hover:text-indigo-400 transition-colors"
+                                title={t('dashboard.changeApiKey')}
+                            >
+                                <KeyIcon className="w-5 h-5" />
+                            </button>
+                        )}
+                        <LanguageToggle />
+                        {user ? (
+                            <UserProfile
+                                user={user}
+                                onLogout={handleLogout}
+                                onSync={async () => {
+                                    if (user && auth?.currentUser?.uid) {
+                                        await syncService.syncUserData(auth.currentUser.uid);
+                                        await refreshStoriesList();
+                                        setToastMessage("Synced with Cloud");
+                                        setTimeout(() => setToastMessage(null), 3000);
+                                    }
+                                }}
+                            />
+                        ) : (
+                            <LoginButton onClick={handleLogin} />
+                        )}
                     </div>
-                </header>
-                <main className="flex-grow container mx-auto flex overflow-hidden">
-                    <React.Suspense fallback={
-                        <div className="flex-grow flex items-center justify-center text-slate-400">
-                            <SpinnerIcon className="w-8 h-8 animate-spin" />
-                        </div>
-                    }>
-                        {renderContent()}
-                    </React.Suspense>
-                </main>
-                <input type="file" ref={storyFileInputRef} onChange={(e) => e.target.files && handleImportStory(e.target.files[0])} accept=".md,text/markdown" className="hidden" />
-                <input type="file" ref={universeFileInputRef} onChange={(e) => e.target.files && handleImportUniverse(e.target.files[0])} accept=".json,application/json" className="hidden" />
-            </div>
-        </GoogleOAuthProvider>
+                </div>
+            </header>
+            <main className="flex-grow container mx-auto flex overflow-hidden">
+                <React.Suspense fallback={
+                    <div className="flex-grow flex items-center justify-center text-slate-400">
+                        <SpinnerIcon className="w-8 h-8 animate-spin" />
+                    </div>
+                }>
+                    {renderContent()}
+                </React.Suspense>
+            </main>
+            <input type="file" ref={storyFileInputRef} onChange={(e) => e.target.files && handleImportStory(e.target.files[0])} accept=".md,text/markdown" className="hidden" />
+            <input type="file" ref={universeFileInputRef} onChange={(e) => e.target.files && handleImportUniverse(e.target.files[0])} accept=".json,application/json" className="hidden" />
+        </div>
     );
 };
 

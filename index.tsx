@@ -4,6 +4,8 @@ import App from './App';
 import { LanguageProvider } from './contexts/LanguageContext';
 import { StoryProvider } from './contexts/StoryContext';
 
+import ErrorBoundary from './components/ErrorBoundary';
+
 const rootElement = document.getElementById('root');
 if (!rootElement) {
   throw new Error("Could not find root element to mount to");
@@ -12,10 +14,12 @@ if (!rootElement) {
 const root = ReactDOM.createRoot(rootElement);
 root.render(
   <React.StrictMode>
-    <LanguageProvider>
-      <StoryProvider>
-        <App />
-      </StoryProvider>
-    </LanguageProvider>
+    <ErrorBoundary>
+      <LanguageProvider>
+        <StoryProvider>
+          <App />
+        </StoryProvider>
+      </LanguageProvider>
+    </ErrorBoundary>
   </React.StrictMode>
 );

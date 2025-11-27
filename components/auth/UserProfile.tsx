@@ -1,5 +1,4 @@
-import React from 'react';
-import { googleLogout } from '@react-oauth/google';
+import React, { useState } from 'react';
 
 interface UserProfileProps {
     user: {
@@ -8,12 +7,18 @@ interface UserProfileProps {
         picture: string;
     };
     onLogout: () => void;
+    onSync?: () => Promise<void>;
 }
 
-export const UserProfile: React.FC<UserProfileProps> = ({ user, onLogout }) => {
-    const handleLogout = () => {
-        googleLogout();
-        onLogout();
+export const UserProfile: React.FC<UserProfileProps> = ({ user, onLogout, onSync }) => {
+    const [isSyncing, setIsSyncing] = useState(false);
+
+    const handleSync = async () => {
+        if (onSync) {
+            setIsSyncing(true);
+            await onSync();
+            setIsSyncing(false);
+        }
     };
 
     return (
@@ -23,9 +28,23 @@ export const UserProfile: React.FC<UserProfileProps> = ({ user, onLogout }) => {
                 <p className="text-slate-200 font-medium leading-none mb-0.5">{user.name}</p>
                 <p className="text-slate-400 text-[10px] leading-none">{user.email}</p>
             </div>
+
+            {onSync && (
+                <button
+                    onClick={handleSync}
+                    disabled={isSyncing}
+                    className={`ml-2 p-1.5 text-slate-400 hover:text-indigo-400 hover:bg-slate-700/50 rounded-full transition-all ${isSyncing ? 'animate-spin text-indigo-400' : ''}`}
+                    title="Sync to Cloud"
+                >
+                    <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 20 20" fill="currentColor" className="w-4 h-4">
+                        <path fillRule="evenodd" d="M15.312 11.424a5.5 5.5 0 01-9.201 2.466l-.312-.311h2.433a.75.75 0 000-1.5H3.989a.75.75 0 00-.75.75v4.242a.75.75 0 001.5 0v-2.43l.31.31a7 7 0 0011.712-3.138.75.75 0 00-1.449-.39zm1.23-3.723a.75.75 0 00.219-.53V2.929a.75.75 0 00-1.5 0v2.433l-.31-.31a7 7 0 00-11.712 3.138.75.75 0 001.449.39 5.5 5.5 0 019.201-2.466l.312.312H11.75a.75.75 0 000 1.5h4.243a.75.75 0 00.53-.219z" clipRule="evenodd" />
+                    </svg>
+                </button>
+            )}
+
             <button
-                onClick={handleLogout}
-                className="ml-2 p-1.5 text-slate-400 hover:text-red-400 hover:bg-slate-700/50 rounded-full transition-all"
+                onClick={onLogout}
+                className="ml-1 p-1.5 text-slate-400 hover:text-red-400 hover:bg-slate-700/50 rounded-full transition-all"
                 title="Logout"
             >
                 <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 20 20" fill="currentColor" className="w-4 h-4">
