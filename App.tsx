@@ -80,7 +80,7 @@ const App: React.FC = () => {
                         email: currentUser.email,
                         displayName: currentUser.displayName,
                         photoURL: currentUser.photoURL,
-                        isPremium: false, // Default to free tier (won't overwrite if already true)
+                        // isPremium: false, // REMOVED: Do not reset premium status on login
                         lastLogin: new Date().toISOString()
                     }, { merge: true }); // merge: true preserves existing fields
                 } catch (error) {
