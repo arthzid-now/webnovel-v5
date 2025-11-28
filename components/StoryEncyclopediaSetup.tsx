@@ -122,6 +122,7 @@ const StoryEncyclopediaSetup: React.FC<StoryEncyclopediaSetupProps> = ({
         isGeneratingExample,
         handleGenerate,
         handleAutoBuild,
+        cancelAutoBuild,
         handleGenerateStyleExample
     } = useStoryGeneration({
         apiKey,
@@ -232,8 +233,16 @@ const StoryEncyclopediaSetup: React.FC<StoryEncyclopediaSetupProps> = ({
 
     return (
         <div className="w-full p-4">
-            {isAutoBuilding && <AutoBuildModal progress={buildProgress} steps={completedSteps} onClose={() => setIsAutoBuilding(false)} error={error} timeRemaining={timeRemaining} />}
-            {showUniverseModal && (
+            {isAutoBuilding && (
+                <AutoBuildModal
+                    progress={buildProgress}
+                    steps={completedSteps}
+                    onClose={() => setIsAutoBuilding(false)}
+                    error={error}
+                    timeRemaining={timeRemaining}
+                    onCancel={cancelAutoBuild}
+                />
+            )}{showUniverseModal && (
                 <div className="fixed inset-0 bg-slate-900/80 backdrop-blur-sm z-50 flex items-center justify-center p-4">
                     <div className="bg-slate-800 border border-slate-700 rounded-lg shadow-xl max-w-4xl w-full p-6 space-y-6 flex flex-col max-h-[90vh]">
                         <h2 className="text-2xl font-bold text-indigo-400 flex-shrink-0">{t('setup.universe.modalTitle')}</h2>

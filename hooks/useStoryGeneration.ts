@@ -1,4 +1,4 @@
-import React, { useState } from 'react';
+import React, { useState, useRef } from 'react';
 import { StoryEncyclopedia, StoryArcAct, LoreEntry } from '../types.ts';
 import { generateStoryEncyclopediaSection } from '../services/geminiService.ts';
 
@@ -34,6 +34,7 @@ export const useStoryGeneration = ({
     const [isGeneratingExample, setIsGeneratingExample] = useState(false);
 
     const [timeRemaining, setTimeRemaining] = useState<number | null>(null);
+    const abortControllerRef = useRef<AbortController | null>(null);
 
     const delay = (ms: number) => new Promise(resolve => setTimeout(resolve, ms));
 
@@ -108,50 +109,74 @@ export const useStoryGeneration = ({
         setBuildProgress('basic');
         setCompletedSteps({});
         setError(null);
+        setError(null);
         setTimeRemaining(60); // Initial estimate: 60 seconds
+        abortControllerRef.current = new AbortController();
 
         let currentData = { ...formData };
 
+        const checkCancelled = () => {
+            if (abortControllerRef.current?.signal.aborted) {
+                throw new Error('Cancelled by user');
+            }
+        };
+
         try {
             // Step 1: Basic Info (~3s)
+            checkCancelled();
             const basicRes = await generateStoryEncyclopediaSection(apiKey, 'basic', currentData, contentLanguage, { idea: initialIdea }, {}, userIsPremium);
+            checkCancelled();
             currentData = { ...currentData, ...basicRes };
             setFormData(currentData);
             setCompletedSteps(prev => ({ ...prev, basic: true }));
             setTimeRemaining(55);
 
             await delay(2000); // Cool-down
+            checkCancelled();
 
             // Step 2: Core Story (~8s)
             setBuildProgress('core');
             const coreRes = await generateStoryEncyclopediaSection(apiKey, 'core', currentData, contentLanguage, {}, userIsPremium);
+            checkCancelled();
             currentData = { ...currentData, ...coreRes };
             setFormData(currentData);
             setCompletedSteps(prev => ({ ...prev, core: true }));
             setTimeRemaining(45);
 
             await delay(2000); // Cool-down
+            checkCancelled();
 
             // Step 3: World Building (~15s)
             setBuildProgress('world');
             const worldRes = await generateStoryEncyclopediaSection(apiKey, 'worldLore', currentData, contentLanguage, {}, userIsPremium);
+            checkCancelled();
             await delay(1000);
+            checkCancelled();
             const natureRes = await generateStoryEncyclopediaSection(apiKey, 'world_nature', currentData, contentLanguage, {}, userIsPremium);
+            checkCancelled();
             await delay(1000);
+            checkCancelled();
             const powerRes = await generateStoryEncyclopediaSection(apiKey, 'world_power', currentData, contentLanguage, {}, userIsPremium);
+            checkCancelled();
             await delay(1000);
+            checkCancelled();
             const historyRes = await generateStoryEncyclopediaSection(apiKey, 'world_history', currentData, contentLanguage, {}, userIsPremium);
+            checkCancelled();
 
             currentData = { ...currentData, locations: mergeUnique(currentData.locations, worldRes.locations || []), factions: mergeUnique(currentData.factions, worldRes.factions || []), lore: mergeUnique(currentData.lore, worldRes.lore || []), races: mergeUnique(currentData.races, natureRes.races || []), creatures: mergeUnique(currentData.creatures, natureRes.creatures || []), powers: mergeUnique(currentData.powers, powerRes.powers || []), items: mergeUnique(currentData.items, powerRes.items || []), technology: mergeUnique(currentData.technology, powerRes.technology || []), history: mergeUnique(currentData.history, historyRes.history || []), cultures: mergeUnique(currentData.cultures, historyRes.cultures || []) };
 
             if (showWorldBuilding) {
                 await delay(1000);
+                checkCancelled();
                 const wbRes = await generateStoryEncyclopediaSection(apiKey, 'worldBuilding', currentData, contentLanguage, {}, userIsPremium);
+                checkCancelled();
                 currentData = { ...currentData, ...wbRes };
             }
             if (showMagicSystem) {
                 await delay(1000);
+                checkCancelled();
                 const msRes = await generateStoryEncyclopediaSection(apiKey, 'magicSystem', currentData, contentLanguage, {}, userIsPremium);
+                checkCancelled();
                 currentData = { ...currentData, ...msRes };
             }
             setFormData(currentData);
@@ -159,11 +184,13 @@ export const useStoryGeneration = ({
             setTimeRemaining(25);
 
             await delay(2000); // Cool-down
+            checkCancelled();
 
             // Step 4: Relationships (~5s)
             setBuildProgress('relations');
             if (currentData.characters.length >= 2) {
                 const relRes = await generateStoryEncyclopediaSection(apiKey, 'relationships', currentData, contentLanguage, {}, userIsPremium);
+                checkCancelled();
                 const newRels = (relRes.relationships || []).map((r: any) => ({ ...r, id: r.id || crypto.randomUUID() }));
                 currentData = { ...currentData, relationships: newRels };
                 setFormData(currentData);
@@ -172,10 +199,12 @@ export const useStoryGeneration = ({
             setTimeRemaining(18);
 
             await delay(2000); // Cool-down
+            checkCancelled();
 
             // Step 5: Arc (~10s)
             setBuildProgress('arc');
             const arcRes = await generateStoryEncyclopediaSection(apiKey, 'arc', currentData, contentLanguage, {}, userIsPremium);
+            checkCancelled();
             if (arcRes.storyArc) {
                 const mappedArc = arcRes.storyArc.map((act: any) => ({ ...act, plotPoints: (act.plotPoints || []).map((p: any) => ({ ...p, id: crypto.randomUUID() })) }));
                 currentData = { ...currentData, storyArc: mappedArc };
@@ -185,10 +214,12 @@ export const useStoryGeneration = ({
             setTimeRemaining(5);
 
             await delay(2000); // Cool-down
+            checkCancelled();
 
             // Step 6: Tone (~5s)
             setBuildProgress('tone');
             const toneRes = await generateStoryEncyclopediaSection(apiKey, 'tone', currentData, contentLanguage, {}, userIsPremium);
+            checkCancelled();
             currentData = { ...currentData, ...toneRes };
             setFormData(currentData);
             setCompletedSteps(prev => ({ ...prev, tone: true }));
@@ -218,6 +249,12 @@ export const useStoryGeneration = ({
         }
     };
 
+    const cancelAutoBuild = () => {
+        if (abortControllerRef.current) {
+            abortControllerRef.current.abort();
+        }
+    };
+
     return {
         generatingSection,
         error,
@@ -231,6 +268,7 @@ export const useStoryGeneration = ({
         isGeneratingExample,
         handleGenerate,
         handleAutoBuild,
+        cancelAutoBuild,
         handleGenerateStyleExample
     };
 };

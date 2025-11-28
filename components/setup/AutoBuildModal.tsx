@@ -11,9 +11,10 @@ interface AutoBuildModalProps {
     onClose: () => void;
     error?: string | null;
     timeRemaining?: number | null;
+    onCancel?: () => void;
 }
 
-export const AutoBuildModal: React.FC<AutoBuildModalProps> = ({ progress, steps, onClose, error, timeRemaining }) => {
+export const AutoBuildModal: React.FC<AutoBuildModalProps> = ({ progress, steps, onClose, error, timeRemaining, onCancel }) => {
     const { t } = useLanguage();
     const isComplete = progress === 'complete';
     const isError = !!error;
@@ -45,6 +46,13 @@ export const AutoBuildModal: React.FC<AutoBuildModalProps> = ({ progress, steps,
                         <div className="flex items-center gap-3 text-slate-300"> {steps.relations ? <CheckIcon className="w-5 h-5 text-emerald-400" /> : (steps.world ? <SpinnerIcon className="w-5 h-5 text-indigo-400" /> : <div className="w-5 h-5 rounded-full border-2 border-slate-600" />)} <span className={steps.relations ? "text-emerald-400" : (steps.world ? "font-medium" : "text-slate-500")}>{t('setup.autoBuild.stepRelations')}</span> </div>
                         <div className="flex items-center gap-3 text-slate-300"> {steps.arc ? <CheckIcon className="w-5 h-5 text-emerald-400" /> : (steps.relations ? <SpinnerIcon className="w-5 h-5 text-indigo-400" /> : <div className="w-5 h-5 rounded-full border-2 border-slate-600" />)} <span className={steps.arc ? "text-emerald-400" : (steps.relations ? "font-medium" : "text-slate-500")}>{t('setup.autoBuild.stepArc')}</span> </div>
                         <div className="flex items-center gap-3 text-slate-300"> {steps.tone ? <CheckIcon className="w-5 h-5 text-emerald-400" /> : (steps.arc ? <SpinnerIcon className="w-5 h-5 text-indigo-400" /> : <div className="w-5 h-5 rounded-full border-2 border-slate-600" />)} <span className={steps.tone ? "text-emerald-400" : (steps.arc ? "font-medium" : "text-slate-500")}>{t('setup.autoBuild.stepTone')}</span> </div>
+                    </div>
+                )}
+                {!isComplete && !isError && onCancel && (
+                    <div className="pt-2 animate-in fade-in slide-in-from-bottom-4 duration-500">
+                        <button onClick={onCancel} className="w-full font-bold py-3 px-6 rounded-lg transition-colors border border-slate-600 text-slate-400 hover:text-white hover:bg-slate-700 hover:border-slate-500">
+                            {t('common.cancel')}
+                        </button>
                     </div>
                 )}
                 {(isComplete || isError) && (
