@@ -1,11 +1,7 @@
-
 import { GoogleGenAI, Chat, Type, GenerateContentResponse, Content } from "@google/genai";
 import { ModelType, StoryEncyclopedia, StoryArcAct, Character, Relationship, CustomField, LoreEntry, Universe, AnalysisResult, Message, MessageAuthor, Persona } from '../types.ts';
 import { SYSTEM_INSTRUCTION_EN, SYSTEM_INSTRUCTION_ID, MAX_THINKING_BUDGET, PROSE_STYLES_EN, PROSE_STYLES_ID, STRUCTURE_TEMPLATES, DEFAULT_PERSONAS } from '../constants.ts';
-
-const initializeGenAI = (apiKey: string) => {
-    return new GoogleGenAI({ apiKey });
-}
+import { auth } from '../firebase'; // Import Auth for Token
 
 // --- SAFETY SETTINGS (JAILBREAK / CREATIVE FREEDOM) ---
 const SAFETY_SETTINGS: any[] = [
@@ -16,10 +12,155 @@ const SAFETY_SETTINGS: any[] = [
     { category: 'HARM_CATEGORY_CIVIC_INTEGRITY', threshold: 'BLOCK_NONE' }
 ];
 
+// --- TIER MANAGEMENT ---
+// Check if user is premium via API key OR manual premium flag
+const isPremiumUser = (apiKey: string | null): boolean => {
+    // Premium if they have their own API key
+    if (apiKey !== null && apiKey.trim().length > 0) {
+        return true;
+    }
+
+    // Premium if manually flagged by admin (checked separately in components)
+    // This check happens at component level where we have access to user data
+    return false;
+};
+
+// Helper to check premium status including manual flag
+export const checkPremiumStatus = (apiKey: string | null, userIsPremium?: boolean): boolean => {
+    return isPremiumUser(apiKey) || (userIsPremium === true);
+};
+
+export const selectModel = (
+    useCase: 'basic' | 'analysis' | 'autoArchitect',
+    apiKey: string | null,
+    userIsPremium?: boolean // Add Firestore premium flag
+): string => {
+    // Premium if: has API key OR manually upgraded by admin
+    const isPremium = (apiKey !== null && apiKey.trim().length > 0) || (userIsPremium === true);
+
+    switch (useCase) {
+        case 'basic':
+            // Both tiers use Gemini 2.5 Flash
+            return ModelType.FLASH_2_5;
+
+        case 'analysis':
+            // Premium gets Gemini 3 Pro, Free gets Gemini 2.5 Flash
+            return isPremium ? ModelType.PRO_3 : ModelType.FLASH_2_5;
+
+        case 'autoArchitect':
+            // Auto Architect locked for free tier
+            if (!isPremium) {
+                throw new Error('AUTO_ARCHITECT_PREMIUM_ONLY');
+            }
+            return ModelType.PRO_3; // Gemini 3 Pro for complex reasoning
+
+        default:
+            return ModelType.FLASH_2_5;
+    }
+};
+
+// --- HYBRID CLIENT (PROXY + DIRECT) ---
+const PROXY_URL = "https://us-central1-inkvora-v1.cloudfunctions.net/generateContentProxy";
+
+class ProxyGenAI {
+    constructor() { }
+
+    getGenerativeModel(config: { model: string, systemInstruction?: string }) {
+        return {
+            generateContent: async (params: { contents: Content[], generationConfig?: any }) => {
+                const user = auth.currentUser;
+                if (!user) throw new Error("User must be logged in to use Free Tier.");
+
+                const token = await user.getIdToken();
+                const prompt = params.contents[0].parts[0].text; // Simplified for now
+
+                const response = await fetch(PROXY_URL, {
+                    method: 'POST',
+                    headers: {
+                        'Content-Type': 'application/json',
+                        'Authorization': `Bearer ${token}`
+                    },
+                    body: JSON.stringify({
+                        model: config.model,
+                        systemInstruction: config.systemInstruction,
+                        prompt: prompt,
+                        generationConfig: params.generationConfig // Send full config including schema
+                    })
+                });
+
+                if (!response.ok) {
+                    const errorData = await response.json().catch(() => ({}));
+                    if (response.status === 429 || errorData.code === 'QUOTA_EXCEEDED') {
+                        throw new Error("QUOTA_EXCEEDED: Daily limit reached. Please upgrade or add your own API Key.");
+                    }
+                    throw new Error(errorData.error || `Proxy Error: ${response.statusText}`);
+                }
+
+                const data = await response.json();
+                // Return response object directly (not wrapped)
+                return {
+                    get text() { return data.text; },
+                    candidates: data.candidates || []
+                };
+            }
+        };
+    }
+}
+
+const initializeGenAI = (apiKey: string | null) => {
+    if (apiKey) {
+        return new GoogleGenAI({ apiKey });
+    } else {
+        // Use Proxy if no key provided
+        // We return a mock object that matches the GoogleGenAI interface enough for our usage
+        return {
+            getGenerativeModel: (config: any) => new ProxyGenAI().getGenerativeModel(config),
+            chats: {
+                create: (config: any) => {
+                    // Chat via proxy is tricky because of history. 
+                    // For now, we might need to handle chat differently or send full history to proxy.
+                    // Let's implement a basic wrapper for chat that just calls generateContent with history appended.
+                    return {
+                        sendMessage: async (msg: string) => {
+                            // This is a simplified chat implementation for Proxy
+                            // In a real app, we should send the full history to the proxy
+                            // For this MVP, let's just warn or try to append history manually
+                            console.warn("Chat via Proxy is simplified.");
+                            // Re-instantiate model to call generate
+                            const model = new ProxyGenAI().getGenerativeModel({ model: config.model, systemInstruction: config.config?.systemInstruction });
+                            // Append history to prompt (naive approach)
+                            const historyText = config.history.map((h: any) => `${h.role}: ${h.parts[0].text}`).join('\n');
+                            const fullPrompt = `${historyText}\nuser: ${msg}`;
+
+                            const result = await model.generateContent({
+                                contents: [{ role: 'user', parts: [{ text: fullPrompt }] }],
+                                generationConfig: config.config
+                            });
+                            return result;
+                        }
+                    }
+                }
+            },
+            models: {
+                generateContent: async (params: any) => {
+                    const model = new ProxyGenAI().getGenerativeModel({
+                        model: params.model,
+                        systemInstruction: params.config?.systemInstruction
+                    });
+                    return model.generateContent({ contents: [{ role: 'user', parts: [{ text: params.contents }] }], generationConfig: params.config });
+                }
+            }
+        } as unknown as GoogleGenAI;
+    }
+}
+
 // --- ERROR HANDLING UTILITY ---
 export const getFriendlyErrorMessage = (error: any): string => {
     const msg = (error.message || error.toString()).toLowerCase();
 
+    if (msg.includes('quota_exceeded') || msg.includes('daily limit')) {
+        return "🛑 Kuota Harian Habis. Masukkan API Key sendiri di Settings untuk lanjut (Gratis & Unlimited).";
+    }
     if (msg.includes('429') || msg.includes('resource_exhausted') || msg.includes('quota')) {
         return "🚧 API Quota Exceeded (429). Kunci API Anda mencapai batas harian atau per menit. Tunggu sebentar.";
     }
@@ -229,11 +370,9 @@ ${recentChaptersContentString}
 - Romance: ${storyEncyclopedia.romanceLevel}/10
 - Action: ${storyEncyclopedia.actionLevel}/10
 ${storyEncyclopedia.maturityLevel && parseInt(storyEncyclopedia.maturityLevel, 10) > 1 ? `- Maturity: ${storyEncyclopedia.maturityLevel}/10` : ''}
-- Narrative Perspective (POV): ${storyEncyclopedia.narrativePerspective}
-- Prose: ${storyEncyclopedia.proseStyle}${styleInstruction}
+    ${formatInstruction}
 
-${formatInstruction}
-
+    ${storyEncyclopedia.aiMemory ? `\n**AI MEMORY / SCRATCHPAD (PREVIOUS CONTEXT):**\n${storyEncyclopedia.aiMemory}\n` : ''}
 --- END OF CONTEXT ---
 
 Based on this context, assist the user in developing their story.
@@ -244,7 +383,7 @@ Based on this context, assist the user in developing their story.
 }
 
 export const createChatSession = (
-    apiKey: string,
+    apiKey: string | null,
     isThinkingMode: boolean,
     storyEncyclopedia: StoryEncyclopedia,
     previousHistory: Message[] = [],
@@ -278,6 +417,7 @@ export const createChatSession = (
         config.thinkingConfig = { thinkingBudget: 4096 };
     }
 
+    // Filter out internal messages
     const history: Content[] = previousHistory
         .filter(msg => msg.id !== 'initial-ai-message' && !msg.id.startsWith('ai-placeholder') && !msg.id.startsWith('ai-error'))
         .map(msg => ({
@@ -292,6 +432,51 @@ export const createChatSession = (
     });
 
     return chat;
+};
+
+export const summarizeChatSession = async (
+    apiKey: string | null,
+    messages: Message[],
+    currentMemory: string
+): Promise<string> => {
+    const ai = initializeGenAI(apiKey);
+
+    const conversationText = messages
+        .filter(m => m.author === MessageAuthor.USER || m.author === MessageAuthor.AI)
+        .map(m => `${m.author.toUpperCase()}: ${m.text}`)
+        .join('\n');
+
+    const prompt = `
+    You are an AI assistant analyzing your own conversation history.
+    
+    Current Memory/Notes:
+    "${currentMemory || 'No previous notes.'}"
+    
+    Recent Conversation:
+    ${conversationText}
+    
+    Task:
+    Update your internal memory/scratchpad. 
+    1. Summarize the key points discussed in the recent conversation.
+    2. Note any specific user preferences, plot ideas, or decisions made.
+    3. Discard trivial chit-chat.
+    4. Merge this with the "Current Memory" to create a single, concise reference note for yourself.
+    
+    Output ONLY the updated memory text. Keep it concise (under 300 words).
+    `;
+
+    return generateWithRetry(async () => {
+        const response = await ai.models.generateContent({
+            model: ModelType.FLASH,
+            contents: prompt,
+            config: {
+                safetySettings: SAFETY_SETTINGS
+            }
+        });
+
+        validateResponse(response);
+        return response.text || currentMemory;
+    });
 };
 
 const customFieldSchema = {
@@ -310,6 +495,8 @@ const characterSchema = {
         roles: { type: Type.ARRAY, items: { type: Type.STRING }, description: "An array of roles for this character, e.g., ['Protagonist', 'Mentor']." },
         age: { type: Type.STRING },
         gender: { type: Type.STRING },
+        birthDate: { type: Type.STRING, description: "Format: 'DD Month' (e.g. '15 August'). Choose a date/Zodiac that matches their personality." },
+        bloodType: { type: Type.STRING, description: "A, B, AB, or O. Choose based on Japanese Blood Type Personality Theory (e.g. A=Serious, B=Creative/Wild, O=Social/Leader, AB=Eccentric)." },
         physicalDescription: { type: Type.STRING, description: "A 1-2 sentence description of their physical appearance." },
         voiceAndSpeechStyle: { type: Type.STRING, description: "A short description of their physical voice AND their typical speech patterns (e.g., speaks quickly, uses sarcasm, has a catchphrase)." },
         personalityTraits: { type: Type.STRING, description: "A 1-2 sentence summary of their key personality traits." },
@@ -679,18 +866,33 @@ const generationConfig: any = {
 // --- MAIN GENERATION FUNCTIONS ---
 
 export const generateStoryEncyclopediaSection = async (
-    apiKey: string,
+    apiKey: string | null,
     section: string,
     currentContext: any,
     language: 'en' | 'id',
-    options: any = {}
+    options: any = {},
+    userIsPremium?: boolean // Add premium flag parameter
 ): Promise<any> => {
     const ai = initializeGenAI(apiKey);
-    const model = ModelType.FLASH;
 
-    // For specific sections that need more brain power, use Pro
-    const usePro = ['core', 'arc', 'tone', 'analyzeStyle'].includes(section);
-    const selectedModel = usePro ? ModelType.PRO : ModelType.FLASH;
+    // Determine use case based on section
+    let useCase: 'basic' | 'analysis' | 'autoArchitect' = 'basic';
+    if (section === 'arc') {
+        useCase = 'autoArchitect'; // Arc generation is part of Auto Architect
+    } else if (['analyzeStyle', 'tone'].includes(section)) {
+        useCase = 'analysis';
+    }
+
+    // Select model based on tier (may throw if premium-only)
+    let selectedModel: string;
+    try {
+        selectedModel = selectModel(useCase, apiKey, userIsPremium);
+    } catch (error: any) {
+        if (error.message === 'AUTO_ARCHITECT_PREMIUM_ONLY') {
+            throw new Error('⭐ Auto Architect requires a Premium account or API key. Upgrade to unlock this feature!');
+        }
+        throw error;
+    }
 
     const config = generationConfig[section];
     if (!config) throw new Error(`Invalid generation section: ${section}`);
@@ -716,13 +918,13 @@ export const generateStoryEncyclopediaSection = async (
 
         validateResponse(response);
 
-        if (!response.text) throw new Error("No response generated.");
+        if (!response.text) throw new Error(`No response generated. Candidates: ${JSON.stringify(response.candidates)}`);
         return JSON.parse(response.text);
     });
 };
 
 export const generateEditorAction = async (
-    apiKey: string,
+    apiKey: string | null,
     action: 'rewrite' | 'expand' | 'fixGrammar' | 'beatToProse' | 'continue' | 'autoFormat',
     selectedText: string,
     context: { precedingText: string; followingText: string; storyContext: StoryEncyclopedia }
@@ -779,12 +981,15 @@ export const generateEditorAction = async (
 export const analyzeChapterContent = async (
     apiKey: string,
     content: string,
-    storyContext: StoryEncyclopedia
+    storyContext: StoryEncyclopedia,
+    language: 'en' | 'id' = 'en'
 ): Promise<AnalysisResult> => {
     const ai = initializeGenAI(apiKey);
 
     const prompt = `
     Analyze the following chapter text. Identify any NEW elements that are not currently in the Story Encyclopedia context provided below.
+    
+    IMPORTANT: The output MUST be in ${language === 'id' ? 'INDONESIAN (Bahasa Indonesia)' : 'ENGLISH'}.
     
     Looking for:
     1. **New Characters**: Important named characters introduced for the first time.

@@ -5,6 +5,7 @@ import { TrashIcon } from '../icons/TrashIcon';
 import { PlusIcon } from '../icons/PlusIcon';
 import { GenerateButton, SubGenerateButton, FormField } from './Shared';
 import TagsInput from '../TagsInput';
+import { getZodiacSign } from '../../utils';
 
 interface CharacterFormProps {
     character: Character;
@@ -35,10 +36,36 @@ export const CharacterForm: React.FC<CharacterFormProps> = ({ character, index, 
                 <GenerateButton onClick={() => onGenerateCharacter(index)} disabled={false} isLoading={isGenerating} label={t('setup.characters.generateThis')} />
             </div>
             <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                <div className="col-span-1 md:col-span-2">
+                    <FormField
+                        label={t('setup.characters.concept')}
+                        name="initialConcept"
+                        value={character.initialConcept || ''}
+                        onChange={handleChange}
+                        isTextArea
+                        fullWidth
+                        placeholder={t('setup.characters.conceptPlaceholder')}
+                    />
+                </div>
                 <FormField label={t('setup.characters.name')} name="name" value={character.name} onChange={handleChange} fullWidth />
                 <div className="col-span-1 md:col-span-2"> <label className="block text-sm font-medium text-slate-300 mb-1">{t('setup.characters.roles')}</label> <TagsInput tags={character.roles} onTagsChange={handleRolesChange} placeholder={t('setup.characters.rolesPlaceholder')} /> </div>
                 <FormField label={t('setup.characters.age')} name="age" value={character.age} onChange={handleChange} />
                 <FormField label={t('setup.characters.gender')} name="gender" value={character.gender} onChange={handleChange} />
+                <div className="relative">
+                    <FormField
+                        label="Birth Date"
+                        name="birthDate"
+                        value={character.birthDate || ''}
+                        onChange={handleChange}
+                        placeholder="e.g. 15 August"
+                    />
+                    {getZodiacSign(character.birthDate || '') && (
+                        <div className="absolute top-8 right-3 text-indigo-300 text-sm font-bold bg-slate-800/80 px-2 py-0.5 rounded pointer-events-none">
+                            {getZodiacSign(character.birthDate || '')}
+                        </div>
+                    )}
+                </div>
+                <FormField label="Blood Type" name="bloodType" value={character.bloodType || ''} onChange={handleChange} placeholder="A, B, O, AB" />
                 <FormField label={t('setup.characters.physical')} name="physicalDescription" value={character.physicalDescription} onChange={handleChange} isTextArea fullWidth />
                 <FormField label={t('setup.characters.voice')} name="voiceAndSpeechStyle" value={character.voiceAndSpeechStyle} onChange={handleChange} isTextArea fullWidth placeholder={t('setup.characters.voicePlaceholder')} />
                 <FormField label={t('setup.characters.personality')} name="personalityTraits" value={character.personalityTraits} onChange={handleChange} isTextArea fullWidth />

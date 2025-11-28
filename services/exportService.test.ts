@@ -74,8 +74,7 @@ describe('exportService', () => {
         history: [],
         cultures: [],
         disguiseRealWorldNames: false,
-        updatedAt: 0,
-        createdAt: 0
+        updatedAt: 0
     };
 
     const mockT = (key: string) => key;

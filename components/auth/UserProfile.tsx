@@ -8,9 +8,10 @@ interface UserProfileProps {
     };
     onLogout: () => void;
     onSync?: () => Promise<void>;
+    isPremium?: boolean; // Add premium status prop
 }
 
-export const UserProfile: React.FC<UserProfileProps> = ({ user, onLogout, onSync }) => {
+export const UserProfile: React.FC<UserProfileProps> = ({ user, onLogout, onSync, isPremium = false }) => {
     const [isSyncing, setIsSyncing] = useState(false);
 
     const handleSync = async () => {
@@ -23,10 +24,30 @@ export const UserProfile: React.FC<UserProfileProps> = ({ user, onLogout, onSync
 
     return (
         <div className="flex items-center gap-3 bg-slate-800/50 p-1 pr-3 rounded-full border border-slate-700 hover:bg-slate-800 transition-colors">
-            <img src={user.picture} alt={user.name} className="w-8 h-8 rounded-full border border-slate-600" />
+            {/* Avatar with conditional golden border */}
+            <img
+                src={user.picture}
+                alt={user.name}
+                className={`w-8 h-8 rounded-full border-2 transition-all ${isPremium
+                        ? 'border-yellow-500 shadow-lg shadow-yellow-500/30'
+                        : 'border-slate-600'
+                    }`}
+            />
             <div className="hidden md:block text-sm">
-                <p className="text-slate-200 font-medium leading-none mb-0.5">{user.name}</p>
-                <p className="text-slate-400 text-[10px] leading-none">{user.email}</p>
+                <div className="flex items-center gap-1.5">
+                    <p className="text-slate-200 font-medium leading-none">{user.name}</p>
+                    {/* Premium/Free Badge */}
+                    {isPremium ? (
+                        <span className="text-[9px] font-bold px-1.5 py-0.5 bg-gradient-to-r from-yellow-500 to-yellow-600 text-slate-900 rounded leading-none">
+                            ⭐ PRO
+                        </span>
+                    ) : (
+                        <span className="text-[9px] font-medium px-1.5 py-0.5 bg-slate-700 text-slate-400 rounded leading-none">
+                            🆓 FREE
+                        </span>
+                    )}
+                </div>
+                <p className="text-slate-400 text-[10px] leading-none mt-1">{user.email}</p>
             </div>
 
             {onSync && (

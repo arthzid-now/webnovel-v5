@@ -10,9 +10,10 @@ interface AutoBuildModalProps {
     steps: Record<string, boolean>;
     onClose: () => void;
     error?: string | null;
+    timeRemaining?: number | null;
 }
 
-export const AutoBuildModal: React.FC<AutoBuildModalProps> = ({ progress, steps, onClose, error }) => {
+export const AutoBuildModal: React.FC<AutoBuildModalProps> = ({ progress, steps, onClose, error, timeRemaining }) => {
     const { t } = useLanguage();
     const isComplete = progress === 'complete';
     const isError = !!error;
@@ -30,6 +31,11 @@ export const AutoBuildModal: React.FC<AutoBuildModalProps> = ({ progress, steps,
                         {isError ? <TrashIcon className="w-8 h-8 text-red-400" /> : isComplete ? <CheckIcon className="w-8 h-8 text-emerald-400" /> : <BoltIcon className="w-8 h-8 text-indigo-400 animate-pulse" />}
                     </div>
                     <h2 className="text-2xl font-bold text-slate-100">{isError ? t('common.failed') : t('setup.autoBuild.modalTitle')}</h2>
+                    {typeof timeRemaining === 'number' && !isComplete && !isError && (
+                        <p className="text-sm text-indigo-300 mt-2 font-mono animate-pulse">
+                            ~ {timeRemaining}s remaining
+                        </p>
+                    )}
                 </div>
                 {isError ? <div className="bg-red-900/30 text-red-200 p-4 rounded-md border border-red-800 text-sm">{error}</div> : (
                     <div className="space-y-3">

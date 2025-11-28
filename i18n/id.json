@@ -161,6 +161,8 @@
       "newCharacter": "Karakter Baru",
       "generateThis": "Buat Karakter Ini",
       "delete": "Hapus Karakter",
+      "concept": "Konsep / Ide Karakter",
+      "conceptPlaceholder": "Contoh: Mantan pembunuh bayaran yang sekarang jualan bunga. Galak tapi suka kucing.",
       "name": "Nama",
       "roles": "Peran",
       "rolesPlaceholder": "Tambah peran (e.g., Rival) lalu tekan Enter",
@@ -280,14 +282,18 @@
       "custom": "Gaya Kustom",
       "customActive": "Aktif (Contoh Disediakan)"
     },
-    "character": {
-      "roles": "Peran",
-      "age": "Usia",
+    "characters": {
+      "title": "Karakter",
+      "concept": "Konsep / Ide Karakter",
+      "conceptPlaceholder": "Contoh: Mantan pembunuh bayaran yang sekarang jualan bunga. Galak tapi suka kucing.",
+      "name": "Nama",
       "gender": "Gender",
       "physical": "Deskripsi Fisik",
       "voice": "Suara & Gaya Bicara",
       "traits": "Sifat",
       "habits": "Kebiasaan",
+      "roles": "Peran",
+      "age": "Usia",
       "goal": "Tujuan",
       "principles": "Prinsip",
       "conflict": "Konflik"

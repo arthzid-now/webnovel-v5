@@ -14,6 +14,7 @@ import { StarIcon } from './icons/StarIcon';
 import { BoltIcon } from './icons/BoltIcon';
 import { CheckIcon } from './icons/CheckIcon';
 import { UserIcon } from './icons/UserIcon';
+import { LockIcon } from './icons/LockIcon';
 
 import { GripVerticalIcon } from './icons/GripVerticalIcon';
 import { useLanguage } from '../contexts/LanguageContext';
@@ -35,6 +36,7 @@ interface StoryEncyclopediaSetupProps {
     onSaveAsUniverse: (universe: Universe) => void;
     onToggleUniverseFavorite: (universeId: string) => void;
     onRequestApiKey: () => void;
+    userIsPremium?: boolean; // Add premium flag prop
 }
 
 
@@ -75,12 +77,14 @@ const createInitialFormData = (language: 'en' | 'id'): StoryEncyclopedia => ({
 
 
 // --- Main Setup Component ---
-const StoryEncyclopediaSetup: React.FC<StoryEncyclopediaSetupProps> = ({ apiKey, onStoryCreate, initialData, onCancel, universeLibrary, onSaveAsUniverse, onToggleUniverseFavorite, onRequestApiKey }) => {
+const StoryEncyclopediaSetup: React.FC<StoryEncyclopediaSetupProps> = ({
+    apiKey, onStoryCreate, initialData, onCancel, universeLibrary, onSaveAsUniverse, onToggleUniverseFavorite, onRequestApiKey, userIsPremium
+}) => {
     const { t, uiLang } = useLanguage();
     const [contentLanguage, setContentLanguage] = useState<'en' | 'id'>(initialData?.language || 'en');
     const [formData, setFormData] = useState<StoryEncyclopedia>(initialData || createInitialFormData(contentLanguage));
     const [initialIdea, setInitialIdea] = useState('');
-    const [activeTab, setActiveTab] = useState<string>('basic');
+    const [activeTab, setActiveTab] = useState<string>('basic'); // Re-add state that was accidentally removed
     const [activeWorldTab, setActiveWorldTab] = useState<string>('geo');
     const [activeCharacterIndex, setActiveCharacterIndex] = useState<number>(0);
     const [showUniverseModal, setShowUniverseModal] = useState<boolean>(!initialData);
@@ -102,6 +106,9 @@ const StoryEncyclopediaSetup: React.FC<StoryEncyclopediaSetupProps> = ({ apiKey,
     const showMaturityLevel = useMemo(() => formData.genres.some(g => ['Mature', 'Dewasa'].includes(g)), [formData.genres]);
     const allCharacters = useMemo(() => formData.characters.filter(c => c && c.name && c.name.trim() !== ''), [formData.characters]);
 
+    // Check premium status (API Key OR Firestore flag)
+    const isPremium = (apiKey !== null && apiKey.trim().length > 0) || (userIsPremium === true);
+
     const {
         generatingSection,
         error,
@@ -110,6 +117,7 @@ const StoryEncyclopediaSetup: React.FC<StoryEncyclopediaSetupProps> = ({ apiKey,
         setIsAutoBuilding,
         buildProgress,
         completedSteps,
+        timeRemaining,
         styleExample,
         isGeneratingExample,
         handleGenerate,
@@ -123,7 +131,8 @@ const StoryEncyclopediaSetup: React.FC<StoryEncyclopediaSetupProps> = ({ apiKey,
         initialIdea,
         onRequestApiKey,
         showWorldBuilding,
-        showMagicSystem
+        showMagicSystem,
+        userIsPremium // Pass premium flag to hook
     });
 
     const sortedUniverseLibrary = useMemo(() => {
@@ -223,7 +232,7 @@ const StoryEncyclopediaSetup: React.FC<StoryEncyclopediaSetupProps> = ({ apiKey,
 
     return (
         <div className="w-full p-4">
-            {isAutoBuilding && <AutoBuildModal progress={buildProgress} steps={completedSteps} onClose={() => setIsAutoBuilding(false)} error={error} />}
+            {isAutoBuilding && <AutoBuildModal progress={buildProgress} steps={completedSteps} onClose={() => setIsAutoBuilding(false)} error={error} timeRemaining={timeRemaining} />}
             {showUniverseModal && (
                 <div className="fixed inset-0 bg-slate-900/80 backdrop-blur-sm z-50 flex items-center justify-center p-4">
                     <div className="bg-slate-800 border border-slate-700 rounded-lg shadow-xl max-w-4xl w-full p-6 space-y-6 flex flex-col max-h-[90vh]">
@@ -290,7 +299,24 @@ const StoryEncyclopediaSetup: React.FC<StoryEncyclopediaSetupProps> = ({ apiKey,
                     </div>
 
                     <div className="pt-4">
-                        {activeTab === 'basic' && <FormSection title={t('setup.tabs.basic')} onGenerate={() => handleGenerate('basic')} generateDisabled={!isBasicInfoReady && !isEditing} isGenerating={generatingSection === 'basic'} actions={!isEditing && (<button type="button" onClick={handleAutoBuild} disabled={isAutoBuilding || !isBasicInfoReady} className={`flex items-center gap-2 px-3 py-1.5 text-sm font-bold text-white rounded-md transition-all ${isBasicInfoReady ? 'bg-gradient-to-r from-indigo-600 to-purple-600 hover:from-indigo-500 hover:to-purple-500 shadow-lg shadow-indigo-500/30 animate-pulse' : 'bg-slate-700 text-slate-500 cursor-not-allowed border border-slate-600'}`} title={isBasicInfoReady ? t('setup.autoBuild.buttonDesc') : "Please enter an idea and select a genre first."} > <BoltIcon className="w-4 h-4" /> {t('setup.autoBuild.button')} </button>)} >
+                        {activeTab === 'basic' && <FormSection title={t('setup.tabs.basic')} onGenerate={() => handleGenerate('basic')} generateDisabled={!isBasicInfoReady && !isEditing} isGenerating={generatingSection === 'basic'} actions={!isEditing && (
+                            <button
+                                type="button"
+                                onClick={handleAutoBuild}
+                                disabled={isAutoBuilding || !isBasicInfoReady}
+                                className={`flex items-center gap-2 px-3 py-1.5 text-sm font-bold text-white rounded-md transition-all ${!isPremium
+                                    ? 'bg-slate-700 text-slate-400 border border-slate-600 hover:bg-slate-600' // Locked style
+                                    : isBasicInfoReady
+                                        ? 'bg-gradient-to-r from-indigo-600 to-purple-600 hover:from-indigo-500 hover:to-purple-500 shadow-lg shadow-indigo-500/30 animate-pulse'
+                                        : 'bg-slate-700 text-slate-500 cursor-not-allowed border border-slate-600'
+                                    }`}
+                                title={!isPremium ? "⭐ Upgrade to Premium to unlock Auto Architect" : (isBasicInfoReady ? t('setup.autoBuild.buttonDesc') : "Please enter an idea and select a genre first.")}
+                            >
+                                {!isPremium ? <LockIcon className="w-4 h-4" /> : <BoltIcon className="w-4 h-4" />}
+                                {t('setup.autoBuild.button')}
+                                {!isPremium && <span className="ml-1 text-[10px] bg-slate-800 px-1 rounded text-yellow-500">PRO</span>}
+                            </button>
+                        )} >
                             <FormField label={t('setup.basic.title')} name="title" value={formData.title} onChange={handleChange} fullWidth />
                             <div className="col-span-1 md:col-span-2"> <label className="block text-sm font-medium text-slate-300 mb-2">{t('setup.basic.format')}</label> <div className="flex flex-col md:flex-row gap-4"> {STORY_FORMATS.map((fmt) => (<label key={fmt.value} className={`flex-1 p-3 rounded-lg border cursor-pointer transition-all ${formData.format === fmt.value ? 'bg-indigo-900/40 border-indigo-500' : 'bg-slate-700/50 border-slate-600 hover:border-slate-500'}`}> <div className="flex items-center gap-3"> <input type="radio" name="format" value={fmt.value} checked={formData.format === fmt.value} onChange={handleChange} className="text-indigo-600 focus:ring-indigo-500 bg-slate-700 border-slate-500" /> <div><div className="font-bold text-slate-200">{fmt.label}</div><div className="text-xs text-slate-400 mt-0.5">{fmt.defaultChapters} Chaps • {fmt.defaultWords} Words</div></div> </div> </label>))} </div> <p className="text-xs text-slate-400 mt-2">{t('setup.basic.formatDesc')}</p> </div>
                             <FormField label={t('setup.basic.setting')} name="setting" value={formData.setting} onChange={handleChange} isTextArea fullWidth placeholder={t('setup.basic.settingPlaceholder')} />
@@ -327,7 +353,7 @@ const StoryEncyclopediaSetup: React.FC<StoryEncyclopediaSetupProps> = ({ apiKey,
                                 {allCharacters.length < 2 ? (<p className="text-sm text-slate-400 text-center">{t('setup.characters.relationshipsNeed2')}</p>) : (<div className="space-y-4"> {formData.relationships?.map((rel, index) => (<div key={rel.id} className="p-3 bg-slate-700/50 rounded-md space-y-2 relative"> <div className="flex items-center gap-2"> <select value={rel.character1Id} onChange={(e) => handleRelationshipChange(index, 'character1Id', e.target.value)} className="w-full bg-slate-600 text-slate-200 rounded-md p-2 border border-slate-500 focus:ring-2 focus:ring-indigo-500 focus:outline-none"> <option value="">{t('setup.characters.character1')}</option> {allCharacters.map(c => <option key={c.id} value={c.id}>{c.name}</option>)} </select> <span className="text-slate-400">&</span> <select value={rel.character2Id} onChange={(e) => handleRelationshipChange(index, 'character2Id', e.target.value)} className="w-full bg-slate-600 text-slate-200 rounded-md p-2 border border-slate-500 focus:ring-2 focus:ring-indigo-500 focus:outline-none"> <option value="">{t('setup.characters.character2')}</option> {allCharacters.filter(c => c.id !== rel.character1Id).map(c => <option key={c.id} value={c.id}>{c.name}</option>)} </select> <button type="button" onClick={() => removeRelationship(index)} className="p-1.5 text-slate-400 hover:text-rose-400"><TrashIcon className="w-4 h-4" /></button> </div> <input type="text" placeholder={t('setup.characters.relationshipType')} value={rel.type} onChange={(e) => handleRelationshipChange(index, 'type', e.target.value)} className="w-full bg-slate-600 text-slate-200 placeholder-slate-400 rounded-md p-2 border border-slate-500" /> <textarea placeholder={t('common.description')} value={rel.description} onChange={(e) => handleRelationshipChange(index, 'description', e.target.value)} rows={2} className="w-full bg-slate-600 text-slate-200 placeholder-slate-400 rounded-md p-2 border border-slate-500" /> </div>))} <button type="button" onClick={addRelationship} className="w-full py-2 px-4 border-2 border-dashed border-slate-600 text-slate-400 rounded-lg hover:bg-slate-700">{t('setup.characters.addRelationship')}</button> </div>)}
                             </div>
                         </FormSection>}
-                        {activeTab === 'arc' && <FormSection title={t('setup.tabs.arc')} grid={false} onGenerate={() => handleGenerate('arc')} generateDisabled={!isCoreStoryComplete} isGenerating={generatingSection === 'arc'}>
+                        {activeTab === 'arc' && <FormSection title={t('setup.tabs.arc')} grid={false} onGenerate={() => handleGenerate('arc')} generateDisabled={!isCoreStoryComplete} isGenerating={generatingSection === 'arc'} locked={!isPremium}>
                             {formData.storyArc?.map((act, index) => (
                                 <div key={index} className="p-4 bg-slate-700/50 rounded-md relative space-y-4 border border-slate-600/50">
                                     <div className="flex items-center justify-between">

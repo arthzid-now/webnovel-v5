@@ -21,8 +21,9 @@ import { syncService } from './services/syncService';
 import { LoginButton } from './components/auth/LoginButton';
 import { UserProfile } from './components/auth/UserProfile';
 
-import { auth, googleProvider } from './firebase';
+import { auth, googleProvider, db as firestore } from './firebase';
 import { signInWithPopup, signOut, onAuthStateChanged } from 'firebase/auth';
+import { doc, setDoc, onSnapshot } from 'firebase/firestore';
 
 const API_KEY_STORAGE_KEY = 'google_ai_api_key';
 const BACKUP_THRESHOLD = 2000;
@@ -41,6 +42,7 @@ const App: React.FC = () => {
     const [stories, setStories] = useState<StoryEncyclopedia[]>([]);
     const [universes, setUniverses] = useState<Universe[]>([]);
     const [user, setUser] = useState<User | null>(null);
+    const [userIsPremium, setUserIsPremium] = useState<boolean>(false); // Track Firestore premium flag
 
     const [activeStoryId, setActiveStoryId] = useState<string | null>(null);
 
@@ -63,19 +65,55 @@ const App: React.FC = () => {
             console.error("Auth not initialized");
             return;
         }
-        const unsubscribe = onAuthStateChanged(auth, (currentUser) => {
+        const unsubscribe = onAuthStateChanged(auth, async (currentUser) => {
             if (currentUser) {
                 setUser({
                     name: currentUser.displayName || 'User',
                     email: currentUser.email || '',
                     picture: currentUser.photoURL || ''
                 });
+
+                // Auto-sync user data to Firestore for admin convenience
+                try {
+                    const userDocRef = doc(firestore, 'users', currentUser.uid);
+                    await setDoc(userDocRef, {
+                        email: currentUser.email,
+                        displayName: currentUser.displayName,
+                        photoURL: currentUser.photoURL,
+                        isPremium: false, // Default to free tier (won't overwrite if already true)
+                        lastLogin: new Date().toISOString()
+                    }, { merge: true }); // merge: true preserves existing fields
+                } catch (error) {
+                    console.error("Failed to sync user data to Firestore:", error);
+                }
             } else {
                 setUser(null);
             }
         });
         return () => unsubscribe();
     }, []);
+
+    // Firestore Listener for premium status
+    useEffect(() => {
+        if (!auth?.currentUser) {
+            setUserIsPremium(false);
+            return;
+        }
+
+        const userDocRef = doc(firestore, 'users', auth.currentUser.uid);
+        const unsubscribe = onSnapshot(userDocRef, (docSnap) => {
+            if (docSnap.exists()) {
+                setUserIsPremium(docSnap.data()?.isPremium === true);
+            } else {
+                setUserIsPremium(false);
+            }
+        }, (error) => {
+            console.error("Failed to listen to premium status:", error);
+            setUserIsPremium(false);
+        });
+
+        return () => unsubscribe();
+    }, [user]); // Re-run when user changes
 
     const handleLogin = async () => {
         try {
@@ -383,6 +421,7 @@ const App: React.FC = () => {
                     onSaveAsUniverse={handleSaveUniverse}
                     onToggleUniverseFavorite={handleToggleUniverseFavorite}
                     onRequestApiKey={handleRequestApiKey}
+                    userIsPremium={userIsPremium} // Pass premium flag
                 />;
 
             case 'universeHub':
@@ -431,9 +470,25 @@ const App: React.FC = () => {
         );
     }
 
+    const handleRemoveApiKey = () => {
+        setApiKey(null);
+        localStorage.removeItem(API_KEY_STORAGE_KEY);
+        setShowApiKeyModal(false);
+        setToastMessage("API Key Removed. Using Free Tier.");
+        setTimeout(() => setToastMessage(null), 3000);
+    };
+
     return (
-        <div className="min-h-screen bg-slate-900 text-white flex flex-col font-sans">
-            {showApiKeyModal && <ApiKeyModal onSave={handleSaveApiKey} onClose={() => setShowApiKeyModal(false)} />}
+        <div className="min-h-screen bg-slate-900 text-slate-200 font-sans selection:bg-indigo-500/30">
+            {showApiKeyModal && (
+                <ApiKeyModal
+                    currentKey={apiKey}
+                    onSave={handleSaveApiKey}
+                    onRemove={handleRemoveApiKey}
+                    onClose={() => setShowApiKeyModal(false)}
+                />
+            )}
+            {toastMessage && !activeStoryId && view !== 'studio' && <NotificationToast message={toastMessage} onClose={() => setToastMessage(null)} />}
             {toastMessage && activeStoryId && view === 'studio' && (
                 <NotificationToast
                     message={toastMessage}
@@ -474,6 +529,7 @@ const App: React.FC = () => {
                                         setTimeout(() => setToastMessage(null), 3000);
                                     }
                                 }}
+                                isPremium={userIsPremium} // Pass premium status
                             />
                         ) : (
                             <LoginButton onClick={handleLogin} />

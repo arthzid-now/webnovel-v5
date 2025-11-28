@@ -1,19 +1,26 @@
-
 export enum ModelType {
-  FLASH = 'gemini-flash-latest',
-  PRO = 'gemini-3-pro-preview',
+  // Gemini 3 - Latest & Most Advanced (Preview)
+  PRO_3 = 'gemini-3-pro-preview',
+
+  // Gemini 2.5 - Current Stable
+  FLASH_2_5 = 'gemini-2.5-flash',
+  PRO_2_5 = 'gemini-2.5-pro',
+
+  // Gemini 1.5 - Legacy but stable
+  FLASH = 'gemini-1.5-flash',
+  PRO = 'gemini-1.5-pro',
 }
 
 export interface Persona {
-    id: string;
-    defaultName: string;
-    role: string;
-    description: string;
-    color: string; // Tailwind color name (e.g., 'emerald', 'violet')
-    icon: string; // Icon key
-    defaultThinking: boolean;
-    systemInstructionEn: string;
-    systemInstructionId: string;
+  id: string;
+  defaultName: string;
+  role: string;
+  description: string;
+  color: string; // Tailwind color name (e.g., 'emerald', 'violet')
+  icon: string; // Icon key
+  defaultThinking: boolean;
+  systemInstructionEn: string;
+  systemInstructionId: string;
 }
 
 export enum MessageAuthor {
@@ -37,9 +44,12 @@ export interface CustomField {
 export interface Character {
   id: string;
   name: string;
+  initialConcept?: string; // User's raw idea/prompt
   roles: string[];
   age: string;
   gender: string;
+  birthDate?: string; // Format: YYYY-MM-DD or just MM-DD
+  bloodType?: string; // A, B, AB, O
   physicalDescription: string;
   voiceAndSpeechStyle: string;
   personalityTraits: string;
@@ -59,17 +69,17 @@ export interface Relationship {
 }
 
 export interface PlotPoint {
-    id: string;
-    summary: string;
+  id: string;
+  summary: string;
 }
 
 export interface StoryArcAct {
-    title: string;
-    description: string;
-    plotPoints: PlotPoint[];
-    startChapter: string;
-    endChapter: string;
-    structureTemplate?: string; // 'freestyle', 'heros_journey', etc.
+  title: string;
+  description: string;
+  plotPoints: PlotPoint[];
+  startChapter: string;
+  endChapter: string;
+  structureTemplate?: string; // 'freestyle', 'heros_journey', etc.
 }
 
 export interface Chapter {
@@ -80,20 +90,20 @@ export interface Chapter {
 }
 
 export interface ChapterVersion {
-    id?: number; // Auto-increment from Dexie
-    storyId: string;
-    chapterId: string;
-    title: string;
-    content: string;
-    timestamp: number;
-    label?: string;
+  id?: number; // Auto-increment from Dexie
+  storyId: string;
+  chapterId: string;
+  title: string;
+  content: string;
+  timestamp: number;
+  label?: string;
 }
 
 export interface LoreEntry {
-    id: string;
-    name: string;
-    description: string;
-    date?: string; // For timeline/history items
+  id: string;
+  name: string;
+  description: string;
+  date?: string; // For timeline/history items
 }
 
 export interface StoryEncyclopedia {
@@ -113,7 +123,7 @@ export interface StoryEncyclopedia {
   characters: Character[];
   relationships: Relationship[];
   storyArc: StoryArcAct[];
-  
+
   // Tone & Style
   comedyLevel: string;
   romanceLevel: string;
@@ -123,14 +133,14 @@ export interface StoryEncyclopedia {
   narrativePerspective: string;
   customProseStyleByExample?: string;
   styleProfile?: string; // New Field: Extracted Style DNA
-  
+
   // World Building (Expanded)
   worldBuilding: string; // Summary
   magicSystem: string;   // Summary
   locations: LoreEntry[];
   factions: LoreEntry[];
   lore: LoreEntry[]; // General Lore
-  
+
   // New Lore Categories
   races: LoreEntry[];
   creatures: LoreEntry[];
@@ -139,34 +149,37 @@ export interface StoryEncyclopedia {
   technology: LoreEntry[];
   history: LoreEntry[];
   cultures: LoreEntry[];
-  
+
   chapters: Chapter[];
-  
+
   // Flags
   disguiseRealWorldNames?: boolean;
+
+  // AI Scratchpad
+  aiMemory?: string;
 }
 
 export interface Universe {
-    id: string;
-    updatedAt?: number;
-    language: 'en' | 'id';
-    name: string;
-    description: string;
-    isFavorite?: boolean;
-    
-    // Shared Data
-    worldBuilding: string;
-    magicSystem: string;
-    locations: LoreEntry[];
-    factions: LoreEntry[];
-    lore: LoreEntry[];
-    races: LoreEntry[];
-    creatures: LoreEntry[];
-    powers: LoreEntry[];
-    items: LoreEntry[];
-    technology: LoreEntry[];
-    history: LoreEntry[];
-    cultures: LoreEntry[];
+  id: string;
+  updatedAt?: number;
+  language: 'en' | 'id';
+  name: string;
+  description: string;
+  isFavorite?: boolean;
+
+  // Shared Data
+  worldBuilding: string;
+  magicSystem: string;
+  locations: LoreEntry[];
+  factions: LoreEntry[];
+  lore: LoreEntry[];
+  races: LoreEntry[];
+  creatures: LoreEntry[];
+  powers: LoreEntry[];
+  items: LoreEntry[];
+  technology: LoreEntry[];
+  history: LoreEntry[];
+  cultures: LoreEntry[];
 }
 
 export type UILanguage = 'en' | 'id';
@@ -182,19 +195,19 @@ export interface LanguageContextType {
 }
 
 export interface SearchOptions {
-    matchCase: boolean;
-    wholeWord: boolean;
+  matchCase: boolean;
+  wholeWord: boolean;
 }
 
 export interface SearchResult {
-    chapterId: string;
-    chapterTitle: string;
-    matchCount: number;
+  chapterId: string;
+  chapterTitle: string;
+  matchCount: number;
 }
 
 export interface AnalysisResult {
-    newCharacters: Character[];
-    newLocations: LoreEntry[];
-    newPlotPoints: string[];
-    summary: string;
+  newCharacters: Character[];
+  newLocations: LoreEntry[];
+  newPlotPoints: string[];
+  summary: string;
 }

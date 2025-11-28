@@ -3,13 +3,13 @@ import React, { useState, useRef, useEffect, useCallback } from 'react';
 import { Chat } from '@google/genai';
 import { Message, MessageAuthor, StoryEncyclopedia, Persona } from '../types';
 import { DEFAULT_PERSONAS } from '../constants';
-import { createChatSession, getFriendlyErrorMessage } from '../services/geminiService';
+import { createChatSession, getFriendlyErrorMessage, summarizeChatSession } from '../services/geminiService';
 import { MessageComponent } from './Message';
 import { SendIcon } from './icons/SendIcon';
 import { BrainCircuitIcon } from './icons/BrainCircuitIcon';
-import { TrashIcon } from './icons/TrashIcon'; 
+import { TrashIcon } from './icons/TrashIcon';
 import { useLanguage } from '../contexts/LanguageContext';
-import { db } from '../db'; 
+import { db } from '../db';
 import { PencilIcon } from './icons/PencilIcon';
 import { CheckIcon } from './icons/CheckIcon';
 import { CoffeeIcon } from './icons/CoffeeIcon';
@@ -29,7 +29,7 @@ const ChatWindow: React.FC<ChatWindowProps> = ({ apiKey, storyEncyclopedia, onRe
   const [isLoading, setIsLoading] = useState(false);
   const [isThinkingMode, setIsThinkingMode] = useState(false);
   const [isHistoryLoaded, setIsHistoryLoaded] = useState(false);
-  
+
   // Persona State
   const [activePersonaId, setActivePersonaId] = useState<string>('bimo');
   const [isRenaming, setIsRenaming] = useState(false);
@@ -38,32 +38,32 @@ const ChatWindow: React.FC<ChatWindowProps> = ({ apiKey, storyEncyclopedia, onRe
 
   const chatRef = useRef<Chat | null>(null);
   const chatContainerRef = useRef<HTMLDivElement>(null);
-  
+
   // Load Custom Names
   useEffect(() => {
-      try {
-          const storedNames = localStorage.getItem('persona_custom_names');
-          if (storedNames) {
-              setCustomPersonaNames(JSON.parse(storedNames));
-          }
-      } catch (e) {}
+    try {
+      const storedNames = localStorage.getItem('persona_custom_names');
+      if (storedNames) {
+        setCustomPersonaNames(JSON.parse(storedNames));
+      }
+    } catch (e) { }
   }, []);
 
   // Auto-update Thinking Mode based on Persona Defaults
   useEffect(() => {
-      const persona = DEFAULT_PERSONAS.find(p => p.id === activePersonaId);
-      if (persona) {
-          setIsThinkingMode(persona.defaultThinking);
-      }
+    const persona = DEFAULT_PERSONAS.find(p => p.id === activePersonaId);
+    if (persona) {
+      setIsThinkingMode(persona.defaultThinking);
+    }
   }, [activePersonaId]);
 
   const saveCustomName = () => {
-      if (tempName.trim()) {
-          const newNames = { ...customPersonaNames, [activePersonaId]: tempName.trim() };
-          setCustomPersonaNames(newNames);
-          localStorage.setItem('persona_custom_names', JSON.stringify(newNames));
-      }
-      setIsRenaming(false);
+    if (tempName.trim()) {
+      const newNames = { ...customPersonaNames, [activePersonaId]: tempName.trim() };
+      setCustomPersonaNames(newNames);
+      localStorage.setItem('persona_custom_names', JSON.stringify(newNames));
+    }
+    setIsRenaming(false);
   };
 
   const activePersona = DEFAULT_PERSONAS.find(p => p.id === activePersonaId) || DEFAULT_PERSONAS[0];
@@ -72,33 +72,33 @@ const ChatWindow: React.FC<ChatWindowProps> = ({ apiKey, storyEncyclopedia, onRe
   // Effect for loading messages from IndexedDB
   useEffect(() => {
     const loadChat = async () => {
-        try {
-            const session = await db.chats.get(storyEncyclopedia.id);
-            if (session && session.messages.length > 0) {
-                setMessages(session.messages);
-            } else {
-                // If chat is empty, show the initial greeting message based on persona
-                const initialMessageText = storyEncyclopedia.language === 'id'
-                  ? `Hai! Aku **${displayName}**. Siap bantu bikin cerita '${storyEncyclopedia.title}' jadi keren. Mau mulai dari mana?`
-                  : `Hi! I'm **${displayName}**. Ready to make '${storyEncyclopedia.title}' awesome. Where should we start?`;
-                
-                setMessages([
-                  {
-                    id: 'initial-ai-message',
-                    author: MessageAuthor.AI,
-                    text: initialMessageText,
-                    timestamp: Date.now(),
-                  },
-                ]);
-            }
-        } catch (error) {
-            console.error("Error loading messages from DB:", error);
-        } finally {
-            setIsHistoryLoaded(true);
+      try {
+        const session = await db.chats.get(storyEncyclopedia.id);
+        if (session && session.messages.length > 0) {
+          setMessages(session.messages);
+        } else {
+          // If chat is empty, show the initial greeting message based on persona
+          const initialMessageText = storyEncyclopedia.language === 'id'
+            ? `Hai! Aku **${displayName}**. Siap bantu bikin cerita '${storyEncyclopedia.title}' jadi keren. Mau mulai dari mana?`
+            : `Hi! I'm **${displayName}**. Ready to make '${storyEncyclopedia.title}' awesome. Where should we start?`;
+
+          setMessages([
+            {
+              id: 'initial-ai-message',
+              author: MessageAuthor.AI,
+              text: initialMessageText,
+              timestamp: Date.now(),
+            },
+          ]);
         }
+      } catch (error) {
+        console.error("Error loading messages from DB:", error);
+      } finally {
+        setIsHistoryLoaded(true);
+      }
     };
     loadChat();
-  }, [storyEncyclopedia.id, storyEncyclopedia.language, storyEncyclopedia.title, activePersona.id]); 
+  }, [storyEncyclopedia.id, storyEncyclopedia.language, storyEncyclopedia.title, activePersona.id]);
 
   // Effect for setting up the chat session with Gemini
   useEffect(() => {
@@ -107,14 +107,14 @@ const ChatWindow: React.FC<ChatWindowProps> = ({ apiKey, storyEncyclopedia, onRe
     } else {
       chatRef.current = null;
     }
-  }, [apiKey, isThinkingMode, storyEncyclopedia.id, isHistoryLoaded, messages.length > 0, activePersona]); 
+  }, [apiKey, isThinkingMode, storyEncyclopedia.id, isHistoryLoaded, messages.length > 0, activePersona]);
 
   // Effect to save messages to IndexedDB
   useEffect(() => {
     if (isHistoryLoaded && messages.length > 0 && messages[0].id !== 'initial-ai-message') {
-        db.chats.put({ storyId: storyEncyclopedia.id, messages }).catch(err => {
-            console.error("Error saving chat to DB:", err);
-        });
+      db.chats.put({ storyId: storyEncyclopedia.id, messages }).catch(err => {
+        console.error("Error saving chat to DB:", err);
+      });
     }
   }, [messages, storyEncyclopedia.id, isHistoryLoaded]);
 
@@ -123,50 +123,50 @@ const ChatWindow: React.FC<ChatWindowProps> = ({ apiKey, storyEncyclopedia, onRe
       chatContainerRef.current.scrollTop = chatContainerRef.current.scrollHeight;
     }
   }, [messages]);
-  
-  const handleClearChat = async () => {
-      if(window.confirm("Are you sure you want to clear the chat history? This will reset the AI context.")) {
-          setMessages([]);
-          try {
-              await db.chats.delete(storyEncyclopedia.id);
-          } catch (e) {
-              console.error("Failed to clear chat db", e);
-          }
 
-          if (apiKey) {
-            chatRef.current = createChatSession(apiKey, isThinkingMode, storyEncyclopedia, [], activePersona);
-          }
-          
-          const initialMessageText = storyEncyclopedia.language === 'id'
-              ? `Chat dibersihkan. **${displayName}** siap mulai lembaran baru!`
-              : `Chat cleared. **${displayName}** is ready for a fresh start!`;
-            setMessages([
-              {
-                id: 'initial-ai-message',
-                author: MessageAuthor.AI,
-                text: initialMessageText,
-                timestamp: Date.now(),
-              },
-            ]);
+  const handleClearChat = async () => {
+    if (window.confirm("Are you sure you want to clear the chat history? This will reset the AI context.")) {
+      setMessages([]);
+      try {
+        await db.chats.delete(storyEncyclopedia.id);
+      } catch (e) {
+        console.error("Failed to clear chat db", e);
       }
+
+      if (apiKey) {
+        chatRef.current = createChatSession(apiKey, isThinkingMode, storyEncyclopedia, [], activePersona);
+      }
+
+      const initialMessageText = storyEncyclopedia.language === 'id'
+        ? `Chat dibersihkan. **${displayName}** siap mulai lembaran baru!`
+        : `Chat cleared. **${displayName}** is ready for a fresh start!`;
+      setMessages([
+        {
+          id: 'initial-ai-message',
+          author: MessageAuthor.AI,
+          text: initialMessageText,
+          timestamp: Date.now(),
+        },
+      ]);
+    }
   };
 
   const handleSendMessage = useCallback(async () => {
     if (!userInput.trim() || isLoading) return;
 
-    if (!apiKey) {
-        onRequestApiKey();
-        return;
-    }
+    // if (!apiKey) {
+    //   onRequestApiKey();
+    //   return;
+    // }
 
     const userMessageText = userInput;
     setUserInput('');
 
     const userMessage: Message = {
-        id: `user-${Date.now()}`,
-        author: MessageAuthor.USER,
-        text: userMessageText,
-        timestamp: Date.now()
+      id: `user-${Date.now()}`,
+      author: MessageAuthor.USER,
+      text: userMessageText,
+      timestamp: Date.now()
     };
 
     const aiMessagePlaceholder: Message = {
@@ -180,148 +180,172 @@ const ChatWindow: React.FC<ChatWindowProps> = ({ apiKey, storyEncyclopedia, onRe
     setIsLoading(true);
 
     try {
-        if (!chatRef.current) {
-            chatRef.current = createChatSession(apiKey, isThinkingMode, storyEncyclopedia, messages, activePersona);
+      if (!chatRef.current) {
+        chatRef.current = createChatSession(apiKey, isThinkingMode, storyEncyclopedia, messages, activePersona);
+      }
+
+      const stream = await chatRef.current.sendMessageStream({ message: userMessageText });
+
+      let fullText = '';
+      for await (const chunk of stream) {
+        const chunkText = chunk.text;
+
+        // Safety Check in Stream
+        const finishReason = chunk.candidates?.[0]?.finishReason;
+        if (finishReason === 'SAFETY') {
+          throw new Error("SAFETY_BLOCK");
         }
 
-        const stream = await chatRef.current.sendMessageStream({ message: userMessageText });
-
-        let fullText = '';
-        for await (const chunk of stream) {
-            const chunkText = chunk.text;
-            
-            // Safety Check in Stream
-            const finishReason = chunk.candidates?.[0]?.finishReason;
-            if (finishReason === 'SAFETY') {
-                throw new Error("SAFETY_BLOCK");
-            }
-
-            if (chunkText) {
-                fullText += chunkText;
-                setMessages(prev =>
-                    prev.map(msg =>
-                        msg.id === aiMessagePlaceholder.id ? { ...msg, text: fullText } : msg
-                    )
-                );
-            }
+        if (chunkText) {
+          fullText += chunkText;
+          setMessages(prev =>
+            prev.map(msg =>
+              msg.id === aiMessagePlaceholder.id ? { ...msg, text: fullText } : msg
+            )
+          );
         }
-        
-        // If nothing came back and no error threw, check if it was empty
-        if (!fullText) {
-             throw new Error("Empty response from AI. Possibly filtered.");
-        }
+      }
 
-        const finalAiMessage: Message = {
-            id: `ai-${Date.now()}`,
-            author: MessageAuthor.AI,
-            text: fullText,
-            timestamp: Date.now()
-        };
-        setMessages(prev => prev.map(msg => msg.id === aiMessagePlaceholder.id ? finalAiMessage : msg));
+      // If nothing came back and no error threw, check if it was empty
+      if (!fullText) {
+        throw new Error("Empty response from AI. Possibly filtered.");
+      }
+
+      const finalAiMessage: Message = {
+        id: `ai-${Date.now()}`,
+        author: MessageAuthor.AI,
+        text: fullText,
+        timestamp: Date.now()
+      };
+      setMessages(prev => prev.map(msg => msg.id === aiMessagePlaceholder.id ? finalAiMessage : msg));
 
     } catch (error) {
-        console.error("Error sending message:", error);
-        const niceError = getFriendlyErrorMessage(error);
-        
-        const errorAiMessage: Message = {
-            id: `ai-error-${Date.now()}`,
-            author: MessageAuthor.AI,
-            text: `**Error:** ${niceError}`,
-            timestamp: Date.now()
-        };
-        setMessages(prev => prev.map(msg => msg.id === aiMessagePlaceholder.id ? errorAiMessage : msg));
+      console.error("Error sending message:", error);
+      const niceError = getFriendlyErrorMessage(error);
+
+      const errorAiMessage: Message = {
+        id: `ai-error-${Date.now()}`,
+        author: MessageAuthor.AI,
+        text: `**Error:** ${niceError}`,
+        timestamp: Date.now()
+      };
+      setMessages(prev => prev.map(msg => msg.id === aiMessagePlaceholder.id ? errorAiMessage : msg));
     } finally {
-        setIsLoading(false);
+      setIsLoading(false);
+
+      // Check for Auto-Summarization (Every 20 messages)
+      const currentCount = messages.length + 2; // + user msg + ai msg
+      if (currentCount >= 20 && apiKey) {
+        // Run in background, don't block UI
+        summarizeChatSession(apiKey, [...messages, userMessage, { ...aiMessagePlaceholder, text: '...' }], storyEncyclopedia.aiMemory || '')
+          .then(async (newMemory) => {
+            console.log("Chat Summarized:", newMemory);
+
+            // Update Story with new Memory
+            const updatedStory = { ...storyEncyclopedia, aiMemory: newMemory, updatedAt: Date.now() };
+            await db.stories.put(updatedStory);
+
+            // Keep last 4 messages for continuity
+            const keptMessages = messages.slice(-4);
+            setMessages(keptMessages);
+
+            // Update DB Chat
+            await db.chats.put({ storyId: storyEncyclopedia.id, messages: keptMessages });
+
+            // Force reload chat session with new memory
+            chatRef.current = createChatSession(apiKey, isThinkingMode, updatedStory, keptMessages, activePersona);
+          })
+          .catch(err => console.error("Auto-summary failed:", err));
+      }
     }
   }, [userInput, isLoading, storyEncyclopedia, isThinkingMode, t, apiKey, onRequestApiKey, messages, activePersona]);
 
   const getPersonaIcon = (iconType: string) => {
-      switch(iconType) {
-          case 'coffee': return <CoffeeIcon className="w-5 h-5"/>;
-          case 'robot': return <RobotIcon className="w-5 h-5"/>;
-          case 'glasses': return <GlassesIcon className="w-5 h-5"/>;
-          default: return <BrainCircuitIcon className="w-5 h-5"/>;
-      }
+    switch (iconType) {
+      case 'coffee': return <CoffeeIcon className="w-5 h-5" />;
+      case 'robot': return <RobotIcon className="w-5 h-5" />;
+      case 'glasses': return <GlassesIcon className="w-5 h-5" />;
+      default: return <BrainCircuitIcon className="w-5 h-5" />;
+    }
   };
 
   return (
     <div className={`flex flex-col flex-grow h-full max-h-full bg-slate-800 rounded-lg shadow-2xl overflow-hidden border border-${activePersona.color}-500/30 transition-colors duration-500`}>
       {/* Header Area */}
       <div className={`p-3 bg-slate-900/50 border-b border-${activePersona.color}-500/30 flex flex-col gap-3`}>
-         
-         {/* Top Row: Persona Selector + Thinking Mode (Flex Wrap for Mobile) */}
-         <div className="flex flex-wrap items-center justify-between gap-2">
-             <div className="flex items-center gap-2 bg-slate-800 p-1 rounded-lg border border-slate-700">
-                 {DEFAULT_PERSONAS.map(persona => (
-                     <button
-                        key={persona.id}
-                        onClick={() => setActivePersonaId(persona.id)}
-                        className={`p-2 rounded-md transition-all ${activePersonaId === persona.id ? `bg-${persona.color}-500/20 text-${persona.color}-400 shadow-sm` : 'text-slate-500 hover:text-slate-300'}`}
-                        title={persona.role}
-                     >
-                         {getPersonaIcon(persona.icon)}
-                     </button>
-                 ))}
-             </div>
 
-             {/* Compact Thinking Mode Button */}
-             <button
-                onClick={() => setIsThinkingMode(!isThinkingMode)}
-                className={`flex items-center gap-2 px-3 py-1.5 rounded-full text-xs font-bold border transition-all ${
-                    isThinkingMode 
-                        ? 'bg-indigo-600 border-indigo-500 text-white shadow-lg shadow-indigo-500/20' 
-                        : 'bg-slate-800 border-slate-600 text-slate-400 hover:border-slate-500'
-                }`}
-                title={t('chat.thinkingModeTooltip')}
-             >
-                <BrainCircuitIcon className={`w-4 h-4 ${isThinkingMode ? 'animate-pulse' : ''}`} />
-                <span className="hidden sm:inline">{t('chat.thinkingMode')}</span>
-                <span className="sm:hidden">{isThinkingMode ? 'ON' : 'OFF'}</span>
-             </button>
-         </div>
+        {/* Top Row: Persona Selector + Thinking Mode (Flex Wrap for Mobile) */}
+        <div className="flex flex-wrap items-center justify-between gap-2">
+          <div className="flex items-center gap-2 bg-slate-800 p-1 rounded-lg border border-slate-700">
+            {DEFAULT_PERSONAS.map(persona => (
+              <button
+                key={persona.id}
+                onClick={() => setActivePersonaId(persona.id)}
+                className={`p-2 rounded-md transition-all ${activePersonaId === persona.id ? `bg-${persona.color}-500/20 text-${persona.color}-400 shadow-sm` : 'text-slate-500 hover:text-slate-300'}`}
+                title={persona.role}
+              >
+                {getPersonaIcon(persona.icon)}
+              </button>
+            ))}
+          </div>
 
-         {/* Active Persona Info */}
-         <div className="flex items-center justify-between">
-             <div className="flex items-center gap-3">
-                 <div className={`w-10 h-10 rounded-full flex items-center justify-center bg-${activePersona.color}-500/10 border border-${activePersona.color}-500/30`}>
-                     <div className={`text-${activePersona.color}-400`}>
-                        {getPersonaIcon(activePersona.icon)}
-                     </div>
-                 </div>
-                 <div>
-                     <div className="flex items-center gap-2">
-                         {isRenaming ? (
-                             <div className="flex items-center gap-1">
-                                 <input 
-                                    type="text" 
-                                    value={tempName} 
-                                    onChange={(e) => setTempName(e.target.value)}
-                                    className="bg-slate-700 text-slate-200 text-sm rounded px-1 py-0.5 w-24 sm:w-32 focus:outline-none focus:ring-1 focus:ring-indigo-500"
-                                    autoFocus
-                                    onKeyDown={(e) => e.key === 'Enter' && saveCustomName()}
-                                 />
-                                 <button onClick={saveCustomName} className="text-emerald-400 hover:text-emerald-300"><CheckIcon className="w-4 h-4"/></button>
-                             </div>
-                         ) : (
-                             <>
-                                <h3 className={`font-bold text-${activePersona.color}-200 truncate max-w-[150px] sm:max-w-none`}>{displayName}</h3>
-                                <button onClick={() => { setTempName(displayName); setIsRenaming(true); }} className="text-slate-500 hover:text-slate-300 opacity-0 group-hover:opacity-100 transition-opacity">
-                                    <PencilIcon className="w-3 h-3" />
-                                </button>
-                             </>
-                         )}
-                     </div>
-                     <p className="text-xs text-slate-400 truncate max-w-[200px] sm:max-w-none">{activePersona.role}</p>
-                 </div>
-             </div>
-             <button 
-                onClick={handleClearChat}
-                className="p-2 text-slate-500 hover:text-rose-400 rounded-md transition-colors"
-                title="Clear Chat History"
-             >
-                 <TrashIcon className="w-4 h-4"/>
-             </button>
-         </div>
+          {/* Compact Thinking Mode Button */}
+          <button
+            onClick={() => setIsThinkingMode(!isThinkingMode)}
+            className={`flex items-center gap-2 px-3 py-1.5 rounded-full text-xs font-bold border transition-all ${isThinkingMode
+              ? 'bg-indigo-600 border-indigo-500 text-white shadow-lg shadow-indigo-500/20'
+              : 'bg-slate-800 border-slate-600 text-slate-400 hover:border-slate-500'
+              }`}
+            title={t('chat.thinkingModeTooltip')}
+          >
+            <BrainCircuitIcon className={`w-4 h-4 ${isThinkingMode ? 'animate-pulse' : ''}`} />
+            <span className="hidden sm:inline">{t('chat.thinkingMode')}</span>
+            <span className="sm:hidden">{isThinkingMode ? 'ON' : 'OFF'}</span>
+          </button>
+        </div>
+
+        {/* Active Persona Info */}
+        <div className="flex items-center justify-between">
+          <div className="flex items-center gap-3">
+            <div className={`w-10 h-10 rounded-full flex items-center justify-center bg-${activePersona.color}-500/10 border border-${activePersona.color}-500/30`}>
+              <div className={`text-${activePersona.color}-400`}>
+                {getPersonaIcon(activePersona.icon)}
+              </div>
+            </div>
+            <div>
+              <div className="flex items-center gap-2">
+                {isRenaming ? (
+                  <div className="flex items-center gap-1">
+                    <input
+                      type="text"
+                      value={tempName}
+                      onChange={(e) => setTempName(e.target.value)}
+                      className="bg-slate-700 text-slate-200 text-sm rounded px-1 py-0.5 w-24 sm:w-32 focus:outline-none focus:ring-1 focus:ring-indigo-500"
+                      autoFocus
+                      onKeyDown={(e) => e.key === 'Enter' && saveCustomName()}
+                    />
+                    <button onClick={saveCustomName} className="text-emerald-400 hover:text-emerald-300"><CheckIcon className="w-4 h-4" /></button>
+                  </div>
+                ) : (
+                  <>
+                    <h3 className={`font-bold text-${activePersona.color}-200 truncate max-w-[150px] sm:max-w-none`}>{displayName}</h3>
+                    <button onClick={() => { setTempName(displayName); setIsRenaming(true); }} className="text-slate-500 hover:text-slate-300 opacity-0 group-hover:opacity-100 transition-opacity">
+                      <PencilIcon className="w-3 h-3" />
+                    </button>
+                  </>
+                )}
+              </div>
+              <p className="text-xs text-slate-400 truncate max-w-[200px] sm:max-w-none">{activePersona.role}</p>
+            </div>
+          </div>
+          <button
+            onClick={handleClearChat}
+            className="p-2 text-slate-500 hover:text-rose-400 rounded-md transition-colors"
+            title="Clear Chat History"
+          >
+            <TrashIcon className="w-4 h-4" />
+          </button>
+        </div>
       </div>
 
       <div ref={chatContainerRef} className="flex-grow p-4 md:p-6 space-y-6 overflow-y-auto custom-scrollbar bg-slate-800">

@@ -3,12 +3,24 @@ import { useLanguage } from '../../contexts/LanguageContext';
 import { SpinnerIcon } from '../icons/SpinnerIcon';
 import { SparklesIcon } from '../icons/SparklesIcon';
 import { TrashIcon } from '../icons/TrashIcon';
+import { LockIcon } from '../icons/LockIcon';
 
-export const GenerateButton: React.FC<{ onClick: () => void; disabled: boolean; isLoading: boolean; label?: string }> = ({ onClick, disabled, isLoading, label }) => {
+export const GenerateButton: React.FC<{ onClick: () => void; disabled: boolean; isLoading: boolean; label?: string; locked?: boolean }> = ({ onClick, disabled, isLoading, label, locked = false }) => {
     const { t } = useLanguage();
     return (
-        <button type="button" onClick={onClick} disabled={disabled || isLoading} className="flex items-center justify-center gap-2 px-3 py-1 text-sm font-semibold text-indigo-300 bg-slate-700/50 rounded-md border border-slate-600 hover:bg-slate-700 disabled:opacity-50 disabled:cursor-not-allowed transition-all">
-            {isLoading ? <><SpinnerIcon className="w-4 h-4" />{t('common.generating')}</> : <><SparklesIcon className="w-4 h-4" />{label || t('common.generateWithAi')}</>}
+        <button
+            type="button"
+            onClick={onClick}
+            disabled={disabled || isLoading}
+            className={`flex items-center justify-center gap-2 px-3 py-1 text-sm font-semibold rounded-md border transition-all disabled:opacity-50 disabled:cursor-not-allowed ${locked
+                ? 'text-slate-400 bg-slate-700/50 border-slate-600 hover:bg-slate-700'
+                : 'text-indigo-300 bg-slate-700/50 border-slate-600 hover:bg-slate-700'
+                }`}
+            title={locked ? "⭐ Premium Feature" : undefined}
+        >
+            {isLoading ? <><SpinnerIcon className="w-4 h-4" />{t('common.generating')}</> : (
+                locked ? <><LockIcon className="w-4 h-4" />{label || t('common.generateWithAi')}</> : <><SparklesIcon className="w-4 h-4" />{label || t('common.generateWithAi')}</>
+            )}
         </button>
     );
 }
@@ -19,7 +31,7 @@ export const SubGenerateButton: React.FC<{ onClick: () => void; isLoading: boole
     </button>
 );
 
-export const FormSection: React.FC<{ title: string; children: React.ReactNode; grid?: boolean; onGenerate?: () => void; generateDisabled?: boolean; isGenerating?: boolean; onClear?: () => void; actions?: React.ReactNode }> = ({ title, children, grid = true, onGenerate, generateDisabled = false, isGenerating = false, onClear, actions }) => {
+export const FormSection: React.FC<{ title: string; children: React.ReactNode; grid?: boolean; onGenerate?: () => void; generateDisabled?: boolean; isGenerating?: boolean; onClear?: () => void; actions?: React.ReactNode; locked?: boolean }> = ({ title, children, grid = true, onGenerate, generateDisabled = false, isGenerating = false, onClear, actions, locked = false }) => {
     const { t } = useLanguage();
     return (
         <div className="bg-slate-800 p-6 rounded-lg border border-slate-700">
@@ -28,7 +40,7 @@ export const FormSection: React.FC<{ title: string; children: React.ReactNode; g
                 <div className="flex items-center gap-2">
                     {actions}
                     {onClear && <button type="button" onClick={onClear} className="p-1.5 text-slate-400 hover:text-rose-400 hover:bg-rose-900/50 rounded-md transition-colors" title={t('setup.clearSection')}><TrashIcon className="w-4 h-4" /></button>}
-                    {onGenerate && <GenerateButton onClick={onGenerate} disabled={generateDisabled} isLoading={!!isGenerating} />}
+                    {onGenerate && <GenerateButton onClick={onGenerate} disabled={generateDisabled} isLoading={!!isGenerating} locked={locked} />}
                 </div>
             </div>
             <div className={grid ? "grid grid-cols-1 md:grid-cols-2 gap-4" : "space-y-4"}>{children}</div>
