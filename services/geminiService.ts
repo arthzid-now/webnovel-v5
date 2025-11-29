@@ -121,12 +121,13 @@ const initializeGenAI = (apiKey: string | null) => {
                     // For now, we might need to handle chat differently or send full history to proxy.
                     // Let's implement a basic wrapper for chat that just calls generateContent with history appended.
                     return {
-                        sendMessage: async (msg: string) => {
+                        sendMessage: async (msg: any) => {
                             console.warn("Chat via Proxy is simplified.");
                             const model = new ProxyGenAI().getGenerativeModel({ model: config.model, systemInstruction: config.config?.systemInstruction });
 
                             const historyText = config.history.map((h: any) => `${h.role}: ${h.parts[0].text}`).join('\n');
-                            const fullPrompt = `${historyText}\nuser: ${msg}`;
+                            const msgText = typeof msg === 'string' ? msg : (msg.parts ? msg.parts[0].text : msg);
+                            const fullPrompt = `${historyText}\nuser: ${msgText}`;
 
                             const result = await model.generateContent({
                                 contents: [{ role: 'user', parts: [{ text: fullPrompt }] }],
@@ -134,12 +135,13 @@ const initializeGenAI = (apiKey: string | null) => {
                             });
                             return result;
                         },
-                        sendMessageStream: async (msg: string) => {
+                        sendMessageStream: async (msg: any) => {
                             console.warn("Chat via Proxy is simplified (no real streaming).");
                             const model = new ProxyGenAI().getGenerativeModel({ model: config.model, systemInstruction: config.config?.systemInstruction });
 
                             const historyText = config.history.map((h: any) => `${h.role}: ${h.parts[0].text}`).join('\n');
-                            const fullPrompt = `${historyText}\nuser: ${msg}`;
+                            const msgText = typeof msg === 'string' ? msg : (msg.parts ? msg.parts[0].text : msg);
+                            const fullPrompt = `${historyText}\nuser: ${msgText}`;
 
                             const result = await model.generateContent({
                                 contents: [{ role: 'user', parts: [{ text: fullPrompt }] }],
