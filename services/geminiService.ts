@@ -429,7 +429,7 @@ export const createChatSession = (
     const model = isThinkingMode ? ModelType.PRO_3 : ModelType.FLASH_2_5;
 
     const config: any = {
-        systemInstruction: dynamicSystemInstruction,
+        systemInstruction: { parts: [{ text: dynamicSystemInstruction }] },
         safetySettings: SAFETY_SETTINGS,
     };
 
