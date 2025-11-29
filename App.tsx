@@ -664,6 +664,16 @@ const App: React.FC = () => {
             </main>
             <input type="file" ref={storyFileInputRef} onChange={(e) => e.target.files && handleImportStory(e.target.files[0])} accept=".md,text/markdown" className="hidden" />
             <input type="file" ref={universeFileInputRef} onChange={(e) => e.target.files && handleImportUniverse(e.target.files[0])} accept=".json,application/json" className="hidden" />
+
+            {/* What's New Modal */}
+            {showWhatsNew && changelogData && (
+                <WhatsNewModal
+                    version={changelogData.version}
+                    date={changelogData.date}
+                    changes={changelogData.changes}
+                    onClose={() => setShowWhatsNew(false)}
+                />
+            )}
         </div>
     );
 };
