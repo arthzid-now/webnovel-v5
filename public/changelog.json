@@ -1,0 +1,24 @@
+{
+    "version": "0.5.0",
+    "date": "2025-11-29",
+    "changes": {
+        "added": [
+            "**Skip Setup**: Manual writers can now bypass Story Encyclopedia setup and jump directly to Writing Studio",
+            "Translation support for \"Untitled Story\" in both English and Indonesian",
+            "Auto-generated changelog system with in-app \"What's New\" modal"
+        ],
+        "fixed": [
+            "**AI Assistant**: Fixed \"ContentUnion is required\" error by properly formatting inputs for Google GenAI SDK",
+            "**Subscription**: User premium status now correctly persists after page refresh",
+            "**Editor Tools**: Fixed quota checking for Free Tier users",
+            "**Chat**: Fixed message formatting issue that was sending `[object Object]`"
+        ],
+        "changed": [
+            "Updated AI models to Gemini 2.5/3.0 Flash for improved performance",
+            "Improved error messages and user feedback across the app"
+        ],
+        "deprecated": [],
+        "removed": [],
+        "security": []
+    }
+}

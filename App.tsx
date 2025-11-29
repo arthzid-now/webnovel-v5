@@ -6,6 +6,7 @@ const UniverseHub = React.lazy(() => import('./components/UniverseHub'));
 const UniverseSetup = React.lazy(() => import('./components/UniverseSetup'));
 import ApiKeyModal from './components/ApiKeyModal';
 import NotificationToast from './components/NotificationToast';
+import WhatsNewModal from './components/WhatsNewModal';
 import { SparklesIcon } from './components/icons/SparklesIcon';
 import { SpinnerIcon } from './components/icons/SpinnerIcon';
 import { StoryEncyclopedia, Universe } from './types';
@@ -51,6 +52,8 @@ const App: React.FC = () => {
     const [view, setView] = useState<View>('dashboard');
     const [toastMessage, setToastMessage] = useState<string | null>(null);
     const [isLoading, setIsLoading] = useState<boolean>(true);
+    const [showWhatsNew, setShowWhatsNew] = useState<boolean>(false);
+    const [changelogData, setChangelogData] = useState<any>(null);
 
     const storyFileInputRef = useRef<HTMLInputElement>(null);
     const universeFileInputRef = useRef<HTMLInputElement>(null);
@@ -90,8 +93,51 @@ const App: React.FC = () => {
                 setUser(null);
             }
         });
-        return () => unsubscribe();
+        refreshStoriesList();
     }, []);
+
+    // Check for app updates and show What's New modal
+    useEffect(() => {
+        const CURRENT_VERSION = "0.5.0"; // TODO: Read from package.json in build
+        const lastSeenVersion = localStorage.getItem('lastSeenVersion');
+
+        // Fetch changelog.json
+        fetch('/changelog.json')
+            .then(res => res.json())
+            .then(data => {
+                setChangelogData(data);
+
+                // Compare versions: show modal if current > last seen
+                if (!lastSeenVersion || compareVersions(CURRENT_VERSION, lastSeenVersion) > 0) {
+                    // Check if there are actual changes to show
+                    const hasChanges = Object.values(data.changes || {}).some(
+                        (arr: any) => arr && arr.length > 0
+                    );
+
+                    if (hasChanges) {
+                        // Delay modal slightly to avoid clashing with loading states
+                        setTimeout(() => setShowWhatsNew(true), 1000);
+                    }
+                }
+            })
+            .catch(err => {
+                console.log('No changelog.json found (first build?)', err);
+            });
+    }, []);
+
+    // Version comparison helper (semantic versioning)
+    const compareVersions = (v1: string, v2: string): number => {
+        const parts1 = v1.split('.').map(Number);
+        const parts2 = v2.split('.').map(Number);
+
+        for (let i = 0; i < Math.max(parts1.length, parts2.length); i++) {
+            const p1 = parts1[i] || 0;
+            const p2 = parts2[i] || 0;
+            if (p1 > p2) return 1;
+            if (p1 < p2) return -1;
+        }
+        return 0;
+    };
 
     // Firestore Listener for premium status
     useEffect(() => {

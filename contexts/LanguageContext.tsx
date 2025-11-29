@@ -44,7 +44,8 @@ const enTranslations: Translations = {
       "title": "The Spark of Creation",
       "ideaLabel": "Write your core idea here (1-3 sentences)",
       "genreLabel": "Choose your genres",
-      "otherGenrePlaceholder": "Other"
+      "otherGenrePlaceholder": "Or specify your own genre...",
+      "untitledStory": "Untitled Story"
     },
     "tabs": {
       "basic": "Basic Info",
@@ -206,6 +207,18 @@ const enTranslations: Translations = {
   "toast": {
     "backupReminder": "Don't forget to back up your work!",
     "backupAction": "Back Up Now"
+  },
+  "whatsNew": {
+    "title": "What's New in Inkvora",
+    "version": "Version {{version}}",
+    "added": "New Features",
+    "fixed": "Bug Fixes",
+    "changed": "Improvements",
+    "deprecated": "Deprecated",
+    "removed": "Removed",
+    "security": "Security Fixes",
+    "dontShowAgain": "Don't show this again",
+    "close": "Got it!"
   }
 };
 
@@ -248,9 +261,10 @@ const idTranslations: Translations = {
     },
     "spark": {
       "title": "Percikan Kreasi",
-      "ideaLabel": "Tuliskan ide dasarmu di sini (1-3 kalimat)",
-      "genreLabel": "Pilih genre-mu",
-      "otherGenrePlaceholder": "Lainnya"
+      "ideaLabel": "Tulis ide inti Anda di sini (1-3 kalimat)",
+      "genreLabel": "Pilih genre Anda",
+      "otherGenrePlaceholder": "Atau tentukan genre Anda sendiri...",
+      "untitledStory": "Cerita Tanpa Judul"
     },
     "tabs": {
       "basic": "Info Dasar",
@@ -404,6 +418,18 @@ const idTranslations: Translations = {
   "toast": {
     "backupReminder": "Jangan lupa mencadangkan pekerjaan Anda!",
     "backupAction": "Cadangkan Sekarang"
+  },
+  "whatsNew": {
+    "title": "Yang Baru di Inkvora",
+    "version": "Versi {{version}}",
+    "added": "Fitur Baru",
+    "fixed": "Perbaikan Bug",
+    "changed": "Peningkatan",
+    "deprecated": "Usang",
+    "removed": "Dihapus",
+    "security": "Perbaikan Keamanan",
+    "dontShowAgain": "Jangan tampilkan lagi",
+    "close": "Mengerti!"
   }
 };
 
