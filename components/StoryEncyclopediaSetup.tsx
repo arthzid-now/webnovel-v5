@@ -36,7 +36,8 @@ interface StoryEncyclopediaSetupProps {
     onSaveAsUniverse: (universe: Universe) => void;
     onToggleUniverseFavorite: (universeId: string) => void;
     onRequestApiKey: () => void;
-    userIsPremium?: boolean; // Add premium flag prop
+    userIsPremium?: boolean;
+    onSkipSetup?: () => void; // Allow skipping setup to go directly to Writing Studio
 }
 
 
@@ -78,7 +79,7 @@ const createInitialFormData = (language: 'en' | 'id'): StoryEncyclopedia => ({
 
 // --- Main Setup Component ---
 const StoryEncyclopediaSetup: React.FC<StoryEncyclopediaSetupProps> = ({
-    apiKey, onStoryCreate, initialData, onCancel, universeLibrary, onSaveAsUniverse, onToggleUniverseFavorite, onRequestApiKey, userIsPremium
+    apiKey, onStoryCreate, initialData, onCancel, universeLibrary, onSaveAsUniverse, onToggleUniverseFavorite, onRequestApiKey, userIsPremium, onSkipSetup
 }) => {
     const { t, uiLang } = useLanguage();
     const [contentLanguage, setContentLanguage] = useState<'en' | 'id'>(initialData?.language || 'en');
@@ -278,8 +279,22 @@ const StoryEncyclopediaSetup: React.FC<StoryEncyclopediaSetupProps> = ({
 
             <div className="max-w-4xl mx-auto py-8">
                 <div className="text-center mb-8">
-                    <h2 className="text-3xl font-bold text-slate-100">{isEditing ? t('setup.titleEdit') : t('setup.titleCreate')}</h2>
-                    <p className="text-slate-400 mt-2">{isEditing ? t('setup.subtitleEdit') : t('setup.subtitleCreate')}</p>
+                    <div className="flex justify-between items-start mb-4">
+                        <div className="flex-1">
+                            <h2 className="text-3xl font-bold text-slate-100">{isEditing ? t('setup.titleEdit') : t('setup.titleCreate')}</h2>
+                            <p className="text-slate-400 mt-2">{isEditing ? t('setup.subtitleEdit') : t('setup.subtitleCreate')}</p>
+                        </div>
+                        {!isEditing && onSkipSetup && (
+                            <button
+                                type="button"
+                                onClick={onSkipSetup}
+                                className="mt-1 px-6 py-2.5 bg-indigo-600 text-white font-bold rounded-lg hover:bg-indigo-500 transition-colors shadow-lg shadow-indigo-600/30 flex items-center gap-2 flex-shrink-0"
+                            >
+                                <PencilIcon className="w-5 h-5" />
+                                {t('setup.skipSetup')}
+                            </button>
+                        )}
+                    </div>
                 </div>
 
                 {error && !isAutoBuilding && <div className="bg-red-900/50 border border-red-800 text-red-200 p-3 rounded-md mb-6 text-center"><strong>{t('common.failed')}:</strong> {error}</div>}

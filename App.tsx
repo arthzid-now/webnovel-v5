@@ -56,7 +56,7 @@ const App: React.FC = () => {
     const universeFileInputRef = useRef<HTMLInputElement>(null);
     const migrationRan = useRef<boolean>(false);
 
-    const { t } = useLanguage();
+    const { t, uiLang } = useLanguage();
     const { loadStory, unloadStory, currentStory } = useStory();
 
     // Firebase Auth Listener
@@ -249,6 +249,75 @@ const App: React.FC = () => {
         setView('setup');
     };
 
+    const handleSkipSetup = async () => {
+        // Create a minimal blank story and go directly to Writing Studio
+        const minimalStory: StoryEncyclopedia = {
+            id: crypto.randomUUID(),
+            language: uiLang,
+            format: 'webnovel',
+            title: t('setup.spark.untitledStory') || 'Untitled Story',
+            genres: [],
+            otherGenre: '',
+            setting: '',
+            totalChapters: '',
+            wordsPerChapter: '',
+            mainPlot: '',
+            characters: [],
+            relationships: [],
+            storyArc: [{
+                title: uiLang === 'id' ? 'Babak 1' : 'Act 1',
+                description: '',
+                plotPoints: [],
+                startChapter: '',
+                endChapter: '',
+                structureTemplate: 'freestyle'
+            }],
+            comedyLevel: '5',
+            romanceLevel: '5',
+            actionLevel: '5',
+            maturityLevel: '1',
+            proseStyle: uiLang === 'id' ? 'Jelas / Langsung' : 'Clear / Direct',
+            narrativePerspective: uiLang === 'id' ? 'Orang Ketiga Terbatas ("Dia")' : 'Third Person Limited ("He/She")',
+            customProseStyleByExample: '',
+            styleProfile: '',
+            chapters: [{
+                id: crypto.randomUUID(),
+                title: uiLang === 'id' ? 'Bab 1' : 'Chapter 1',
+                content: '',
+                type: 'story'
+            }],
+            universeId: null,
+            universeName: uiLang === 'id' ? 'Dunia Kustom' : 'Custom World',
+            locations: [],
+            factions: [],
+            lore: [],
+            magicSystem: '',
+            worldBuilding: '',
+            races: [],
+            creatures: [],
+            powers: [],
+            items: [],
+            technology: [],
+            history: [],
+            cultures: [],
+            disguiseRealWorldNames: false,
+        };
+
+        try {
+            setIsLoading(true);
+            await db.stories.add(minimalStory);
+            await refreshStoriesList();
+            await loadStory(minimalStory.id);
+            setActiveStoryId(minimalStory.id);
+            setView('studio');
+            setIsLoading(false);
+        } catch (error) {
+            console.error("Error creating minimal story:", error);
+            alert("Failed to create story.");
+            setIsLoading(false);
+        }
+    };
+
     const handleEditStory = (storyId: string) => {
         setEditingStoryId(storyId);
         setView('setup');
@@ -421,7 +490,8 @@ const App: React.FC = () => {
                     onSaveAsUniverse={handleSaveUniverse}
                     onToggleUniverseFavorite={handleToggleUniverseFavorite}
                     onRequestApiKey={handleRequestApiKey}
-                    userIsPremium={userIsPremium} // Pass premium flag
+                    userIsPremium={userIsPremium}
+                    onSkipSetup={handleSkipSetup}
                 />;
 
             case 'universeHub':
