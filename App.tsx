@@ -13,6 +13,7 @@ import { StoryEncyclopedia, Universe } from './types';
 import { useLanguage } from './contexts/LanguageContext';
 import { useStory } from './contexts/StoryContext';
 import LanguageToggle from './components/LanguageToggle';
+import { ThemeToggle } from './components/ThemeToggle';
 import { KeyIcon } from './components/icons/KeyIcon';
 import { db } from './db';
 
@@ -609,7 +610,7 @@ const App: React.FC = () => {
     };
 
     return (
-        <div className="min-h-screen bg-slate-900 text-slate-200 font-sans selection:bg-indigo-500/30">
+        <div className="min-h-screen bg-white text-gray-900 font-sans selection:bg-indigo-500/30">
             {showApiKeyModal && (
                 <ApiKeyModal
                     currentKey={apiKey}
@@ -628,19 +629,19 @@ const App: React.FC = () => {
                 />
             )}
 
-            <header className="bg-slate-800/50 backdrop-blur-sm border-b border-slate-700 p-4 sticky top-0 z-20">
+            <header className="bg-white/80 backdrop-blur-sm border-b border-gray-200 p-4 sticky top-0 z-20 shadow-sm">
                 <div className="container mx-auto flex items-center justify-between">
-                    <button onClick={handleGoToDashboard} className="flex items-center gap-3">
-                        <SparklesIcon className="w-8 h-8 text-indigo-400" />
-                        <h1 className="text-xl font-bold text-slate-200">
-                            {t('app.title')}
+                    <button onClick={handleGoToDashboard} className="flex items-center gap-3 group">
+                        <SparklesIcon className="w-8 h-8 text-indigo-600 group-hover:text-indigo-700 transition-colors" />
+                        <h1 className="text-2xl font-black text-gray-900 tracking-wider" style={{ fontFamily: 'Satoshi, sans-serif', letterSpacing: '0.05em' }}>
+                            INKVORA
                         </h1>
                     </button>
                     <div className="flex items-center gap-4">
-                        {apiKey && (
+                        {!user && apiKey && (
                             <button
-                                onClick={handleChangeApiKey}
-                                className="p-2 rounded-full text-slate-400 hover:bg-slate-700 hover:text-indigo-400 transition-colors"
+                                onClick={() => setShowApiKeyModal(true)}
+                                className="p-2 bg-gray-100 hover:bg-gray-200 text-gray-700 rounded-lg transition-colors"
                                 title={t('dashboard.changeApiKey')}
                             >
                                 <KeyIcon className="w-5 h-5" />
