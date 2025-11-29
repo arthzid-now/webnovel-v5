@@ -184,11 +184,11 @@ const ChatWindow: React.FC<ChatWindowProps> = ({ apiKey, storyEncyclopedia, onRe
         chatRef.current = createChatSession(apiKey, isThinkingMode, storyEncyclopedia, messages, activePersona);
       }
 
-      const stream = await chatRef.current.sendMessageStream({ message: userMessageText });
+      const streamResult = await chatRef.current.sendMessageStream(userMessageText);
 
       let fullText = '';
-      for await (const chunk of stream) {
-        const chunkText = chunk.text;
+      for await (const chunk of streamResult.stream) {
+        const chunkText = chunk.text();
 
         // Safety Check in Stream
         const finishReason = chunk.candidates?.[0]?.finishReason;

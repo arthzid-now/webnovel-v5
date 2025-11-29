@@ -80,37 +80,7 @@ const enTranslations: Translations = {
       "addEntry": "Add {{title}} Entry",
       "removeEntry": "Remove {{title}} Entry"
     },
-    "characters": {
-      "mainPlot": "Main Plot",
-      "characters": "Characters",
-      "relationships": "Relationships",
-      "add": "Add Character",
-      "addRelationship": "Add Relationship",
-      "relationshipsNeed2": "Need min. 2 characters",
-      "character1": "Character 1",
-      "character2": "Character 2",
-      "relationshipType": "Relationship Type",
-      "newCharacter": "New Character",
-      "generateThis": "Generate This Character",
-      "delete": "Delete Character",
-      "name": "Name",
-      "roles": "Roles",
-      "rolesPlaceholder": "Add a role (e.g., Rival) and press Enter",
-      "age": "Age",
-      "gender": "Gender",
-      "physical": "Physical Description",
-      "voice": "Voice & Speech Style",
-      "voicePlaceholder": "e.g., A calm baritone voice; speaks slowly.",
-      "personality": "Personality Traits",
-      "habits": "Habits/Quirks",
-      "goal": "Goal/Motivation",
-      "principles": "Principles/Values",
-      "conflict": "Core Conflict",
-      "customDetails": "Custom Details",
-      "customLabelPlaceholder": "Label (e.g., Magic Power)",
-      "removeDetail": "Remove Detail",
-      "addCustomDetail": "Add Custom Detail"
-    },
+    "characters": { "mainPlot": "Main Plot", "characters": "Characters", "relationships": "Relationships", "add": "Add Character", "addRelationship": "Add Relationship", "generateRelationships": "Generate Relationships", "relationshipsNeed2": "Need min. 2 characters", "character1": "Character 1", "character2": "Character 2", "relationshipType": "Relationship Type", "newCharacter": "New Character", "generateThis": "Generate This Character", "concept": "Character Concept / Idea", "conceptPlaceholder": "e.g. A retired assassin who now runs a flower shop. Grumpy but loves cats.", "delete": "Delete Character", "name": "Name", "roles": "Roles", "rolesPlaceholder": "Add a role (e.g., Rival) and press Enter", "age": "Age", "gender": "Gender", "physical": "Physical Description", "voice": "Voice & Speech Style", "voicePlaceholder": "e.g., A calm baritone voice; speaks slowly.", "personality": "Personality Traits", "habits": "Habits/Quirks", "goal": "Goal/Motivation", "principles": "Principles/Values", "conflict": "Core Conflict", "customDetails": "Custom Details", "customLabelPlaceholder": "Label (e.g., Magic Power)", "removeDetail": "Remove Detail", "addCustomDetail": "Add Custom Detail" },
     "arc": {
       "act": "Act",
       "actTitlePlaceholder": "Act Title",
@@ -131,7 +101,8 @@ const enTranslations: Translations = {
       "action": "Action (1-10)", "actionDesc": "Dictates amount of combat.",
       "maturity": "Maturity (1-10)", "maturityDesc": "Controls adult themes.",
       "pov": "Narrative Perspective (POV)", "povDesc": "Controls whose eyes the story is told through.",
-      "prose": "Prose Style", "showExample": "Show Example", "customStyleTitle": "Custom Prose Style by Example", "customStylePlaceholder": "Paste a text sample (up to {{maxChars}} characters, ~1000 words) here...", "customStyleOverride": "Note: Providing a sample will override the dropdown selection above."
+      "prose": "Prose Style", "showExample": "Show Example", "customStyleTitle": "Custom Prose Style by Example", "customStylePlaceholder": "Paste a text sample (up to {{maxChars}} characters, ~1000 words) here...", "customStyleOverride": "Note: Providing a sample will override the dropdown selection above.",
+      "analyzeStyle": "Analyze Style DNA", "styleProfileLabel": "Style Profile (DNA)", "styleProfilePlaceholder": "The AI analysis of your writing style will appear here. You can also edit this manually to guide the ghostwriter."
     },
     "universe": { "modalTitle": "Select a Universe for Your Story", "blankCanvas": "Blank Canvas", "blankCanvasDesc": "Build your world from scratch.", "realWorld": "Real World", "realWorldDesc": "Use the real world as a baseline.", "disguiseNames": "Disguise names", "fromLibrary": "From Library", "fromLibraryDesc": "Choose a world you already saved.", "noDataToSave": "No world data to save.", "enterNamePrompt": "Enter a name for this Universe:", "defaultDescription": "Universe for the story: {{title}}", "saveSuccess": "Universe \"{{name}}\" saved!", "saveToLibrary": "Save to Universe Library" }
   },
@@ -314,7 +285,7 @@ const idTranslations: Translations = {
       "addEntry": "Tambah Entri {{title}}",
       "removeEntry": "Hapus Entri {{title}}"
     },
-    "characters": { "mainPlot": "Plot Utama", "characters": "Karakter", "relationships": "Hubungan", "add": "Tambah Karakter", "addRelationship": "Tambah Hubungan", "generateRelationships": "Buat Hubungan", "relationshipsNeed2": "Perlu min. 2 karakter", "character1": "Karakter 1", "character2": "Karakter 2", "relationshipType": "Jenis Hubungan", "newCharacter": "Karakter Baru", "generateThis": "Buat Karakter Ini", "delete": "Hapus Karakter", "name": "Nama", "roles": "Peran", "rolesPlaceholder": "Tambah peran (e.g., Rival) lalu tekan Enter", "age": "Usia", "gender": "Gender", "physical": "Deskripsi Fisik", "voice": "Suara & Gaya Bicara", "traits": "Sifat", "habits": "Kebiasaan", "goal": "Tujuan", "principles": "Prinsip", "conflict": "Konflik" },
+    "characters": { "mainPlot": "Plot Utama", "characters": "Karakter", "relationships": "Hubungan", "add": "Tambah Karakter", "addRelationship": "Tambah Hubungan", "generateRelationships": "Buat Hubungan", "relationshipsNeed2": "Perlu min. 2 karakter", "character1": "Karakter 1", "character2": "Karakter 2", "relationshipType": "Jenis Hubungan", "newCharacter": "Karakter Baru", "generateThis": "Buat Karakter Ini", "delete": "Hapus Karakter", "concept": "Konsep / Ide Karakter", "conceptPlaceholder": "Contoh: Mantan pembunuh bayaran yang sekarang jualan bunga. Galak tapi suka kucing.", "name": "Nama", "roles": "Peran", "rolesPlaceholder": "Tambah peran (e.g., Rival) lalu tekan Enter", "age": "Usia", "gender": "Gender", "physical": "Deskripsi Fisik", "voice": "Suara & Gaya Bicara", "traits": "Sifat", "habits": "Kebiasaan", "goal": "Tujuan", "principles": "Prinsip", "conflict": "Konflik" },
     "arc": { "act": "Babak", "actTitlePlaceholder": "Judul Babak", "actDescPlaceholder": "Deskripsi babak...", "generateAct": "Buat Babak {{index}}", "plotPoints": "Poin Plot", "addPoint": "Tambah Poin", "addAct": "Tambah Babak", "chapters": "Bab", "start": "Awal", "end": "Akhir", "template": "Templat Struktur", "templateDesc": "Mendefinisikan irama naratif untuk babak ini." },
     "tone": {
       "comedy": "Komedi (1-10)", "comedyDesc": "Mengontrol frekuensi lelucon.",
@@ -322,7 +293,8 @@ const idTranslations: Translations = {
       "action": "Aksi (1-10)", "actionDesc": "Menentukan jumlah pertempuran.",
       "maturity": "Dewasa (1-10)", "maturityDesc": "Mengontrol tema dewasa.",
       "pov": "Sudut Pandang (POV)", "povDesc": "Mengontrol dari mata siapa cerita dikisahkan.",
-      "prose": "Gaya Prosa", "showExample": "Lihat Contoh", "customStyleTitle": "Gaya Prosa Kustom dengan Contoh", "customStylePlaceholder": "Tempel contoh teks (hingga {{maxChars}} karakter, ~1000 kata) di sini...", "customStyleOverride": "Catatan: Memberikan contoh akan mengesampingkan pilihan di atas."
+      "prose": "Gaya Prosa", "showExample": "Lihat Contoh", "customStyleTitle": "Gaya Prosa Kustom dengan Contoh", "customStylePlaceholder": "Tempel contoh teks (hingga {{maxChars}} karakter, ~1000 kata) di sini...", "customStyleOverride": "Catatan: Memberikan contoh akan mengesampingkan pilihan di atas.",
+      "analyzeStyle": "Analisa DNA Gaya", "styleProfileLabel": "Profil Gaya (DNA)", "styleProfilePlaceholder": "Analisa AI tentang gaya tulisan Anda akan muncul di sini. Anda juga bisa mengeditnya secara manual untuk memandu ghostwriter."
     },
     "universe": { "modalTitle": "Pilih Semesta untuk Cerita Anda", "blankCanvas": "Kanvas Kosong", "blankCanvasDesc": "Bangun dunia Anda dari awal.", "realWorld": "Dunia Nyata", "realWorldDesc": "Gunakan dunia nyata sebagai dasar.", "disguiseNames": "Samarkan nama", "fromLibrary": "Dari Pustaka", "fromLibraryDesc": "Pilih dunia yang sudah Anda simpan.", "noDataToSave": "Tidak ada data dunia untuk disimpan.", "enterNamePrompt": "Masukkan nama untuk Semesta ini:", "defaultDescription": "Semesta untuk cerita: {{title}}", "saveSuccess": "Semesta \"{{name}}\" berhasil disimpan!", "saveToLibrary": "Simpan ke Pustaka Semesta" }
   },

@@ -225,7 +225,7 @@ const ChapterEditor: React.FC<ChapterEditorProps> = ({
     };
 
     const handleContinue = async () => {
-        if (!apiKey || !textareaRef.current) return;
+        if (!textareaRef.current) return;
         const end = textareaRef.current.selectionEnd;
         const precedingText = content.substring(0, end);
         const followingText = content.substring(end);
@@ -266,7 +266,7 @@ const ChapterEditor: React.FC<ChapterEditorProps> = ({
     };
 
     const handleAnalyze = async () => {
-        if (!apiKey || !content.trim()) return;
+        if (!content.trim()) return;
         setIsThinking(true);
         try {
             const result = await analyzeChapterContent(apiKey, content, storyEncyclopedia, language);

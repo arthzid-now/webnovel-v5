@@ -137,6 +137,29 @@ const initializeGenAI = (apiKey: string | null) => {
                                 generationConfig: config.config
                             });
                             return result;
+                        },
+                        sendMessageStream: async (msg: string) => {
+                            console.warn("Chat via Proxy is simplified (no real streaming).");
+                            // Re-instantiate model to call generate
+                            const model = new ProxyGenAI().getGenerativeModel({ model: config.model, systemInstruction: config.config?.systemInstruction });
+                            // Append history to prompt (naive approach)
+                            const historyText = config.history.map((h: any) => `${h.role}: ${h.parts[0].text}`).join('\n');
+                            const fullPrompt = `${historyText}\nuser: ${msg}`;
+
+                            const result = await model.generateContent({
+                                contents: [{ role: 'user', parts: [{ text: fullPrompt }] }],
+                                generationConfig: config.config
+                            });
+
+                            // Mock a stream response
+                            return {
+                                stream: (async function* () {
+                                    yield {
+                                        text: () => result.text,
+                                        candidates: result.candidates
+                                    };
+                                })()
+                            };
                         }
                     }
                 }
@@ -406,14 +429,14 @@ export const createChatSession = (
     }
 
     const dynamicSystemInstruction = baseInstruction + formatStoryEncyclopediaForPrompt(storyEncyclopedia);
-    const model = isThinkingMode ? ModelType.PRO : ModelType.FLASH;
+    const model = isThinkingMode ? ModelType.PRO_3 : ModelType.FLASH_2_5;
 
     const config: any = {
         systemInstruction: dynamicSystemInstruction,
         safetySettings: SAFETY_SETTINGS,
     };
 
-    if (model === ModelType.PRO && isThinkingMode) {
+    if (model === ModelType.PRO_3 && isThinkingMode) {
         config.thinkingConfig = { thinkingBudget: 4096 };
     }
 
@@ -467,7 +490,7 @@ export const summarizeChatSession = async (
 
     return generateWithRetry(async () => {
         const response = await ai.models.generateContent({
-            model: ModelType.FLASH,
+            model: ModelType.FLASH_2_5,
             contents: prompt,
             config: {
                 safetySettings: SAFETY_SETTINGS
@@ -937,27 +960,22 @@ export const generateEditorAction = async (
 
     switch (action) {
         case 'rewrite':
-            prompt = `Rewrite the following text to improve flow, vocabulary, and impact. Keep the original meaning. ${styleContext}\n\nTEXT:\n"${selectedText}"`;
+            prompt = `STRICT INSTRUCTION: Rewrite the text below to improve flow, vocabulary, and impact. Keep the original meaning. Output ONLY the rewritten text. Do NOT add any conversational filler like "Here is the rewrite".\n${styleContext}\n\nTEXT:\n"${selectedText}"`;
             break;
         case 'expand':
-            prompt = `Expand the following text into a more detailed scene. Add sensory details, internal monologue, or dialogue where appropriate. ${styleContext}\n\nTEXT:\n"${selectedText}"`;
+            prompt = `STRICT INSTRUCTION: Expand the text below into a more detailed scene. Add sensory details, internal monologue, or dialogue. Output ONLY the expanded text. Do NOT add any conversational filler.\n${styleContext}\n\nTEXT:\n"${selectedText}"`;
             break;
         case 'fixGrammar':
-            prompt = `Fix grammar, spelling, and punctuation in the following text. Do not change the style or meaning.\n\nTEXT:\n"${selectedText}"`;
+            prompt = `STRICT INSTRUCTION: Fix grammar, spelling, and punctuation. Do not change the style or meaning. Output ONLY the fixed text. Do NOT add any conversational filler.\n\nTEXT:\n"${selectedText}"`;
             break;
         case 'beatToProse':
-            prompt = `Convert the following plot beats/outline into full narrative prose. ${styleContext}\n\nBEATS:\n"${selectedText}"`;
+            prompt = `STRICT INSTRUCTION: Convert the plot beats below into full narrative prose. Output ONLY the prose. Do NOT add any conversational filler.\n${styleContext}\n\nBEATS:\n"${selectedText}"`;
             break;
         case 'autoFormat':
-            prompt = `Format the text for a novel. 
-            1. Ensure standard punctuation (quotes for dialogue).
-            2. Put thoughts in italics if they are internal monologue.
-            3. IMPORTANT: Identify any "System Messages" (like LitRPG screens) or "Foreign/Magic Language" and format them distinctively (e.g. with bold or specific brackets).
-            4. Do not change the actual words, just the formatting/markdown.
-            \n\nTEXT:\n"${selectedText}"`;
+            prompt = `STRICT INSTRUCTION: Format the text for a novel (standard punctuation, italics for thoughts). Output ONLY the formatted text. Do NOT add any conversational filler.\n\nTEXT:\n"${selectedText}"`;
             break;
         case 'continue':
-            prompt = `Continue the story from the current point. Write the next few paragraphs (approx 200-300 words). Adhere strictly to the established style and plot direction. ${styleContext}
+            prompt = `STRICT INSTRUCTION: Continue the story from the current point (approx 200-300 words). Adhere strictly to the established style. Output ONLY the story continuation. Do NOT add any conversational filler.\n${styleContext}
             \n\nCONTEXT SO FAR:\n...${context.precedingText.slice(-1000)}
             \n\n(The story continues below...)`;
             break;
@@ -965,7 +983,7 @@ export const generateEditorAction = async (
 
     return generateWithRetry(async () => {
         const response = await ai.models.generateContent({
-            model: ModelType.FLASH,
+            model: ModelType.PRO_3,
             contents: prompt,
             config: {
                 systemInstruction: isId ? SYSTEM_INSTRUCTION_ID + formatStoryEncyclopediaForPrompt(context.storyContext) : SYSTEM_INSTRUCTION_EN + formatStoryEncyclopediaForPrompt(context.storyContext),
@@ -1017,7 +1035,7 @@ export const analyzeChapterContent = async (
 
     return generateWithRetry(async () => {
         const response = await ai.models.generateContent({
-            model: ModelType.FLASH,
+            model: ModelType.PRO_3,
             contents: prompt,
             config: {
                 responseMimeType: "application/json",
