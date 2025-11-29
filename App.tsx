@@ -43,7 +43,8 @@ const App: React.FC = () => {
     const [stories, setStories] = useState<StoryEncyclopedia[]>([]);
     const [universes, setUniverses] = useState<Universe[]>([]);
     const [user, setUser] = useState<User | null>(null);
-    const [userIsPremium, setUserIsPremium] = useState<boolean>(false); // Track Firestore premium flag
+    const [userIsPremium, setUserIsPremium] = useState<boolean>(false);
+    const [userQuota, setUserQuota] = useState<number | null>(null);
 
     const [activeStoryId, setActiveStoryId] = useState<string | null>(null);
 
@@ -139,23 +140,35 @@ const App: React.FC = () => {
         return 0;
     };
 
-    // Firestore Listener for premium status
+    // Firestore Listener for premium status and quota
     useEffect(() => {
         if (!auth?.currentUser) {
             setUserIsPremium(false);
+            setUserQuota(null);
             return;
         }
 
         const userDocRef = doc(firestore, 'users', auth.currentUser.uid);
         const unsubscribe = onSnapshot(userDocRef, (docSnap) => {
             if (docSnap.exists()) {
-                setUserIsPremium(docSnap.data()?.isPremium === true);
+                const data = docSnap.data();
+                const isPremium = data?.isPremium === true || !!data?.apiKey;
+                setUserIsPremium(isPremium);
+
+                // Set quota: Premium = -1 (unlimited), Free = remaining
+                if (isPremium) {
+                    setUserQuota(-1);
+                } else {
+                    setUserQuota(data?.quota?.remaining ?? null);
+                }
             } else {
                 setUserIsPremium(false);
+                setUserQuota(null);
             }
         }, (error) => {
-            console.error("Failed to listen to premium status:", error);
+            console.error("Failed to listen to user data:", error);
             setUserIsPremium(false);
+            setUserQuota(null);
         });
 
         return () => unsubscribe();
@@ -538,7 +551,7 @@ const App: React.FC = () => {
                     onRequestApiKey={handleRequestApiKey}
                     userIsPremium={userIsPremium}
                     onSkipSetup={handleSkipSetup}
-                    userQuotaRemaining={100}
+                    userQuotaRemaining={userQuota !== null ? (userQuota === -1 ? undefined : userQuota) : undefined}
                 />;
 
             case 'universeHub':

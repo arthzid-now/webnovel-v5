@@ -146,3 +146,132 @@ export const generateContentProxy = functions.https.onRequest((req, res) => {
         }
     });
 });
+
+// ========================================
+// QUOTA MANAGEMENT FUNCTIONS
+// ========================================
+
+// Decrement quota for free users (called before AI API call)
+export const decrementQuota = functions.https.onCall(async (data, context) => {
+    if (!context.auth) {
+        throw new functions.https.HttpsError('unauthenticated', 'User must be authenticated');
+    }
+
+    const userId = context.auth.uid;
+    const userRef = db.collection('users').doc(userId);
+
+    try {
+        const userDoc = await userRef.get();
+
+        if (!userDoc.exists) {
+            throw new functions.https.HttpsError('not-found', 'User not found');
+        }
+
+        const userData = userDoc.data();
+
+        // Premium users have unlimited quota
+        if (userData?.isPremium || userData?.apiKey) {
+            return {
+                success: true,
+                remaining: -1,
+                unlimited: true
+            };
+        }
+
+        // Initialize quota if not exists
+        if (userData?.quota?.remaining === undefined) {
+            await userRef.set({
+                quota: {
+                    remaining: 100,
+                    limit: 100,
+                    lastReset: admin.firestore.FieldValue.serverTimestamp()
+                }
+            }, { merge: true });
+
+            return {
+                success: true,
+                remaining: 100,
+                initialized: true
+            };
+        }
+
+        // Check if quota is exhausted
+        const currentQuota = userData.quota.remaining;
+        if (currentQuota <= 0) {
+            throw new functions.https.HttpsError(
+                'resource-exhausted',
+                'You have run out of AI credits. Upgrade to Premium or wait for reset.'
+            );
+        }
+
+        // Decrement quota atomically
+        await userRef.update({
+            'quota.remaining': admin.firestore.FieldValue.increment(-1),
+            'updatedAt': admin.firestore.FieldValue.serverTimestamp()
+        });
+
+        const newQuota = currentQuota - 1;
+        functions.logger.info(`Quota decremented for user ${userId}: ${currentQuota} -> ${newQuota}`);
+
+        return {
+            success: true,
+            remaining: newQuota,
+            warning: newQuota < 20 ? 'Low on credits' : null
+        };
+
+    } catch (error: any) {
+        functions.logger.error('Error decrementing quota:', error);
+        if (error instanceof functions.https.HttpsError) throw error;
+        throw new functions.https.HttpsError('internal', 'Failed to decrement quota');
+    }
+});
+
+// Reset daily quota for all free users (runs at midnight UTC)
+export const resetDailyQuota = functions.pubsub
+    .schedule('0 0 * * *')
+    .timeZone('UTC')
+    .onRun(async () => {
+        try {
+            const freeUsersSnapshot = await db.collection('users')
+                .where('isPremium', '==', false)
+                .get();
+
+            if (freeUsersSnapshot.empty) {
+                functions.logger.info('No free users to reset quota');
+                return null;
+            }
+
+            const batchSize = 500;
+            const batches: admin.firestore.WriteBatch[] = [];
+            let currentBatch = db.batch();
+            let operationCount = 0;
+
+            freeUsersSnapshot.docs.forEach((doc) => {
+                const data = doc.data();
+                if (data.apiKey) return; // Skip users with API key
+
+                currentBatch.update(doc.ref, {
+                    'quota.remaining': 100,
+                    'quota.lastReset': admin.firestore.FieldValue.serverTimestamp()
+                });
+
+                operationCount++;
+                if (operationCount === batchSize) {
+                    batches.push(currentBatch);
+                    currentBatch = db.batch();
+                    operationCount = 0;
+                }
+            });
+
+            if (operationCount > 0) batches.push(currentBatch);
+            await Promise.all(batches.map(batch => batch.commit()));
+
+            functions.logger.info(`Reset quota for ${freeUsersSnapshot.size} free users`);
+            return { success: true, usersReset: freeUsersSnapshot.size };
+
+        } catch (error) {
+            functions.logger.error('Error resetting daily quota:', error);
+            throw error;
+        }
+    });
+
