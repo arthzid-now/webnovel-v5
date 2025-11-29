@@ -38,6 +38,7 @@ interface StoryEncyclopediaSetupProps {
     onRequestApiKey: () => void;
     userIsPremium?: boolean;
     onSkipSetup?: () => void; // Allow skipping setup to go directly to Writing Studio
+    userQuotaRemaining?: number;
 }
 
 
@@ -79,7 +80,7 @@ const createInitialFormData = (language: 'en' | 'id'): StoryEncyclopedia => ({
 
 // --- Main Setup Component ---
 const StoryEncyclopediaSetup: React.FC<StoryEncyclopediaSetupProps> = ({
-    apiKey, onStoryCreate, initialData, onCancel, universeLibrary, onSaveAsUniverse, onToggleUniverseFavorite, onRequestApiKey, userIsPremium, onSkipSetup
+    apiKey, onStoryCreate, initialData, onCancel, universeLibrary, onSaveAsUniverse, onToggleUniverseFavorite, onRequestApiKey, userIsPremium, onSkipSetup, userQuotaRemaining
 }) => {
     const { t, uiLang } = useLanguage();
     const [contentLanguage, setContentLanguage] = useState<'en' | 'id'>(initialData?.language || 'en');
@@ -284,16 +285,42 @@ const StoryEncyclopediaSetup: React.FC<StoryEncyclopediaSetupProps> = ({
                             <h2 className="text-3xl font-bold text-slate-100">{isEditing ? t('setup.titleEdit') : t('setup.titleCreate')}</h2>
                             <p className="text-slate-400 mt-2">{isEditing ? t('setup.subtitleEdit') : t('setup.subtitleCreate')}</p>
                         </div>
-                        {!isEditing && onSkipSetup && (
-                            <button
-                                type="button"
-                                onClick={onSkipSetup}
-                                className="mt-1 px-6 py-2.5 bg-indigo-600 text-white font-bold rounded-lg hover:bg-indigo-500 transition-colors shadow-lg shadow-indigo-600/30 flex items-center gap-2 flex-shrink-0"
-                            >
-                                <PencilIcon className="w-5 h-5" />
-                                {t('setup.skipSetup')}
-                            </button>
-                        )}
+                        <div className="flex items-center gap-3 flex-shrink-0">
+                            {/* Credit Indicator */}
+                            {isPremium ? (
+                                <div className="px-4 py-2 bg-gradient-to-r from-amber-900/30 to-yellow-900/30 border border-amber-600/50 rounded-lg flex items-center gap-2">
+                                    <span className="text-2xl text-amber-400">∞</span>
+                                    <span className="text-sm font-semibold text-amber-300">Unlimited</span>
+                                </div>
+                            ) : userQuotaRemaining !== undefined ? (
+                                <div className={`px-4 py-2 border rounded-lg flex items-center gap-2 ${userQuotaRemaining > 50 ? 'bg-emerald-900/30 border-emerald-600' :
+                                        userQuotaRemaining >= 20 ? 'bg-amber-900/30 border-amber-600' :
+                                            'bg-red-900/30 border-red-600'
+                                    }`}>
+                                    <span className="text-lg">{userQuotaRemaining > 50 ? '✓' : '⚠'}</span>
+                                    <div className="text-left">
+                                        <div className={`text-xs font-semibold ${userQuotaRemaining > 50 ? 'text-emerald-400' :
+                                                userQuotaRemaining >= 20 ? 'text-amber-400' :
+                                                    'text-red-400'
+                                            }`}>
+                                            {userQuotaRemaining < 20 ? 'Low Credits' : 'AI Credits'}
+                                        </div>
+                                        <div className="text-base font-bold text-slate-100">{userQuotaRemaining}</div>
+                                    </div>
+                                </div>
+                            ) : null}
+                            {/* Skip Setup Button */}
+                            {!isEditing && onSkipSetup && (
+                                <button
+                                    type="button"
+                                    onClick={onSkipSetup}
+                                    className="px-6 py-2.5 bg-indigo-600 text-white font-bold rounded-lg hover:bg-indigo-500 transition-colors shadow-lg shadow-indigo-600/30 flex items-center gap-2"
+                                >
+                                    <PencilIcon className="w-5 h-5" />
+                                    {t('setup.skipSetup')}
+                                </button>
+                            )}
+                        </div>
                     </div>
                 </div>
 

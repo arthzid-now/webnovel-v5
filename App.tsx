@@ -538,6 +538,7 @@ const App: React.FC = () => {
                     onRequestApiKey={handleRequestApiKey}
                     userIsPremium={userIsPremium}
                     onSkipSetup={handleSkipSetup}
+                    userQuotaRemaining={100}
                 />;
 
             case 'universeHub':
