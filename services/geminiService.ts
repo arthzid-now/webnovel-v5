@@ -1,7 +1,33 @@
 import { GoogleGenAI, Chat, Type, GenerateContentResponse, Content } from "@google/genai";
 import { ModelType, StoryEncyclopedia, StoryArcAct, Character, Relationship, CustomField, LoreEntry, Universe, AnalysisResult, Message, MessageAuthor, Persona } from '../types.ts';
 import { SYSTEM_INSTRUCTION_EN, SYSTEM_INSTRUCTION_ID, MAX_THINKING_BUDGET, PROSE_STYLES_EN, PROSE_STYLES_ID, STRUCTURE_TEMPLATES, DEFAULT_PERSONAS } from '../constants.ts';
-import { auth } from '../firebase'; // Import Auth for Token
+import { auth } from '../firebase';
+import { getFunctions, httpsCallable } from 'firebase/functions';
+
+// ========================================
+// QUOTA MANAGEMENT
+// ========================================
+
+const functions = getFunctions();
+const decrementQuotaFn = httpsCallable(functions, 'decrementQuota');
+
+/**
+ * Check and decrement user quota before AI generation
+ * Premium users skip quota check
+ */
+export async function checkAndDecrementQuota(userIsPremium: boolean): Promise<void> {
+    if (userIsPremium || !auth.currentUser) return;
+
+    try {
+        const result = await decrementQuotaFn();
+        console.log('Quota:', result.data);
+    } catch (error: any) {
+        if (error.code === 'functions/resource-exhausted') {
+            throw new Error('Out of AI credits. Upgrade to Premium or wait for reset.');
+        }
+        throw new Error('Failed to check quota');
+    }
+}
 
 // --- SAFETY SETTINGS (JAILBREAK / CREATIVE FREEDOM) ---
 const SAFETY_SETTINGS: any[] = [
@@ -891,8 +917,11 @@ export const generateStoryEncyclopediaSection = async (
     currentContext: any,
     language: 'en' | 'id',
     options: any = {},
-    userIsPremium?: boolean // Add premium flag parameter
+    userIsPremium?: boolean
 ): Promise<any> => {
+    // QUOTA CHECK
+    await checkAndDecrementQuota(userIsPremium || false);
+
     const ai = initializeGenAI(apiKey);
 
     // Determine use case based on section
@@ -949,6 +978,10 @@ export const generateEditorAction = async (
     selectedText: string,
     context: { precedingText: string; followingText: string; storyContext: StoryEncyclopedia }
 ): Promise<string> => {
+    // QUOTA CHECK - Extract premium status from context
+    const userIsPremium = checkPremiumStatus(apiKey, undefined);
+    await checkAndDecrementQuota(userIsPremium);
+
     const ai = initializeGenAI(apiKey);
     const isId = context.storyContext.language === 'id';
 
