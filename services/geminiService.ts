@@ -121,16 +121,13 @@ const initializeGenAI = (apiKey: string | null) => {
                     // For now, we might need to handle chat differently or send full history to proxy.
                     // Let's implement a basic wrapper for chat that just calls generateContent with history appended.
                     return {
-                        sendMessage: async (msg: string) => {
-                            // This is a simplified chat implementation for Proxy
-                            // In a real app, we should send the full history to the proxy
-                            // For this MVP, let's just warn or try to append history manually
+                        sendMessage: async (msg: string | any[]) => {
                             console.warn("Chat via Proxy is simplified.");
-                            // Re-instantiate model to call generate
                             const model = new ProxyGenAI().getGenerativeModel({ model: config.model, systemInstruction: config.config?.systemInstruction });
-                            // Append history to prompt (naive approach)
+
                             const historyText = config.history.map((h: any) => `${h.role}: ${h.parts[0].text}`).join('\n');
-                            const fullPrompt = `${historyText}\nuser: ${msg}`;
+                            const msgText = typeof msg === 'string' ? msg : msg[0].text;
+                            const fullPrompt = `${historyText}\nuser: ${msgText}`;
 
                             const result = await model.generateContent({
                                 contents: [{ role: 'user', parts: [{ text: fullPrompt }] }],
@@ -138,13 +135,13 @@ const initializeGenAI = (apiKey: string | null) => {
                             });
                             return result;
                         },
-                        sendMessageStream: async (msg: string) => {
+                        sendMessageStream: async (msg: string | any[]) => {
                             console.warn("Chat via Proxy is simplified (no real streaming).");
-                            // Re-instantiate model to call generate
                             const model = new ProxyGenAI().getGenerativeModel({ model: config.model, systemInstruction: config.config?.systemInstruction });
-                            // Append history to prompt (naive approach)
+
                             const historyText = config.history.map((h: any) => `${h.role}: ${h.parts[0].text}`).join('\n');
-                            const fullPrompt = `${historyText}\nuser: ${msg}`;
+                            const msgText = typeof msg === 'string' ? msg : msg[0].text;
+                            const fullPrompt = `${historyText}\nuser: ${msgText}`;
 
                             const result = await model.generateContent({
                                 contents: [{ role: 'user', parts: [{ text: fullPrompt }] }],

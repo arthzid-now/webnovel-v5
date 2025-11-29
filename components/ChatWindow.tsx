@@ -184,7 +184,7 @@ const ChatWindow: React.FC<ChatWindowProps> = ({ apiKey, storyEncyclopedia, onRe
         chatRef.current = createChatSession(apiKey, isThinkingMode, storyEncyclopedia, messages, activePersona);
       }
 
-      const streamResult = await chatRef.current.sendMessageStream(userMessageText);
+      const streamResult = await chatRef.current.sendMessageStream([{ text: userMessageText }]);
 
       let fullText = '';
       for await (const chunk of streamResult.stream) {
