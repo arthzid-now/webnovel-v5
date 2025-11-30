@@ -353,7 +353,7 @@ const ChapterEditor: React.FC<ChapterEditorProps> = ({
     }, [content, isPreviewMode]);
 
     return (
-        <div className="flex flex-col h-full max-h-full bg-slate-800 rounded-lg shadow-2xl overflow-hidden border border-slate-700">
+        <div className="flex flex-col h-full max-h-full bg-white rounded-lg shadow-2xl overflow-hidden border border-gray-200">
             {analysisResult && (
                 <ChapterAnalysisModal
                     result={analysisResult}
@@ -380,12 +380,12 @@ const ChapterEditor: React.FC<ChapterEditorProps> = ({
                 />
             )}
 
-            {/* Header */}
-            <div className="p-4 border-b border-slate-700 bg-slate-900/50 flex items-center gap-4">
+            {/* Header - Sticky with stronger hierarchy */}
+            <div className="sticky top-0 z-30 px-6 py-4 border-b border-gray-200 bg-white/95 backdrop-blur-sm flex items-center gap-4 shadow-sm">
                 {onToggleLeftSidebar && (
                     <button
                         onClick={onToggleLeftSidebar}
-                        className={`hidden md:flex p-2 rounded-md transition-colors ${isLeftSidebarOpen ? 'text-indigo-400 bg-slate-800' : 'text-slate-400 hover:text-indigo-400'}`}
+                        className={`hidden md:flex p-2 rounded-md transition-colors ${isLeftSidebarOpen ? 'text-indigo-400 bg-white' : 'text-gray-600 hover:text-indigo-400'}`}
                         title={t('studio.zenMode.toggleSidebar')}
                     >
                         <BookOpenIcon className="w-5 h-5" />
@@ -397,23 +397,23 @@ const ChapterEditor: React.FC<ChapterEditorProps> = ({
                     value={title}
                     onChange={(e) => setTitle(e.target.value)}
                     placeholder={language === 'id' ? 'Judul Bab' : 'Chapter Title'}
-                    className="flex-grow bg-transparent text-xl font-bold text-slate-100 placeholder-slate-500 focus:outline-none min-w-0"
+                    className="flex-grow bg-transparent text-2xl font-bold text-gray-900 placeholder-gray-400 focus:outline-none min-w-0"
                 />
 
                 <div className="flex items-center gap-2">
                     {/* History Button */}
-                    <div className="flex items-center bg-slate-700 rounded-md mr-2">
+                    <div className="flex items-center bg-gray-100 rounded-md mr-2">
                         <button
                             onClick={() => setIsHistoryOpen(true)}
-                            className="p-2 text-slate-300 hover:text-white transition-colors"
+                            className="p-2 text-gray-700 hover:text-white transition-colors"
                             title={t('history.tooltip')}
                         >
                             <HistoryIcon className="w-4 h-4" />
                         </button>
-                        <div className="w-px h-4 bg-slate-600"></div>
+                        <div className="w-px h-4 bg-gray-200"></div>
                         <button
                             onClick={handleSaveSnapshot}
-                            className="p-2 text-slate-300 hover:text-white transition-colors"
+                            className="p-2 text-gray-700 hover:text-white transition-colors"
                             title={t('history.saveSnapshot')}
                         >
                             <SaveIcon className="w-4 h-4" />
@@ -421,20 +421,20 @@ const ChapterEditor: React.FC<ChapterEditorProps> = ({
                     </div>
 
                     {/* Undo/Redo Buttons */}
-                    <div className="flex items-center bg-slate-700 rounded-md mr-2">
+                    <div className="flex items-center bg-gray-100 rounded-md mr-2">
                         <button
                             onClick={handleUndo}
                             disabled={historyIndex <= 0}
-                            className="p-2 text-slate-300 hover:text-white disabled:opacity-30 disabled:cursor-not-allowed transition-colors"
+                            className="p-2 text-gray-700 hover:text-white disabled:opacity-30 disabled:cursor-not-allowed transition-colors"
                             title={t('editor.undo')}
                         >
                             <UndoIcon className="w-4 h-4" />
                         </button>
-                        <div className="w-px h-4 bg-slate-600"></div>
+                        <div className="w-px h-4 bg-gray-200"></div>
                         <button
                             onClick={handleRedo}
                             disabled={historyIndex >= history.length - 1}
-                            className="p-2 text-slate-300 hover:text-white disabled:opacity-30 disabled:cursor-not-allowed transition-colors"
+                            className="p-2 text-gray-700 hover:text-white disabled:opacity-30 disabled:cursor-not-allowed transition-colors"
                             title={t('editor.redo')}
                         >
                             <RedoIcon className="w-4 h-4" />
@@ -443,7 +443,7 @@ const ChapterEditor: React.FC<ChapterEditorProps> = ({
 
                     <button
                         onClick={() => setIsPreviewMode(!isPreviewMode)}
-                        className={`p-2 rounded-md transition-colors ${isPreviewMode ? 'bg-indigo-600 text-white' : 'bg-slate-700 text-slate-300 hover:bg-slate-600'}`}
+                        className={`p-2 rounded-md transition-colors ${isPreviewMode ? 'bg-indigo-600 hover:bg-indigo-700 text-white' : 'bg-gray-100 text-gray-700 hover:bg-gray-200'}`}
                         title={isPreviewMode ? "Edit Mode" : "Preview Mode"}
                     >
                         {isPreviewMode ? <PencilIcon className="w-5 h-5" /> : <EyeIcon className="w-5 h-5" />}
@@ -452,7 +452,7 @@ const ChapterEditor: React.FC<ChapterEditorProps> = ({
                     {onToggleRightSidebar && (
                         <button
                             onClick={onToggleRightSidebar}
-                            className={`hidden md:flex p-2 rounded-md transition-colors ${isRightSidebarOpen ? 'text-indigo-400 bg-slate-800' : 'text-slate-400 hover:text-indigo-400'}`}
+                            className={`hidden md:flex p-2 rounded-md transition-colors ${isRightSidebarOpen ? 'text-indigo-400 bg-white' : 'text-gray-600 hover:text-indigo-400'}`}
                             title={t('studio.zenMode.toggleChat')}
                         >
                             <SparklesIcon className="w-5 h-5" />
@@ -472,71 +472,74 @@ const ChapterEditor: React.FC<ChapterEditorProps> = ({
                 />
             )}
 
-            {/* Formatting Toolbar */}
+            {/* Formatting Toolbar - Enhanced with icons & consistent sizing */}
             {!isPreviewMode && (
-                <div className="px-2 py-1.5 bg-slate-700/30 border-b border-slate-700 flex gap-1 overflow-x-auto">
-                    <button onClick={() => insertFormat('**', '**')} className="p-1.5 rounded hover:bg-slate-600 text-slate-300 min-w-[32px]" title="Bold"><BoldIcon /></button>
-                    <button onClick={() => insertFormat('*', '*')} className="p-1.5 rounded hover:bg-slate-600 text-slate-300 min-w-[32px]" title="Italic"><ItalicIcon /></button>
-                    <div className="w-px bg-slate-600 mx-1"></div>
-                    <button onClick={() => insertFormat('## ', '')} className="p-1.5 rounded hover:bg-slate-600 text-slate-300 min-w-[32px]" title="Heading 2"><H2Icon /></button>
-                    <button onClick={() => insertFormat('### ', '')} className="p-1.5 rounded hover:bg-slate-600 text-slate-300 min-w-[32px]" title="Heading 3"><H3Icon /></button>
-                    <div className="w-px bg-slate-600 mx-1"></div>
-                    <button onClick={() => insertFormat('> ', '')} className="p-1.5 rounded hover:bg-slate-600 text-slate-300 text-sm font-mono" title="Quote">&ldquo;&rdquo;</button>
-                    <button onClick={() => insertFormat('---\n', '')} className="p-1.5 rounded hover:bg-slate-600 text-slate-300 text-xs font-mono" title="Divider">---</button>
+                <div className="px-6 py-2.5 bg-amber-50/20 border-b border-amber-200/30 flex gap-2 overflow-x-auto overflow-y-hidden" style={{ scrollbarWidth: 'thin', scrollbarColor: '#d1d5db #f3f4f6' }}>
+                    <button onClick={() => insertFormat('**', '**')} className="p-2.5 rounded-lg hover:bg-white hover:shadow-sm hover:border hover:border-indigo-300 text-gray-700 hover:text-gray-900 min-w-[40px] h-[40px] flex items-center justify-center transition-all" title="Bold"><BoldIcon /></button>
+                    <button onClick={() => insertFormat('*', '*')} className="p-2.5 rounded-lg hover:bg-white hover:shadow-sm hover:border hover:border-indigo-300 text-gray-700 hover:text-gray-900 min-w-[40px] h-[40px] flex items-center justify-center transition-all" title="Italic"><ItalicIcon /></button>
+                    <div className="w-px bg-amber-200/50 mx-1 self-stretch"></div>
+                    <button onClick={() => insertFormat('## ', '')} className="p-2.5 rounded-lg hover:bg-white hover:shadow-sm hover:border hover:border-indigo-300 text-gray-700 hover:text-gray-900 min-w-[40px] h-[40px] flex items-center justify-center transition-all font-bold text-base" title="Heading 2">H2</button>
+                    <button onClick={() => insertFormat('### ', '')} className="p-2.5 rounded-lg hover:bg-white hover:shadow-sm hover:border hover:border-indigo-300 text-gray-700 hover:text-gray-900 min-w-[40px] h-[40px] flex items-center justify-center transition-all font-bold text-sm" title="Heading 3">H3</button>
+                    <div className="w-px bg-amber-200/50 mx-1 self-stretch"></div>
+                    <button onClick={() => insertFormat('> ', '')} className="p-2.5 rounded-lg hover:bg-white hover:shadow-sm hover:border hover:border-indigo-300 text-gray-700 hover:text-gray-900 h-[40px] px-3 flex items-center justify-center transition-all text-base font-mono" title="Quote">&ldquo;&rdquo;</button>
+                    <button onClick={() => insertFormat('---\n', '')} className="p-2.5 rounded-lg hover:bg-white hover:shadow-sm hover:border hover:border-indigo-300 text-gray-700 hover:text-gray-900 h-[40px] px-3 flex items-center justify-center transition-all text-sm font-mono" title="Divider">---</button>
                 </div>
             )}
 
-            {/* Editor Area */}
-            <div className="flex-grow relative overflow-hidden">
-                {isPreviewMode ? (
-                    <div className="w-full h-full overflow-y-auto bg-slate-950 scrollbar-thin scrollbar-thumb-slate-700 scrollbar-track-transparent flex justify-center py-8 md:py-12 pb-20">
-                        <div className="max-w-3xl w-full h-fit bg-slate-900 border border-slate-800 shadow-[0_0_50px_-12px_rgba(0,0,0,0.5)] px-8 py-12 md:px-16 md:py-20 relative">
-                            {/* Page Decoration */}
-                            <div className="absolute top-0 left-0 w-full h-2 bg-gradient-to-r from-indigo-900/20 via-indigo-500/20 to-indigo-900/20"></div>
+            {/* Editor Area with optimized width */}
+            <div className="flex-grow relative overflow-hidden flex justify-center">
+                <div className="w-full max-w-[75ch] px-8 py-6 relative">
+                    {isPreviewMode ? (
+                        <div className="w-full h-full overflow-y-auto bg-slate-950 scrollbar-thin scrollbar-thumb-slate-700 scrollbar-track-transparent flex justify-center py-8 md:py-12 pb-20">
+                            <div className="max-w-3xl w-full h-fit bg-gray-50 border border-slate-800 shadow-[0_0_50px_-12px_rgba(0,0,0,0.5)] px-8 py-12 md:px-16 md:py-20 relative">
+                                {/* Page Decoration */}
+                                <div className="absolute top-0 left-0 w-full h-2 bg-gradient-to-r from-indigo-900/20 via-indigo-500/20 to-indigo-900/20"></div>
 
-                            <h1 className="text-3xl md:text-5xl font-bold text-center text-slate-200 mb-4 font-serif tracking-tight">{title}</h1>
+                                <h1 className="text-3xl md:text-5xl font-bold text-center text-gray-900 mb-4 font-serif tracking-tight">{title}</h1>
 
-                            <div className="flex items-center justify-center gap-4 mb-12 opacity-50">
-                                <div className="h-px w-12 bg-indigo-400"></div>
-                                <div className="w-2 h-2 rotate-45 bg-indigo-500"></div>
-                                <div className="h-px w-12 bg-indigo-400"></div>
-                            </div>
+                                <div className="flex items-center justify-center gap-4 mb-12 opacity-50">
+                                    <div className="h-px w-12 bg-indigo-400"></div>
+                                    <div className="w-2 h-2 rotate-45 bg-indigo-500"></div>
+                                    <div className="h-px w-12 bg-indigo-400"></div>
+                                </div>
 
-                            <div
-                                className="prose prose-invert prose-lg md:prose-xl max-w-none font-serif text-slate-300 
+                                <div
+                                    className="prose prose-invert prose-lg md:prose-xl max-w-none font-serif text-gray-700 
                         leading-loose tracking-wide
                         text-justify hyphens-auto
                         prose-headings:font-serif prose-headings:text-indigo-200 prose-headings:font-bold prose-headings:mt-12 prose-headings:mb-6
                         prose-p:indent-0 prose-p:mb-8 prose-p:mt-0 prose-p:text-justify
-                        prose-blockquote:border-l-4 prose-blockquote:border-indigo-500/50 prose-blockquote:bg-slate-800/50 prose-blockquote:py-2 prose-blockquote:px-6 prose-blockquote:italic prose-blockquote:text-slate-400
+                        prose-blockquote:border-l-4 prose-blockquote:border-indigo-500/50 prose-blockquote:bg-white/50 prose-blockquote:py-2 prose-blockquote:px-6 prose-blockquote:italic prose-blockquote:text-gray-600
                         prose-hr:border-indigo-900/50 prose-hr:my-16 prose-hr:w-1/2 prose-hr:mx-auto
                         prose-strong:text-indigo-200 prose-em:text-indigo-100/80"
-                                dangerouslySetInnerHTML={{ __html: parsedPreview }}
-                            />
+                                    dangerouslySetInnerHTML={{ __html: parsedPreview }}
+                                />
 
-                            <div className="mt-24 flex flex-col items-center justify-center text-slate-600 space-y-2">
-                                <div className="text-xl tracking-[0.5em]">***</div>
+                                <div className="mt-24 flex flex-col items-center justify-center text-gray-400 space-y-2">
+                                    <div className="text-xl tracking-[0.5em]">***</div>
+                                </div>
                             </div>
                         </div>
-                    </div>
-                ) : (
-                    <textarea
-                        ref={textareaRef}
-                        value={content}
-                        onChange={handleContentChange}
-                        onKeyDown={handleKeyDown}
-                        onSelect={handleSelect}
-                        onMouseUp={handleSelect}
-                        onKeyUp={handleSelect}
-                        onTouchEnd={handleSelect}
-                        placeholder={language === 'id' ? 'Mulai tulis bab Anda di sini... (Mendukung Markdown)' : 'Start writing your chapter here... (Markdown supported)'}
-                        className="w-full h-full bg-slate-800 text-slate-200 placeholder-slate-500 p-4 sm:p-6 resize-none focus:outline-none text-base leading-relaxed font-mono"
-                    />
-                )}
+                    ) : (
+                        <textarea
+                            ref={textareaRef}
+                            value={content}
+                            onChange={handleContentChange}
+                            onKeyDown={handleKeyDown}
+                            onSelect={handleSelect}
+                            onMouseUp={handleSelect}
+                            onKeyUp={handleSelect}
+                            onTouchEnd={handleSelect}
+                            placeholder={language === 'id' ? 'Mulai tulis bab Anda di sini... (Mendukung Markdown)' : 'Start writing your chapter here... (Markdown supported)'}
+                            className="w-full min-h-[600px] bg-amber-50/30 text-gray-800 placeholder-gray-400 p-0 resize-none focus:outline-none text-base leading-relaxed font-mono shadow-sm rounded-lg"
+                        />
+                    )
+                    }
+                </div>
             </div>
 
             {/* Footer */}
-            <div className="flex-shrink-0 p-2 px-4 border-t border-slate-700 bg-slate-900/50 text-xs text-slate-400 flex justify-between items-center">
+            <div className="flex-shrink-0 p-2 px-4 border-t border-gray-200 bg-gray-50/50 text-xs text-gray-600 flex justify-between items-center">
                 <span className="font-medium">{t('chapterEditor.wordCount')}: {wordCount}</span>
             </div>
         </div>

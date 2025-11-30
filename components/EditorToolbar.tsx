@@ -32,9 +32,8 @@ const EditorToolbar: React.FC<EditorToolbarProps> = ({ onAction, onContinue, onA
             setMenuPosition(null);
         } else if (buttonRef.current) {
             const rect = buttonRef.current.getBoundingClientRect();
-            // Calculate fixed position
             setMenuPosition({
-                top: rect.bottom + 5, // 5px spacing
+                top: rect.bottom + 5,
                 left: rect.left,
             });
         }
@@ -42,7 +41,6 @@ const EditorToolbar: React.FC<EditorToolbarProps> = ({ onAction, onContinue, onA
 
     useEffect(() => {
         const handleClickOutside = (event: MouseEvent) => {
-            // Close if clicking outside both the menu AND the trigger button
             if (
                 menuRef.current &&
                 !menuRef.current.contains(event.target as Node) &&
@@ -54,11 +52,11 @@ const EditorToolbar: React.FC<EditorToolbarProps> = ({ onAction, onContinue, onA
         };
 
         const handleScroll = () => {
-            if (menuPosition) setMenuPosition(null); // Close on scroll to avoid floating weirdness
+            if (menuPosition) setMenuPosition(null);
         };
 
         document.addEventListener('mousedown', handleClickOutside);
-        window.addEventListener('scroll', handleScroll, true); // Capture scroll on any element
+        window.addEventListener('scroll', handleScroll, true);
 
         return () => {
             document.removeEventListener('mousedown', handleClickOutside);
@@ -72,34 +70,47 @@ const EditorToolbar: React.FC<EditorToolbarProps> = ({ onAction, onContinue, onA
     };
 
     return (
-        <div className="px-4 py-2 bg-slate-700/30 border-b border-slate-700 flex items-center gap-4 overflow-x-auto relative z-10 scrollbar-hide">
-            {/* Magic Tools Dropdown Button */}
+        <div className="sticky top-[73px] z-20 px-6 py-3 bg-white border-b border-amber-200/50 flex items-center gap-3 overflow-x-auto">
+            {/* Primary CTA - Continue Writing */}
+            <button
+                onClick={onContinue}
+                disabled={isThinking}
+                className="flex items-center gap-2 px-5 py-2 rounded-lg text-sm font-semibold bg-indigo-600 hover:bg-indigo-700 text-white disabled:opacity-50 transition-all shadow-sm shadow-indigo-600/20 whitespace-nowrap"
+            >
+                {isThinking ? <SpinnerIcon className="w-4 h-4" /> : <SparklesIcon className="w-4 h-4" />}
+                {t('chapterEditor.continue')}
+            </button>
+
+            {/* Secondary CTA - Magic Tools Dropdown */}
             <button
                 ref={buttonRef}
                 onClick={toggleMenu}
                 disabled={isThinking || !hasSelection}
-                className={`flex items-center gap-2 px-3 py-1.5 rounded-md text-xs font-bold transition-colors whitespace-nowrap flex-shrink-0 ${hasSelection ? 'bg-indigo-500/20 text-indigo-300 hover:bg-indigo-500/30 border border-indigo-500/30' : 'bg-slate-700 text-slate-500 cursor-not-allowed border border-slate-600'}`}
+                className={`flex items-center gap-2 px-4 py-2 rounded-lg text-sm font-medium transition-all whitespace-nowrap ${hasSelection
+                    ? 'bg-white text-gray-700 hover:bg-gray-50 border-2 border-gray-300 hover:border-indigo-400'
+                    : 'bg-gray-50 text-gray-400 cursor-not-allowed border-2 border-gray-100'
+                    }`}
                 title={!hasSelection ? t('chapterEditor.selectTextHint') : t('chapterEditor.magicTools')}
             >
-                <SparklesIcon className="w-3 h-3" />
+                <SparklesIcon className="w-4 h-4" />
                 {t('chapterEditor.magicTools')}
                 <svg className={`w-3 h-3 transition-transform ${menuPosition ? 'rotate-180' : ''}`} fill="none" viewBox="0 0 24 24" stroke="currentColor">
                     <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M19 9l-7 7-7-7" />
                 </svg>
             </button>
 
-            {/* Fixed Position Menu Portal */}
+            {/* Dropdown Menu */}
             {menuPosition && (
                 <div
                     ref={menuRef}
-                    className="fixed bg-slate-800 border border-slate-700 rounded-lg shadow-xl overflow-hidden py-1 z-50 w-48"
+                    className="fixed bg-white border border-gray-200 rounded-xl shadow-2xl overflow-hidden py-1.5 z-50 w-52"
                     style={{ top: menuPosition.top, left: menuPosition.left }}
                 >
                     {tools.map((tool) => (
                         <button
                             key={tool.id}
                             onClick={() => handleActionClick(tool.id)}
-                            className="w-full text-left px-4 py-2 text-sm text-slate-300 hover:bg-slate-700 hover:text-white transition-colors block"
+                            className="w-full text-left px-4 py-2.5 text-sm text-gray-700 hover:bg-indigo-50 hover:text-indigo-700 transition-colors block font-medium"
                         >
                             {tool.label}
                         </button>
@@ -107,33 +118,22 @@ const EditorToolbar: React.FC<EditorToolbarProps> = ({ onAction, onContinue, onA
                 </div>
             )}
 
-            <div className="w-px h-6 bg-slate-600 flex-shrink-0"></div>
-
-            <button
-                onClick={onContinue}
-                disabled={isThinking}
-                className="flex items-center gap-2 px-3 py-1.5 rounded-md text-xs font-bold bg-indigo-600 hover:bg-indigo-500 text-white disabled:opacity-50 transition-colors shadow-sm shadow-indigo-500/20 whitespace-nowrap flex-shrink-0"
-            >
-                {isThinking ? <SpinnerIcon className="w-3 h-3" /> : <SparklesIcon className="w-3 h-3" />}
-                {t('chapterEditor.continue')}
-            </button>
-
-
-
-            <div className="flex-grow"></div>
-
-            <div className="mr-4">
-                <QuotaIndicator />
-            </div>
-
+            {/* Tertiary CTA - Analyze Chapter */}
             <button
                 onClick={onAnalyze}
                 disabled={isThinking}
-                className="flex items-center gap-2 px-3 py-1.5 rounded-md text-xs font-bold bg-emerald-600/20 text-emerald-400 border border-emerald-600/30 hover:bg-emerald-600/30 transition-colors whitespace-nowrap flex-shrink-0"
+                className="flex items-center gap-2 px-4 py-2 rounded-lg text-sm font-medium bg-white text-gray-700 border-2 border-gray-300 hover:border-teal-400 hover:bg-teal-50 hover:text-teal-700 transition-all whitespace-nowrap"
             >
-                {isThinking ? <SpinnerIcon className="w-3 h-3" /> : <BrainCircuitIcon className="w-3 h-3" />}
+                {isThinking ? <SpinnerIcon className="w-4 h-4" /> : <BrainCircuitIcon className="w-4 h-4" />}
                 {t('chapterEditor.analyze')}
             </button>
+
+            <div className="flex-grow"></div>
+
+            {/* Status bar - Lower visual weight */}
+            <div className="flex items-center gap-3 text-xs text-gray-500">
+                <QuotaIndicator />
+            </div>
         </div>
     );
 };

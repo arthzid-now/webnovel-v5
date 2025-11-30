@@ -558,13 +558,17 @@ const App: React.FC = () => {
             case 'universeHub':
                 return <UniverseHub
                     universes={universes}
-                    onGoToDashboard={handleGoToDashboard}
-                    onAddNew={handleCreateNewUniverse}
-                    onEdit={handleEditUniverse}
-                    onDelete={handleDeleteUniverse}
-                    onExport={handleExportUniverse}
-                    onImport={() => handleTriggerImport('universe')}
-                    onToggleFavorite={handleToggleUniverseFavorite}
+                    onBackToDashboard={handleGoToDashboard}
+                    onCreateNew={handleCreateNewUniverse}
+                    onEditUniverse={handleEditUniverse}
+                    onDeleteUniverse={handleDeleteUniverse}
+                    onExportUniverse={handleExportUniverse}
+                    onImportUniverse={() => handleTriggerImport('universe')}
+                    onSelectUniverse={(id) => {
+                        // When user clicks "Use" on a universe, go to setup with that universe pre-selected
+                        setEditingUniverseId(id);
+                        setView('setup');
+                    }}
                 />;
 
             case 'universeSetup':
@@ -629,7 +633,7 @@ const App: React.FC = () => {
                 />
             )}
 
-            <header className="bg-white/80 backdrop-blur-sm border-b border-gray-200 p-4 sticky top-0 z-20 shadow-sm">
+            <header className="bg-white/80 backdrop-blur-sm border-b border-gray-200 p-4 sticky top-0 z-50 shadow-sm">
                 <div className="container mx-auto flex items-center justify-between">
                     <button onClick={handleGoToDashboard} className="flex items-center gap-3 group">
                         <SparklesIcon className="w-8 h-8 text-indigo-600 group-hover:text-indigo-700 transition-colors" />
@@ -668,7 +672,7 @@ const App: React.FC = () => {
                     </div>
                 </div>
             </header>
-            <main className="flex-grow container mx-auto flex overflow-hidden">
+            <main className="flex-grow container mx-auto flex overflow-x-hidden">
                 <React.Suspense fallback={
                     <div className="flex-grow flex items-center justify-center text-slate-400">
                         <SpinnerIcon className="w-8 h-8 animate-spin" />

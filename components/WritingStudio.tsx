@@ -48,7 +48,6 @@ const WritingStudio: React.FC<WritingStudioProps> = ({ apiKey, onGoToDashboard, 
   }, [currentStory, activeChapterId]);
 
   // STABLE CALLBACKS FOR SIDEBAR
-  // These must be memoized or the sidebar's React.memo will fail because props changed
   const handleAddChapterWrapper = useCallback(async () => {
     await addChapter();
   }, [addChapter]);
@@ -75,14 +74,13 @@ const WritingStudio: React.FC<WritingStudioProps> = ({ apiKey, onGoToDashboard, 
   };
 
   const handleUpdateChapter = useCallback((chapterId: string, title: string, content: string) => {
-    // Calls Context method directly
     updateChapter(chapterId, title, content);
   }, [updateChapter]);
 
   if (isLoading || !currentStory) {
     return (
-      <div className="w-full h-full flex items-center justify-center text-slate-400 flex-col gap-4">
-        <SpinnerIcon className="w-10 h-10 animate-spin text-indigo-500" />
+      <div className="w-full h-full flex items-center justify-center text-gray-600 flex-col gap-4 bg-white">
+        <SpinnerIcon className="w-10 h-10 animate-spin text-indigo-600" />
         <p>Loading Studio...</p>
       </div>
     );
@@ -91,13 +89,13 @@ const WritingStudio: React.FC<WritingStudioProps> = ({ apiKey, onGoToDashboard, 
   const activeChapter = currentStory.chapters.find(c => c.id === activeChapterId);
 
   return (
-    <div className="relative flex flex-grow w-full h-[calc(100vh-73px)] overflow-hidden">
+    <div className="relative flex flex-grow w-full h-[calc(100vh-73px)] overflow-hidden bg-gray-50">
       {isExportModalOpen && <ExportModal onClose={() => setIsExportModalOpen(false)} onExport={handleExport} />}
       {isSearchModalOpen && <SearchReplaceModal onClose={() => setIsSearchModalOpen(false)} />}
 
       {/* --- DESKTOP LEFT SIDEBAR --- */}
       <div
-        className={`hidden md:block flex-shrink-0 transition-all duration-300 ease-in-out border-r border-slate-700 bg-slate-800 ${isLeftSidebarOpen ? 'w-80 lg:w-96' : 'w-0 overflow-hidden'}`}
+        className={`hidden md:block flex-shrink-0 transition-all duration-300 ease-in-out border-r border-gray-200 bg-white shadow-sm ${isLeftSidebarOpen ? 'w-80 lg:w-96' : 'w-0 overflow-hidden'}`}
       >
         <StoryEncyclopediaSidebar
           storyEncyclopedia={currentStory}
@@ -117,11 +115,11 @@ const WritingStudio: React.FC<WritingStudioProps> = ({ apiKey, onGoToDashboard, 
       <div
         className={`fixed inset-0 z-40 transform transition-transform duration-300 ease-in-out md:hidden ${isMobileSidebarOpen ? 'translate-x-0' : '-translate-x-full'}`}
       >
-        <div className="absolute inset-0 bg-slate-900/60" onClick={() => setIsMobileSidebarOpen(false)}></div>
-        <div className="relative w-full max-w-sm h-full bg-slate-800 shadow-xl flex flex-col">
-          <div className="flex items-center justify-between p-3 border-b border-slate-700 bg-slate-900/50">
-            <h3 className="text-slate-200 font-bold px-2">{t('sidebar.dashboard')}</h3>
-            <button onClick={() => setIsMobileSidebarOpen(false)} className="p-2 bg-slate-700/50 rounded-full text-slate-200 hover:bg-slate-600">
+        <div className="absolute inset-0 bg-gray-900/40" onClick={() => setIsMobileSidebarOpen(false)}></div>
+        <div className="relative w-full max-w-sm h-full bg-white shadow-2xl flex flex-col">
+          <div className="flex items-center justify-between p-3 border-b border-gray-200 bg-gray-50">
+            <h3 className="text-gray-900 font-bold px-2">{t('sidebar.dashboard')}</h3>
+            <button onClick={() => setIsMobileSidebarOpen(false)} className="p-2 bg-gray-100 rounded-full text-gray-700 hover:bg-gray-200">
               <XIcon className="w-5 h-5" />
             </button>
           </div>
@@ -143,7 +141,7 @@ const WritingStudio: React.FC<WritingStudioProps> = ({ apiKey, onGoToDashboard, 
       </div>
 
       {/* --- CENTER EDITOR AREA --- */}
-      <div className="flex-grow h-full p-1 sm:p-4 overflow-y-auto min-w-0">
+      <div className="flex-grow h-full p-1 sm:p-4 overflow-y-auto min-w-0 bg-white">
         {activeChapter ? (
           <ChapterEditor
             key={activeChapter.id}
@@ -152,14 +150,14 @@ const WritingStudio: React.FC<WritingStudioProps> = ({ apiKey, onGoToDashboard, 
             storyEncyclopedia={currentStory}
             apiKey={apiKey}
             onUpdate={handleUpdateChapter}
-            onEncyclopediaUpdate={updateStoryMetadata} // Use context method
+            onEncyclopediaUpdate={updateStoryMetadata}
             isLeftSidebarOpen={isLeftSidebarOpen}
             isRightSidebarOpen={isRightSidebarOpen}
             onToggleLeftSidebar={() => setIsLeftSidebarOpen(!isLeftSidebarOpen)}
             onToggleRightSidebar={() => setIsRightSidebarOpen(!isRightSidebarOpen)}
           />
         ) : (
-          <div className="flex items-center justify-center h-full text-slate-400">
+          <div className="flex items-center justify-center h-full text-gray-500">
             <p>{t('studio.noChapterSelected')}</p>
           </div>
         )}
@@ -167,7 +165,7 @@ const WritingStudio: React.FC<WritingStudioProps> = ({ apiKey, onGoToDashboard, 
 
       {/* --- DESKTOP RIGHT CHAT --- */}
       <div
-        className={`hidden md:block flex-shrink-0 transition-all duration-300 ease-in-out border-l border-slate-700 bg-slate-800 h-full ${isRightSidebarOpen ? 'w-[400px] xl:w-[500px]' : 'w-0 overflow-hidden'}`}
+        className={`hidden md:block flex-shrink-0 transition-all duration-300 ease-in-out border-l border-gray-200 bg-white shadow-sm h-full ${isRightSidebarOpen ? 'w-[400px] xl:w-[500px]' : 'w-0 overflow-hidden'}`}
       >
         <div className="h-full w-full p-4">
           <ChatWindow apiKey={apiKey} storyEncyclopedia={currentStory} key={currentStory.id} onRequestApiKey={onRequestApiKey} />
@@ -178,13 +176,13 @@ const WritingStudio: React.FC<WritingStudioProps> = ({ apiKey, onGoToDashboard, 
       <div
         className={`fixed inset-0 z-40 transform transition-transform duration-300 ease-in-out md:hidden ${isMobileChatOpen ? 'translate-x-0' : 'translate-x-full'}`}
       >
-        <div className="w-full h-full bg-slate-800 flex flex-col">
-          <div className="flex items-center justify-between p-3 border-b border-slate-700 bg-slate-900">
-            <div className="flex items-center gap-2 text-indigo-400 font-bold px-2">
+        <div className="w-full h-full bg-white flex flex-col">
+          <div className="flex items-center justify-between p-3 border-b border-gray-200 bg-gray-50">
+            <div className="flex items-center gap-2 text-indigo-600 font-bold px-2">
               <SparklesIcon className="w-5 h-5" />
               <span>AI Assistant</span>
             </div>
-            <button onClick={() => setIsMobileChatOpen(false)} className="p-2 bg-slate-700/50 rounded-full text-slate-200 hover:bg-slate-600">
+            <button onClick={() => setIsMobileChatOpen(false)} className="p-2 bg-gray-100 rounded-full text-gray-700 hover:bg-gray-200">
               <XIcon className="w-5 h-5" />
             </button>
           </div>
@@ -196,10 +194,10 @@ const WritingStudio: React.FC<WritingStudioProps> = ({ apiKey, onGoToDashboard, 
 
       {/* --- MOBILE TOGGLE BUTTONS --- */}
       <div className="md:hidden fixed bottom-4 right-4 flex flex-col gap-3 z-30">
-        <button onClick={() => setIsMobileSidebarOpen(true)} className="bg-indigo-600 text-white p-4 rounded-full shadow-lg flex items-center justify-center hover:bg-indigo-500 transition-colors">
+        <button onClick={() => setIsMobileSidebarOpen(true)} className="bg-indigo-600 text-white p-4 rounded-full shadow-lg flex items-center justify-center hover:bg-indigo-700 transition-colors">
           <BookOpenIcon className="w-6 h-6" />
         </button>
-        <button onClick={() => setIsMobileChatOpen(true)} className="bg-indigo-600 text-white p-4 rounded-full shadow-lg flex items-center justify-center hover:bg-indigo-500 transition-colors">
+        <button onClick={() => setIsMobileChatOpen(true)} className="bg-indigo-600 text-white p-4 rounded-full shadow-lg flex items-center justify-center hover:bg-indigo-700 transition-colors">
           <SparklesIcon className="w-6 h-6" />
         </button>
       </div>

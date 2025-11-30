@@ -270,18 +270,18 @@ const ChatWindow: React.FC<ChatWindowProps> = ({ apiKey, storyEncyclopedia, onRe
   };
 
   return (
-    <div className={`flex flex-col flex-grow h-full max-h-full bg-slate-800 rounded-lg shadow-2xl overflow-hidden border border-${activePersona.color}-500/30 transition-colors duration-500`}>
+    <div className={`flex flex-col flex-grow h-full max-h-full bg-white rounded-lg shadow-2xl overflow-hidden border border-${activePersona.color}-500/30 transition-colors duration-500`}>
       {/* Header Area */}
-      <div className={`p-3 bg-slate-900/50 border-b border-${activePersona.color}-500/30 flex flex-col gap-3`}>
+      <div className={`p-3 bg-white/50 border-b border-${activePersona.color}-500/30 flex flex-col gap-3`}>
 
         {/* Top Row: Persona Selector + Thinking Mode (Flex Wrap for Mobile) */}
         <div className="flex flex-wrap items-center justify-between gap-2">
-          <div className="flex items-center gap-2 bg-slate-800 p-1 rounded-lg border border-slate-700">
+          <div className="flex items-center gap-2 bg-white p-1 rounded-lg border border-gray-200">
             {DEFAULT_PERSONAS.map(persona => (
               <button
                 key={persona.id}
                 onClick={() => setActivePersonaId(persona.id)}
-                className={`p-2 rounded-md transition-all ${activePersonaId === persona.id ? `bg-${persona.color}-500/20 text-${persona.color}-400 shadow-sm` : 'text-slate-500 hover:text-slate-300'}`}
+                className={`p-2 rounded-lg transition-all ${activePersonaId === persona.id ? `bg-${persona.color}-500/20 text-${persona.color}-400 shadow-sm` : 'text-gray-500 hover:text-gray-700'}`}
                 title={persona.role}
               >
                 {getPersonaIcon(persona.icon)}
@@ -294,7 +294,7 @@ const ChatWindow: React.FC<ChatWindowProps> = ({ apiKey, storyEncyclopedia, onRe
             onClick={() => setIsThinkingMode(!isThinkingMode)}
             className={`flex items-center gap-2 px-3 py-1.5 rounded-full text-xs font-bold border transition-all ${isThinkingMode
               ? 'bg-indigo-600 border-indigo-500 text-white shadow-lg shadow-indigo-500/20'
-              : 'bg-slate-800 border-slate-600 text-slate-400 hover:border-slate-500'
+              : 'bg-white border-amber-200/50 text-gray-600 hover:border-gray-300'
               }`}
             title={t('chat.thinkingModeTooltip')}
           >
@@ -320,7 +320,7 @@ const ChatWindow: React.FC<ChatWindowProps> = ({ apiKey, storyEncyclopedia, onRe
                       type="text"
                       value={tempName}
                       onChange={(e) => setTempName(e.target.value)}
-                      className="bg-slate-700 text-slate-200 text-sm rounded px-1 py-0.5 w-24 sm:w-32 focus:outline-none focus:ring-1 focus:ring-indigo-500"
+                      className="bg-gray-100 text-gray-900 text-sm rounded px-1 py-0.5 w-24 sm:w-32 focus:outline-none focus:ring-1 focus:ring-indigo-500"
                       autoFocus
                       onKeyDown={(e) => e.key === 'Enter' && saveCustomName()}
                     />
@@ -329,18 +329,18 @@ const ChatWindow: React.FC<ChatWindowProps> = ({ apiKey, storyEncyclopedia, onRe
                 ) : (
                   <>
                     <h3 className={`font-bold text-${activePersona.color}-200 truncate max-w-[150px] sm:max-w-none`}>{displayName}</h3>
-                    <button onClick={() => { setTempName(displayName); setIsRenaming(true); }} className="text-slate-500 hover:text-slate-300 opacity-0 group-hover:opacity-100 transition-opacity">
+                    <button onClick={() => { setTempName(displayName); setIsRenaming(true); }} className="text-gray-500 hover:text-gray-700 opacity-0 group-hover:opacity-100 transition-opacity">
                       <PencilIcon className="w-3 h-3" />
                     </button>
                   </>
                 )}
               </div>
-              <p className="text-xs text-slate-400 truncate max-w-[200px] sm:max-w-none">{activePersona.role}</p>
+              <p className="text-xs text-gray-600 truncate max-w-[200px] sm:max-w-none">{activePersona.role}</p>
             </div>
           </div>
           <button
             onClick={handleClearChat}
-            className="p-2 text-slate-500 hover:text-rose-400 rounded-md transition-colors"
+            className="p-2 text-gray-500 hover:text-rose-400 rounded-lg transition-colors"
             title="Clear Chat History"
           >
             <TrashIcon className="w-4 h-4" />
@@ -348,12 +348,12 @@ const ChatWindow: React.FC<ChatWindowProps> = ({ apiKey, storyEncyclopedia, onRe
         </div>
       </div>
 
-      <div ref={chatContainerRef} className="flex-grow p-4 md:p-6 space-y-6 overflow-y-auto custom-scrollbar bg-slate-800">
+      <div ref={chatContainerRef} className="flex-grow p-4 md:p-6 space-y-6 overflow-y-auto custom-scrollbar bg-white">
         {messages.map((msg) => (
           <MessageComponent key={msg.id} message={msg} isLoading={isLoading && msg.id.startsWith('ai-placeholder')} />
         ))}
       </div>
-      <div className="p-4 bg-slate-800 border-t border-slate-700">
+      <div className="p-4 bg-white border-t border-gray-200">
         <div className="relative">
           <textarea
             value={userInput}
@@ -365,7 +365,7 @@ const ChatWindow: React.FC<ChatWindowProps> = ({ apiKey, storyEncyclopedia, onRe
               }
             }}
             placeholder={`${t('chat.placeholder')} (${displayName})...`}
-            className={`w-full bg-slate-700 text-slate-200 placeholder-slate-400 rounded-lg p-3 pr-12 resize-none border border-slate-600 focus:ring-2 focus:ring-${activePersona.color}-500 focus:outline-none transition duration-200`}
+            className={`w-full bg-gray-100 text-gray-900 placeholder-gray-400 rounded-lg p-3 pr-12 resize-none border border-amber-200/50 focus:ring-2 focus:ring-${activePersona.color}-500 focus:outline-none transition duration-200`}
             rows={1}
             disabled={isLoading}
           />
