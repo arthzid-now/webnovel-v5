@@ -35,6 +35,32 @@ export default defineConfig(({ mode }) => {
         }
       })
     ],
+    build: {
+      rollupOptions: {
+        output: {
+          manualChunks: {
+            // Split React into separate chunk for better caching
+            'vendor-react': ['react', 'react-dom'],
+
+            // Split Firebase into separate chunk
+            'vendor-firebase': [
+              'firebase/app',
+              'firebase/auth',
+              'firebase/firestore',
+              'firebase/functions'
+            ],
+
+            // Split other utilities
+            'vendor-utils': [
+              'dexie',
+              'jszip',
+              'marked',
+              'jwt-decode'
+            ]
+          }
+        }
+      }
+    },
     define: {
       'process.env.API_KEY': JSON.stringify(env.GEMINI_API_KEY),
       'process.env.GEMINI_API_KEY': JSON.stringify(env.GEMINI_API_KEY)

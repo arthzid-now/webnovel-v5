@@ -4,9 +4,9 @@ const Dashboard = React.lazy(() => import('./components/Dashboard'));
 const WritingStudio = React.lazy(() => import('./components/WritingStudio'));
 const UniverseHub = React.lazy(() => import('./components/UniverseHub'));
 const UniverseSetup = React.lazy(() => import('./components/UniverseSetup'));
-import ApiKeyModal from './components/ApiKeyModal';
-import NotificationToast from './components/NotificationToast';
-import WhatsNewModal from './components/WhatsNewModal';
+const ApiKeyModal = React.lazy(() => import('./components/ApiKeyModal'));
+const NotificationToast = React.lazy(() => import('./components/NotificationToast'));
+const WhatsNewModal = React.lazy(() => import('./components/WhatsNewModal'));
 import { SparklesIcon } from './components/icons/SparklesIcon';
 import { SpinnerIcon } from './components/icons/SpinnerIcon';
 import { StoryEncyclopedia, Universe } from './types';
@@ -20,8 +20,8 @@ import { db } from './db';
 import { migrateStoryData, migrateUniverseData } from './services/migrationService';
 import { handleExportStory, downloadFile } from './services/exportService';
 import { syncService } from './services/syncService';
-import { LoginButton } from './components/auth/LoginButton';
-import { UserProfile } from './components/auth/UserProfile';
+const LoginButton = React.lazy(() => import('./components/auth/LoginButton').then(m => ({ default: m.LoginButton })));
+const UserProfile = React.lazy(() => import('./components/auth/UserProfile').then(m => ({ default: m.UserProfile })));
 
 import { auth, googleProvider, db as firestore } from './firebase';
 import { signInWithPopup, signOut, onAuthStateChanged } from 'firebase/auth';
@@ -616,21 +616,29 @@ const App: React.FC = () => {
     return (
         <div className="min-h-screen bg-white text-gray-900 font-sans selection:bg-indigo-500/30">
             {showApiKeyModal && (
-                <ApiKeyModal
-                    currentKey={apiKey}
-                    onSave={handleSaveApiKey}
-                    onRemove={handleRemoveApiKey}
-                    onClose={() => setShowApiKeyModal(false)}
-                />
+                <React.Suspense fallback={null}>
+                    <ApiKeyModal
+                        currentKey={apiKey}
+                        onSave={handleSaveApiKey}
+                        onRemove={handleRemoveApiKey}
+                        onClose={() => setShowApiKeyModal(false)}
+                    />
+                </React.Suspense>
             )}
-            {toastMessage && !activeStoryId && view !== 'studio' && <NotificationToast message={toastMessage} onClose={() => setToastMessage(null)} />}
+            {toastMessage && !activeStoryId && view !== 'studio' && (
+                <React.Suspense fallback={null}>
+                    <NotificationToast message={toastMessage} onClose={() => setToastMessage(null)} />
+                </React.Suspense>
+            )}
             {toastMessage && activeStoryId && view === 'studio' && (
-                <NotificationToast
-                    message={toastMessage}
-                    actionLabel={t('toast.backupAction')}
-                    onAction={() => onExportStory(activeStoryId, 'json')}
-                    onClose={() => setToastMessage(null)}
-                />
+                <React.Suspense fallback={null}>
+                    <NotificationToast
+                        message={toastMessage}
+                        actionLabel={t('toast.backupAction')}
+                        onAction={() => onExportStory(activeStoryId, 'json')}
+                        onClose={() => setToastMessage(null)}
+                    />
+                </React.Suspense>
             )}
 
             <header className="bg-white/80 backdrop-blur-sm border-b border-gray-200 p-4 sticky top-0 z-50 shadow-sm">
@@ -652,23 +660,25 @@ const App: React.FC = () => {
                             </button>
                         )}
                         <LanguageToggle />
-                        {user ? (
-                            <UserProfile
-                                user={user}
-                                onLogout={handleLogout}
-                                onSync={async () => {
-                                    if (user && auth?.currentUser?.uid) {
-                                        await syncService.syncUserData(auth.currentUser.uid);
-                                        await refreshStoriesList();
-                                        setToastMessage("Synced with Cloud");
-                                        setTimeout(() => setToastMessage(null), 3000);
-                                    }
-                                }}
-                                isPremium={userIsPremium} // Pass premium status
-                            />
-                        ) : (
-                            <LoginButton onClick={handleLogin} />
-                        )}
+                        <React.Suspense fallback={<div className="w-10 h-10" />}>
+                            {user ? (
+                                <UserProfile
+                                    user={user}
+                                    onLogout={handleLogout}
+                                    onSync={async () => {
+                                        if (user && auth?.currentUser?.uid) {
+                                            await syncService.syncUserData(auth.currentUser.uid);
+                                            await refreshStoriesList();
+                                            setToastMessage("Synced with Cloud");
+                                            setTimeout(() => setToastMessage(null), 3000);
+                                        }
+                                    }}
+                                    isPremium={userIsPremium}
+                                />
+                            ) : (
+                                <LoginButton onClick={handleLogin} />
+                            )}
+                        </React.Suspense>
                     </div>
                 </div>
             </header>
@@ -686,12 +696,14 @@ const App: React.FC = () => {
 
             {/* What's New Modal */}
             {showWhatsNew && changelogData && (
-                <WhatsNewModal
-                    version={changelogData.version}
-                    date={changelogData.date}
-                    changes={changelogData.changes}
-                    onClose={() => setShowWhatsNew(false)}
-                />
+                <React.Suspense fallback={null}>
+                    <WhatsNewModal
+                        version={changelogData.version}
+                        date={changelogData.date}
+                        changes={changelogData.changes}
+                        onClose={() => setShowWhatsNew(false)}
+                    />
+                </React.Suspense>
             )}
         </div>
     );
